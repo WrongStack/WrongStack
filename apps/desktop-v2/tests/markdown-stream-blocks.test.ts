@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { splitStreamBlocks } from '../src/MarkdownContent';
+import { scanStreamBlocks } from '../src/MarkdownContent';
+
+function splitStreamBlocks(text: string) {
+  const { blocks, tail } = scanStreamBlocks(text);
+  return [blocks, tail] as const;
+}
 
 describe('streaming answer blocks', () => {
   it('keeps completed paragraphs as blocks and the paragraph being written as the tail', () => {
@@ -27,5 +32,33 @@ describe('streaming answer blocks', () => {
   it('returns the whole text as the tail when no paragraph has completed', () => {
     expect(splitStreamBlocks('Just started')).toEqual([[], 'Just started']);
     expect(splitStreamBlocks('')).toEqual([[], '']);
+  });
+
+  it('reuses the completed paragraphs while tokens extend an unfinished line', () => {
+    const before = scanStreamBlocks('First paragraph.\n\nStill');
+    const after = scanStreamBlocks(`${before.text} being written`, before);
+    expect(after.blocks).toBe(before.blocks);
+    expect(after.tail).toBe('Still being written');
+    expect(scanStreamBlocks(after.text, after)).toBe(after);
+  });
+
+  it('matches a single scan at every append boundary, including inside a code fence', () => {
+    const full = 'Intro\r\n\r\n~~~ts\r\nfirst()\r\n\r\nlast()\r\n~~~\r\n\r\nParagraph\n\nTail';
+    let current = scanStreamBlocks('');
+    for (let end = 1; end <= full.length; end++) {
+      const text = full.slice(0, end);
+      current = scanStreamBlocks(text, current);
+      expect(current).toEqual(scanStreamBlocks(text));
+    }
+    expect(current.blocks.join('') + current.tail).toBe(full);
+  });
+
+  it('rescans replacement or truncated content without retaining stale cached paragraphs', () => {
+    const before = scanStreamBlocks('Intro\n\n~~~ts\nunfinished()');
+    const rewritten = 'Edited intro\n\nFinished paragraph\n\nTail';
+    const after = scanStreamBlocks(rewritten, before);
+    expect(after.blocks).toEqual(['Edited intro\n\n', 'Finished paragraph\n\n']);
+    expect(scanStreamBlocks('Edited intro', after).tail).toBe('Edited intro');
+    expect(scanStreamBlocks('', after).blocks).toEqual([]);
   });
 });

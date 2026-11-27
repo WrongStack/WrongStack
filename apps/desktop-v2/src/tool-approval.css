@@ -1,3 +1,10 @@
+.session-approval-queue {
+  flex: 0 0 auto;
+  max-height: min(36vh, 20rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
 .tool-approval .approval-notice,
 .tool-approval .approval-deadline,
 .tool-approval .approval-waiting {

@@ -73,6 +73,9 @@ export class EngineOperations {
     private timeoutMs = 15000,
     private replayCapMs = 120000,
   ) {}
+  get awaitingReply(): boolean {
+    return this.pending.size > 0;
+  }
   private arm(requestId: string, ms: number): ReturnType<typeof setTimeout> {
     return setTimeout(() => {
       const pending = this.pending.get(requestId);

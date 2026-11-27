@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { rm } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
@@ -8,6 +8,7 @@ import { createServer, transformWithOxc } from 'vite';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Other desktop browser fixtures may run concurrently; do not invalidate their Vite cache.
 const cacheDir = resolve(root, '../../.temp_files', `project-menu-vite-${process.pid}`);
+const screenshots = process.env.WRONGSTACK_PROJECT_MENU_SCREENSHOTS;
 // Real sidebar, controller, modal and IPC adapter; only the native process/folder picker is a fixture.
 const source = `
 import {createRoot} from 'react-dom/client';
@@ -15,15 +16,17 @@ import {Sidebar} from '/src/Sidebar.tsx';
 import {useDesktop} from '/src/useDesktop.ts';
 import {useWorkbenchExplorer} from '/src/useWorkbenchExplorer.ts';
 import '/src/styles.css'; import '/src/brand-tokens.css'; import '/src/appearance.css';
-import '/src/workbench.css'; import '/src/controls.css'; import '/src/shell.css';
+import '/src/workbench.css'; import '/src/controls.css'; import '/src/shell.css'; import '/src/ide-workbench.css';
 let projects=['Alpha','Beta','Unicode 検証 '+ 'long-name-'.repeat(15)].map((name,i)=>({id:'p'+i,name,root:'D:/fixture/'+name,createdAt:i}));
 const original=structuredClone(projects);
+const sessions=[['shell','Build shell','terminal','running'],['review','Review pending changes','agent','stopped']].map(([id,title,kind,status],i)=>({id,title,kind,status,projectId:'p0',workdir:'D:/fixture/Alpha',createdAt:i,updatedAt:i,exitCode:null,error:null}));
+window.fixtureSessions=sessions;
 window.proofCalls=[]; window.proofErrors=[]; window.cancelPicker=false; window.failSave=false;
 window.proofInvoke=async(command,args)=>{
  if(command==='choose_project')return window.cancelPicker?null:'D:/fixture/Alpha';
  if(command!=='host_request')throw Error('Unexpected command '+command);
  const {method,params}=args; window.proofCalls.push({method,params});
- if(method==='snapshot')return {projects:structuredClone(projects),sessions:[],hostPid:1,layout:null};
+ if(method==='snapshot')return {projects:structuredClone(projects),sessions:structuredClone(sessions.filter(s=>projects.some(p=>p.id===s.projectId))),hostPid:1,layout:null};
  if(method==='settings.save')return null;
  if(window.failSave){window.failSave=false;throw Error('Fixture write failed');}
  if(method==='project-menu.remove'){projects=projects.filter(p=>p.id!==params.id);return null;}
@@ -78,6 +81,7 @@ const server = await createServer({
 let browser;
 try {
   await server.listen();
+  if (screenshots) await mkdir(screenshots, { recursive: true });
   browser = await chromium.launch({ headless: true });
   for (const mode of ['dark', 'light']) {
     for (const [width, height] of [
@@ -111,6 +115,26 @@ try {
           .locator('span:last-child')
           .evaluate((label) => label.scrollWidth <= label.clientWidth);
       assert.equal(await labelFits('Alpha'), true, `Short project name is clipped at ${width}px`);
+      await page.evaluate(() => window.proofVm.jumpToSession(window.fixtureSessions[0]));
+      await reveal();
+      const current = page.locator('.tree-session.chosen');
+      await current.waitFor();
+      assert.equal(await current.getAttribute('aria-current'), 'page');
+      assert.ok(await current.locator('.tree-session-icon svg.lucide-square-terminal').isVisible());
+      const actions = current
+        .locator('..')
+        .getByRole('button', { name: 'Stop Build shell', exact: true });
+      assert.ok(await actions.isVisible());
+      assert.ok((await actions.boundingBox()).width >= 24);
+      assert.ok(await page.locator('.project-branch-sessions .lucide-message-square').isVisible());
+      if (
+        screenshots &&
+        ((mode === 'dark' && width === 1440) || (mode === 'light' && width === 390))
+      ) {
+        await page
+          .locator('.explorer')
+          .screenshot({ path: join(screenshots, `explorer-${mode}-${width}.png`) });
+      }
       await page.getByRole('button', { name: 'Reorder Beta', exact: true }).focus();
       await page.keyboard.press('Alt+ArrowUp');
       await page.waitForFunction(
@@ -181,6 +205,7 @@ try {
       assert.equal(await page.getByRole('dialog').isVisible(), true);
       await page.getByRole('button', { name: 'Remove', exact: true }).click();
       await page.waitForFunction(() => document.querySelectorAll('.project-item').length === 2);
+      await reveal();
       await page.getByRole('button', { name: 'Add project', exact: true }).first().click();
       await page.waitForFunction(() => document.querySelectorAll('.project-item').length === 3);
       assert.equal((await names()).at(-1), 'Alpha');
@@ -213,6 +238,7 @@ try {
       assert.equal(layout.overflow, false, `${mode} ${width} horizontal overflow`);
       assert.equal(layout.targets, true);
       for (const remaining of [2, 1, 0]) {
+        await reveal();
         await page.locator('.project-remove').first().click();
         await page.getByRole('button', { name: 'Remove', exact: true }).click();
         await page.waitForFunction(
@@ -220,6 +246,7 @@ try {
           remaining,
         );
       }
+      await reveal();
       await page.getByText('Add a project folder to start a session.', { exact: true }).waitFor();
       await page.evaluate(() => {
         window.cancelPicker = false;

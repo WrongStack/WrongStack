@@ -17,6 +17,9 @@ export const DORMANT_STREAM_LIMIT = 8;
  */
 const SERVICES_STARTING_GRACE_MS = 30_000;
 const SERVICES_STARTING = /Project services (have not started|are starting)/;
+const ACTIVE_POLL_MS = 100;
+const IDLE_POLL_MS = 500;
+const ACTIVE_WINDOW_MS = 1000;
 /** How often views hear about a first read's progress before it reaches the journal's end. */
 export const REPLAY_NOTIFY_MS = 250;
 /**
@@ -52,6 +55,8 @@ export class BackendStream {
   private startedAt = 0;
   private notifiedAt = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private wake: (() => void) | undefined;
+  private activeUntil = 0;
   constructor(
     private scope: BackendScope,
     private id: string,
@@ -75,6 +80,8 @@ export class BackendStream {
     const decoded = decodeProtocolMessage(message, 'client');
     if (!decoded.ok) throw new Error(decoded.issue.message);
     await request(`${this.scope}.send`, { ...this.target(), message });
+    this.activeUntil = Date.now() + ACTIVE_WINDOW_MS;
+    this.wake?.();
   };
   private error(error: unknown) {
     for (const subscriber of this.subscribers) subscriber.onError(error);
@@ -114,6 +121,7 @@ export class BackendStream {
     }
     this.operations.replaying();
     const poll = async () => {
+      this.timer = undefined;
       try {
         const result = await request<{
           offset: number;
@@ -145,6 +153,7 @@ export class BackendStream {
           result.hasMore ?? (result.events.length === 200 || result.offset - this.offset >= 262144);
         this.offset = result.offset;
         const events = result.events.map(engineEvent).filter((event) => event !== null);
+        if (events.length) this.activeUntil = Date.now() + ACTIVE_WINDOW_MS;
         for (const event of events) {
           this.operations.receive(event);
           for (const listener of this.listeners) listener(event);
@@ -170,7 +179,9 @@ export class BackendStream {
         // changed() may unsubscribe the last view and stop this reader. Arming
         // the next poll after that starts a read nobody is watching.
         if (run !== this.run || this.stopped) return;
-        this.timer = setTimeout(poll, hasMore ? 0 : 100);
+        const active =
+          this.state.running || this.operations.awaitingReply || Date.now() < this.activeUntil;
+        this.timer = setTimeout(poll, hasMore ? 0 : active ? ACTIVE_POLL_MS : IDLE_POLL_MS);
       } catch (error) {
         if (run === this.run && !this.stopped) {
           const starting =
@@ -181,11 +192,18 @@ export class BackendStream {
         }
       }
     };
+    this.wake = () => {
+      if (this.timer === undefined) return;
+      clearTimeout(this.timer);
+      this.timer = setTimeout(poll, 0);
+    };
     void poll();
   }
   private stop() {
     this.stopped = true;
     clearTimeout(this.timer);
+    this.timer = undefined;
+    this.wake = undefined;
     this.operations.clear();
     if (this.registry.get(this.key()) !== this) return;
     // Most recently closed last; the oldest closed readers beyond the limit are dropped.

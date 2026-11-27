@@ -4,6 +4,7 @@ use crate::{err, registry::Project, Result};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 const KEY: &str = "desktop-project-menu";
@@ -71,11 +72,27 @@ fn ordered(menu: &Menu, projects: &[Project]) -> Vec<String> {
 pub fn snapshot(dir: &Path, mut snapshot: Value) -> Result<Value> {
     let menu = load(&open(dir)?)?;
     let mut projects = projects(&snapshot)?;
-    let order = ordered(&menu, &projects);
-    projects.retain(|p| !menu.hidden.contains(&p.root));
-    projects.sort_by_key(|p| order.iter().position(|root| root == &p.root));
+    let hidden: HashSet<&str> = menu.hidden.iter().map(String::as_str).collect();
+    projects.retain(|project| !hidden.contains(project.root.as_str()));
+    if !menu.order.is_empty() {
+        let mut positions = HashMap::with_capacity(menu.order.len());
+        for (index, root) in menu.order.iter().enumerate() {
+            positions.entry(root.as_str()).or_insert(index);
+        }
+        projects.sort_by_key(|project| {
+            positions
+                .get(project.root.as_str())
+                .copied()
+                .unwrap_or(usize::MAX)
+        });
+    }
     if let Some(sessions) = snapshot["sessions"].as_array_mut() {
-        sessions.retain(|s| projects.iter().any(|p| s["projectId"] == p.id));
+        let visible: HashSet<&str> = projects.iter().map(|project| project.id.as_str()).collect();
+        sessions.retain(|session| {
+            session["projectId"]
+                .as_str()
+                .is_some_and(|id| visible.contains(id))
+        });
     }
     snapshot["projects"] = serde_json::to_value(projects).map_err(err)?;
     Ok(snapshot)

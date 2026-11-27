@@ -1,5 +1,5 @@
-import { Square, SquareTerminal, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { LoaderCircle, MessageSquare, Square, SquareTerminal, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import { isLive, type Session, sessionTitle } from './model';
@@ -28,39 +28,57 @@ export function SidebarSessionRow({
   disabled: boolean;
   onOpen: (session: Session) => void;
   /** Runs a host request, reports its failure and refreshes the workspace. */
-  run: (action: () => Promise<unknown>) => Promise<void>;
+  run: (action: () => Promise<unknown>, options?: { background?: boolean }) => Promise<void>;
   /** The session is gone: drop its tab. */
   onRemoved: (id: string) => void;
 }) {
   const { t } = useDesktopText();
   const [confirming, setConfirming] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const removeLock = useRef(false);
+  const removed = useRef(onRemoved);
+  removed.current = onRemoved;
   const title = sessionTitle(session, t('workbench.untitled'));
-  const remove = () => {
+  const remove = async () => {
+    if (removeLock.current) return;
+    removeLock.current = true;
+    setRemoving(true);
     setConfirming(false);
-    return run(async () => {
-      try {
-        await request('session.remove', { id: session.id });
-      } catch (error) {
-        throw olderHost(error) ? new Error(t('explorer.olderHost')) : error;
-      }
-      onRemoved(session.id);
-    });
+    try {
+      await run(
+        async () => {
+          try {
+            await request('session.remove', { id: session.id });
+          } catch (error) {
+            throw olderHost(error) ? new Error(t('explorer.olderHost')) : error;
+          }
+          removed.current(session.id);
+        },
+        { background: true },
+      );
+    } finally {
+      removeLock.current = false;
+      setRemoving(false);
+    }
   };
   return (
-    <div className={`tree-session-row ${chosen ? 'chosen' : ''}`}>
+    <div className={`tree-session-row ${chosen ? 'chosen' : ''}`} aria-busy={removing || undefined}>
       <button
         type="button"
         className={`tree-session ${chosen ? 'chosen' : ''}`}
         aria-current={chosen ? 'page' : undefined}
+        disabled={removing}
         onClick={() => onOpen(session)}
       >
-        <span className={`status-dot ${session.status}`} />
-        <span title={title}>{title}</span>
+        <span className="tree-session-icon" aria-hidden="true">
+          {session.kind === 'terminal' ? <SquareTerminal size={15} /> : <MessageSquare size={14} />}
+          <span className={`status-dot ${session.status}`} />
+        </span>
+        <span className="tree-session-title" title={title}>
+          {title}
+        </span>
         {session.kind === 'terminal' && (
-          <small className="tree-session-kind" title={t('explorer.terminal')}>
-            <SquareTerminal size={12} aria-hidden="true" />
-            <span className="tree-session-kind-name">{t('explorer.terminal')}</span>
-          </small>
+          <span className="project-menu-sr">{t('explorer.terminal')}</span>
         )}
       </button>
       <span className="tree-session-actions">
@@ -70,7 +88,7 @@ export function SidebarSessionRow({
             className="icon-button"
             aria-label={t('explorer.stop', { title })}
             title={t('explorer.stop', { title })}
-            disabled={disabled}
+            disabled={disabled || removing}
             onClick={() => void run(() => request('session.kill', { id: session.id }))}
           >
             <Square size={11} />
@@ -81,10 +99,10 @@ export function SidebarSessionRow({
           className="icon-button danger"
           aria-label={t('explorer.remove', { title })}
           title={t('explorer.remove', { title })}
-          disabled={disabled}
+          disabled={disabled || removing}
           onClick={() => setConfirming(true)}
         >
-          <Trash2 size={12} />
+          {removing ? <LoaderCircle size={12} className="spin" /> : <Trash2 size={12} />}
         </button>
       </span>
       {confirming && (

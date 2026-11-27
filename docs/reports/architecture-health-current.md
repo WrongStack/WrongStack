@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-27T12:21:50.750Z
+**Generated:** 2026-11-27T12:24:19.579Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,20 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6620 |
-| Production source lines | 1358543 |
-| Test files | 6555 |
+| Production source files | 6623 |
+| Production source lines | 1359087 |
+| Test files | 6556 |
 | Workspace dependency edges | 267 |
-| Relative module edges | 19423 |
+| Relative module edges | 19436 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 1 |
+| Type-inclusive module cycles | 2 |
 | Tests without TypeScript test-project coverage | 15 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- 1 unexcepted module cycle(s)
 
 ## Workspace packages
 
@@ -40,7 +40,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 133 | 15 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 246 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 665 | 869 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 577 | 413 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 580 | 414 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 65 | 41 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake-mcp, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 40 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 47 | @wrongstack/persistence |
@@ -87,6 +87,7 @@ None.
 
 ### Type-inclusive
 
+- apps/desktop-v2/src/TranscriptVirtualizer.tsx ↔ apps/desktop-v2/src/transcript-reading-position.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/tool.ts
 
 ## Largest production files
@@ -98,7 +99,7 @@ None.
 | 1162 | `packages/core/src/execution/design-md.ts` |
 | 1146 | `packages/acp/src/client/acp-session.ts` |
 | 1118 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
-| 1082 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 1083 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1042 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
 | 966 | `apps/desktop-v2/src/ProjectChimera.tsx` |
@@ -118,10 +119,10 @@ None.
 | 848 | `packages/webui/src/components/DesignGalleryView.tsx` |
 | 839 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 831 | `packages/core/src/execution/design-draw.ts` |
-| 818 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 816 | `packages/client/src/client.ts` |
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
+| 787 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 787 | `packages/plugins/src/branch-guard/index.ts` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 785 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
@@ -129,9 +130,9 @@ None.
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 774 | `packages/mailbox-mcp/src/adapter.ts` |
 | 770 | `packages/webui-server/src/server/provider-routes.ts` |
+| 767 | `apps/desktop-v2/src/useFileWorkspace.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 762 | `packages/tui/src/reducers/panel-pickers.ts` |
-| 761 | `apps/desktop-v2/src/useFileWorkspace.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 761 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 760 | `packages/tools/src/read.ts` |

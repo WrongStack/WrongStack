@@ -45,6 +45,8 @@ let hold: boolean;
 let root: Root | undefined;
 let host: HTMLDivElement;
 let desktop: DesktopController;
+let heldDraft: (() => void) | undefined;
+let holdDraft: boolean;
 function Probe() {
   desktop = useDesktop();
   return createElement('output', null, desktop.selected);
@@ -83,6 +85,8 @@ describe('desktop selection across a window reload', () => {
     hostLayout = layout('beta');
     held = [];
     hold = false;
+    holdDraft = false;
+    heldDraft = undefined;
     bridge.snapshot.mockImplementation(
       async (): Promise<Snapshot> => ({
         projects: sessions.map((row) => ({
@@ -97,7 +101,12 @@ describe('desktop selection across a window reload', () => {
       }),
     );
     bridge.request.mockImplementation(async (method: string, params: Record<string, unknown>) => {
-      if (method === 'draft.get')
+      if (method === 'engine.events') return { offset: 0, events: [], hasMore: false };
+      if (method === 'draft.get') {
+        if (holdDraft)
+          await new Promise<void>((resolve) => {
+            heldDraft = resolve;
+          });
         return {
           text: `private ${params.id} draft`,
           references: [],
@@ -105,6 +114,7 @@ describe('desktop selection across a window reload', () => {
           mode: 'btw',
           revisions: { text: 0, references: 0, attachments: 0, mode: 0 },
         };
+      }
       if (method !== 'settings.save') throw Error(`Unexpected native request: ${method}`);
       const value = params.value as string;
       if (!hold) {
@@ -139,6 +149,44 @@ describe('desktop selection across a window reload', () => {
     bridge.snapshot.mockReset();
     sessionStorage.clear();
     localStorage.clear();
+  });
+
+  it('starts replaying the restored conversation while its draft read is pending', async () => {
+    holdDraft = true;
+    await mount();
+    await act(async () => vi.dynamicImportSettled());
+    expect(heldDraft).toBeDefined();
+    expect(desktop.getDraft('beta')).toBe('');
+    expect(bridge.request).toHaveBeenCalledWith('engine.events', { id: 'beta', offset: 0 });
+    await act(async () => heldDraft?.());
+    expect(desktop.getDraft('beta')).toBe('private beta draft');
+  });
+
+  it('does not lock the window while a background session action is pending', async () => {
+    await mount();
+    let complete: (() => void) | undefined;
+    let operation: Promise<void> | undefined;
+    await act(async () => {
+      operation = desktop.run(
+        () =>
+          new Promise<void>((resolve) => {
+            complete = resolve;
+          }),
+        {
+          background: true,
+        },
+      );
+    });
+    try {
+      expect(complete).toBeDefined();
+      expect(desktop.pending).toBe(false);
+      await select('alpha');
+    } finally {
+      await act(async () => {
+        complete?.();
+        await operation;
+      });
+    }
   });
 
   it('restores a host-acknowledged selection and keeps drafts with their owners', async () => {

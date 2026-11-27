@@ -104,7 +104,9 @@ describe('session tool call totals', () => {
       ]);
     try {
       await render(start);
-      await act(async () => host.querySelectorAll<HTMLButtonElement>('[role="tab"]')[2]?.click());
+      await act(async () =>
+        host.querySelector<HTMLButtonElement>('[role="tab"][title="Details"]')?.click(),
+      );
       expect(counts()).toEqual([['Total', '0']]);
       const state = reduceEngine(start, frame('tool.started', 'one'));
       await render(state);

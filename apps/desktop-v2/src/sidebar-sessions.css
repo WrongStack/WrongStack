@@ -4,59 +4,67 @@
   display: flex;
   align-items: center;
 }
-.tree-session-row > .tree-session {
+.app-shell .explorer .project-branch .tree-session-row > .tree-session {
   flex: 1;
   min-width: 0;
+  min-height: 32px;
+  padding: 3px 6px;
+  gap: 7px;
+  border-radius: 5px;
 }
-/* A terminal's kind is an icon; its name stays for assistive tech (row accessible name). */
-.tree-session .tree-session-kind {
-  display: inline-flex;
-  flex-shrink: 0;
+.explorer .project-branch-sessions .tree-session::before {
+  display: none;
 }
-.tree-session-kind-name {
+.app-shell .explorer .project-branch .tree-session-row > .tree-session:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+.tree-session-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 21px;
+  block-size: 22px;
+  color: var(--muted);
+}
+.tree-session-icon .status-dot {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  inset-inline-end: 0;
+  inset-block-end: 1px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--raised);
 }
-@media (max-width: 800px) {
-  .explorer .tree-session-row > .tree-session {
-    padding-left: 18px;
-  }
+.app-shell .explorer .project-branch .tree-session-row > .tree-session.chosen {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: inset 2px 0 var(--accent);
+  font-weight: 600;
+}
+.tree-session.chosen .tree-session-icon {
+  color: var(--accent-ink);
 }
 .tree-session-actions {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+  flex: none;
+  align-items: center;
   display: none;
-  gap: 2px;
 }
 .tree-session-row:hover .tree-session-actions,
-.tree-session-row:focus-within .tree-session-actions {
+.tree-session-row:focus-within .tree-session-actions,
+.tree-session-row[aria-busy="true"] .tree-session-actions,
+.tree-session-row.chosen .tree-session-actions {
   display: flex;
 }
-.tree-session-row:hover > .tree-session small,
-.tree-session-row:focus-within > .tree-session small {
-  visibility: hidden;
-}
-/* The rename/remove icons sit over the row's right edge; while they show, the title stops short
-   of them and ends with an ellipsis instead of running underneath. */
-.tree-session-row:hover > .tree-session,
-.tree-session-row:focus-within > .tree-session {
-  padding-right: 54px;
-}
-.tree-session-row > .tree-session > span:not(.status-dot) {
+.tree-session .tree-session-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tree-session-actions .icon-button {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 26px;
 }
 .session-remove-body {
   margin: 0 0 16px;

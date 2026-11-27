@@ -1,12 +1,12 @@
-import { Folder, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { Folder, FolderOpen, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import type { Project } from './model';
 import { native, request } from './platform';
 import { useProjectMenuText } from './project-menu-text';
 import { SidebarSessionRow } from './SidebarSessionRow';
-import { sidebarSessions } from './session-layout';
+import { sidebarSessionsByProject } from './session-layout';
 import type { DesktopController } from './useDesktop';
 import './sidebar-projects.css';
 
@@ -40,6 +40,10 @@ export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
   const [moving, setMoving] = useState(false);
   const moveLock = useRef(false);
   const projects = vm.snapshot.projects;
+  const sessionsByProject = useMemo(
+    () => sidebarSessionsByProject(vm.snapshot.sessions, vm.openSessionIds),
+    [vm.snapshot.sessions, vm.openSessionIds],
+  );
   const from = projects.findIndex((p) => p.id === reorderId);
   const to = projects.findIndex((p) => p.id === destinationId);
   const reorder = projects[from];
@@ -161,7 +165,9 @@ export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
                   void move(id, p.id, after);
               }}
             >
-              <Folder className="project-folder-icon" size={15} aria-hidden="true" />
+              <span className="project-folder-icon" aria-hidden="true">
+                {vm.project === p.id ? <FolderOpen size={15} /> : <Folder size={15} />}
+              </span>
               <span>{p.name}</span>
             </button>
             <button
@@ -185,17 +191,19 @@ export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
               <Trash2 size={13} />
             </button>
           </div>
-          {sidebarSessions(vm.snapshot.sessions, p.id, vm.openSessionIds).map((s) => (
-            <SidebarSessionRow
-              key={s.id}
-              session={s}
-              chosen={vm.selected === s.id}
-              disabled={disabled}
-              onOpen={vm.jumpToSession}
-              run={vm.run}
-              onRemoved={vm.closeSessionTab}
-            />
-          ))}
+          <div className="project-branch-sessions">
+            {sessionsByProject.get(p.id)?.map((s) => (
+              <SidebarSessionRow
+                key={s.id}
+                session={s}
+                chosen={vm.selected === s.id}
+                disabled={disabled}
+                onOpen={vm.jumpToSession}
+                run={vm.run}
+                onRemoved={vm.closeSessionTab}
+              />
+            ))}
+          </div>
         </div>
       ))}
       {reorder && (

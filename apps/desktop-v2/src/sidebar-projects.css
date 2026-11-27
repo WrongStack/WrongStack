@@ -1,43 +1,86 @@
-.explorer .project-branch {
-  margin-bottom: 4px;
+.explorer .project-tree {
+  container: project-list / inline-size;
 }
-.explorer .project-branch-heading {
+.app-shell .explorer .project-branch {
+  margin-block-end: 9px;
+}
+.app-shell .explorer .project-branch-heading {
   position: relative;
-  min-height: 36px;
-  border-radius: var(--radius-sm, 5px);
+  min-height: 38px;
+  padding-inline: 2px 3px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text) 3%, transparent);
 }
-.explorer .project-branch-heading[data-selected="true"] {
-  background: var(--accent-soft);
-  box-shadow: inset 2px 0 var(--accent);
+.app-shell .explorer .project-branch-heading[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
 }
-.explorer .project-branch-heading .project-item {
-  min-height: 36px;
-  padding: 6px 3px;
-  gap: 6px;
+.app-shell .explorer .project-branch-heading .project-item {
+  min-height: 34px;
+  padding: 3px 4px;
+  gap: 7px;
+  color: var(--text);
+  font-weight: 600;
   text-align: start;
 }
-.explorer .project-branch-heading .project-item.selected {
+.app-shell .explorer .project-branch-heading .project-item.selected {
   background: transparent;
-  color: var(--text);
 }
-.project-folder-icon {
+.app-shell .explorer .project-branch-heading .project-item:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.app-shell .explorer .project-item > .project-folder-icon {
+  display: grid;
+  place-items: center;
   flex: none;
+  inline-size: 23px;
+  block-size: 23px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
   color: var(--muted);
 }
-.project-branch-heading[data-selected="true"] .project-folder-icon {
-  color: var(--accent);
+.app-shell .explorer .project-item.selected > .project-folder-icon {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-ink);
 }
-.explorer .project-branch .tree-session::before {
-  inset-inline-start: 12px;
+.app-shell .explorer .project-branch-sessions:not(:empty) {
+  display: grid;
+  gap: 2px;
+  margin-block-start: 4px;
+  margin-inline-start: 12px;
+  padding-inline-start: 6px;
+  border-inline-start: 1px solid var(--border);
 }
-.explorer .project-branch .tree-session-row > .tree-session {
-  min-height: 31px;
-  padding-block: 5px;
-  padding-inline-start: 25px;
+.app-shell .explorer .project-branch-heading[data-selected="true"] + .project-branch-sessions {
+  border-inline-start-color: color-mix(in srgb, var(--accent) 38%, var(--border));
 }
-@media (620px <= width <= 800px) {
-  .project-folder-icon {
-    display: none;
+.app-shell
+  .explorer
+  .project-branch-heading
+  :is(.project-drag-handle, .project-remove):not(:disabled) {
+  opacity: 0.72;
+}
+.app-shell
+  .explorer
+  .project-branch-heading:is(:hover, :focus-within)
+  :is(.project-drag-handle, .project-remove):not(:disabled) {
+  opacity: 1;
+}
+@container project-list (inline-size < 155px) {
+  .app-shell .explorer .project-branch-heading {
+    padding-inline: 0;
+  }
+  .app-shell .explorer .project-branch-heading .project-item {
+    padding-inline: 1px;
+    gap: 3px;
+  }
+  .app-shell .explorer .project-item > .project-folder-icon {
+    inline-size: 16px;
+    background: transparent;
+  }
+  .app-shell .explorer .project-item > .project-folder-icon svg {
+    inline-size: 13px;
   }
 }
 .project-drag-handle,

@@ -363,6 +363,13 @@ impl Registry {
         }
         Ok(())
     }
+    pub fn contains_session(&self, id: &str) -> Result<bool> {
+        self.db
+            .prepare_cached("SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1)")
+            .and_then(|mut statement| statement.query_row([id], |row| row.get(0)))
+            .map_err(err)
+    }
+
     pub fn sessions(&self) -> Result<Vec<Session>> {
         let mut q = self.db.prepare("SELECT id,project_id,title,kind,workdir,status,created_at,updated_at,exit_code,error,EXISTS(SELECT 1 FROM untitled_sessions u WHERE u.session_id=sessions.id) FROM sessions ORDER BY created_at DESC").map_err(err)?;
         let rows = q

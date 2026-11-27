@@ -768,6 +768,7 @@ export function SessionComposer({
             {...autonomyControlInputs(state.results)}
             command={command}
             disabled={!state.connected || state.needsSetup}
+            showYolo={state.provider !== 'acp'}
           />
           <AgentModeControl
             command={command}

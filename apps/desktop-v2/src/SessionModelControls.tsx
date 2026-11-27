@@ -1,7 +1,7 @@
 import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
 import { ChevronDown, TriangleAlert, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AcpRuntimeSettings } from './AcpRuntimeSettings';
+import { AcpRuntimeSettings, AcpSessionModes } from './AcpRuntimeSettings';
 import { effortNames, sessionEffort, sessionReasoning } from './composer-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
@@ -94,11 +94,21 @@ export function SessionModelControls({
         </span>
         <ChevronDown size={11} />
       </button>
+      {state.provider === 'acp' && state.sessionId && (
+        <AcpSessionModes
+          key={`${state.sessionId}:${state.model}`}
+          agentId={state.model}
+          sessionId={state.sessionId}
+          connected={state.connected && !state.hydrating}
+          running={state.running}
+          disabled={busy}
+          command={command}
+        />
+      )}
       {state.provider === 'acp' && (
         <AcpRuntimeSettings
           key={state.model}
           agentId={state.model}
-          sessionId={state.sessionId || undefined}
           command={command}
           disabled={!state.connected || busy}
           values={

@@ -117,6 +117,45 @@ it('drops a queued follow-up when the file view closes', async () => {
   }
 });
 
+it('renders and refreshes the directory while Git status is still pending', async () => {
+  vi.useFakeTimers();
+  let resolveGit: ((value: Record<string, unknown>) => void) | undefined;
+  let treeReads = 0;
+  const command: EngineCommand = vi.fn(async (type) => {
+    if (type === 'git.changes') {
+      if (!resolveGit)
+        return new Promise((resolve) => {
+          resolveGit = resolve;
+        });
+      return { files: [] };
+    }
+    if (type !== 'files.tree') return {};
+    const path = ++treeReads === 1 ? 'README.md' : 'updated.txt';
+    return { tree: [{ name: path, path, type: 'file' }] };
+  });
+  const view = mountWorkspace(command, 'D:/refresh-with-slow-git');
+  try {
+    await view.render(0);
+    expect(resolveGit, 'the first Git status has started').toBeDefined();
+    expect(view.host.querySelector('[role="treeitem"][aria-label="README.md"]')).not.toBeNull();
+    await view.render(1);
+    await act(async () => vi.advanceTimersByTimeAsync(251));
+    expect(view.host.querySelector('[role="treeitem"][aria-label="updated.txt"]')).not.toBeNull();
+    expect(vi.mocked(command).mock.calls.filter(([type]) => type === 'git.changes')).toHaveLength(
+      1,
+    );
+    await act(async () => resolveGit?.({ files: [] }));
+    expect(vi.mocked(command).mock.calls.filter(([type]) => type === 'git.changes')).toHaveLength(
+      2,
+    );
+  } finally {
+    await act(async () => {
+      resolveGit?.({ files: [] });
+      view.root.unmount();
+    });
+  }
+});
+
 it('keeps refresh usable after StrictMode effect cleanup and remount', async () => {
   vi.useFakeTimers();
   const command: EngineCommand = vi.fn(async (type) =>

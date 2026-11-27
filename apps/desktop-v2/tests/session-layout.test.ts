@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../src/model';
-import { nextSessionAfterDetach, restoreSessionTabs, sidebarSessions } from '../src/session-layout';
+import {
+  nextSessionAfterDetach,
+  restoreSessionTabs,
+  sidebarSessionsByProject,
+} from '../src/session-layout';
 
 const sessions = ['alpha', 'beta', 'gamma'].map((id) => ({ id }) as Session);
 describe('native session tabs', () => {
@@ -35,7 +39,8 @@ describe('native session tabs', () => {
       row('paused', 'interrupted', 55),
       row('other-project', 'running', 99, 'p2'),
     ];
-    expect(sidebarSessions(all, 'p1', ['open-stopped']).map((s) => s.id)).toEqual([
+    const grouped = sidebarSessionsByProject(all, ['open-stopped']);
+    expect(grouped.get('p1')?.map((s) => s.id)).toEqual([
       'live',
       'open-stopped',
       'old-60',
@@ -44,6 +49,7 @@ describe('native session tabs', () => {
       'old-40',
       'old-30',
     ]);
-    expect(sidebarSessions(all, 'p2', []).map((s) => s.id)).toEqual(['other-project']);
+    expect(grouped.get('p2')?.map((s) => s.id)).toEqual(['other-project']);
+    expect(grouped.has('unknown')).toBe(false);
   });
 });

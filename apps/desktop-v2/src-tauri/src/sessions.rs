@@ -278,14 +278,7 @@ impl HostState {
             }
             "engine.events" => {
                 let id = field(p, "id")?;
-                if !self
-                    .registry
-                    .lock()
-                    .map_err(err)?
-                    .sessions()?
-                    .iter()
-                    .any(|s| s.id == id)
-                {
+                if !self.registry.lock().map_err(err)?.contains_session(id)? {
                     return Err("Unknown session".into());
                 }
                 Engine::events(
@@ -1416,14 +1409,7 @@ impl HostState {
         }
     }
     fn read(&self, id: &str, offset: Option<u64>) -> Result<Value> {
-        if !self
-            .registry
-            .lock()
-            .map_err(err)?
-            .sessions()?
-            .iter()
-            .any(|s| s.id == id)
-        {
+        if !self.registry.lock().map_err(err)?.contains_session(id)? {
             return Err("Unknown session".into());
         }
         let path = self.dir.join("transcripts").join(format!("{id}.bin"));
@@ -1438,8 +1424,12 @@ impl HostState {
         let offset = offset
             .unwrap_or_else(|| end.saturating_sub(262144))
             .min(end);
+        let remaining = end - offset;
+        if remaining == 0 {
+            return Ok(json!({"offset":offset,"bytes":[],"end":end}));
+        }
         file.seek(SeekFrom::Start(offset)).map_err(err)?;
-        let mut bytes = vec![0; 65536];
+        let mut bytes = vec![0; remaining.min(65536) as usize];
         let n = file.read(&mut bytes).map_err(err)?;
         bytes.truncate(n);
         Ok(json!({"offset":offset+n as u64,"bytes":bytes,"end":end}))
@@ -1475,6 +1465,37 @@ impl HostState {
         }
         Ok(Value::Null)
     }
+    #[cfg(windows)]
+    fn kill(&self, id: &str, expected_pid: Option<u32>) -> Result<Value> {
+        self.kill_windows_with(id, expected_pid, |pid| {
+            let target = crate::windows_process::StopTarget::capture(pid)?;
+            Ok(move || target.stop())
+        })
+    }
+
+    #[cfg(windows)]
+    fn kill_windows_with<F: FnOnce() -> Result<()>>(
+        &self,
+        id: &str,
+        expected_pid: Option<u32>,
+        capture: impl FnOnce(u32) -> Result<F>,
+    ) -> Result<Value> {
+        let live = self.live.lock().map_err(err)?;
+        let session = live.get(id).ok_or("Session is not running")?;
+        if expected_pid.is_some() && session.agent_pid != expected_pid {
+            return Ok(Value::Null);
+        }
+        if let Some(pid) = session.agent_pid {
+            // Retain process handles before releasing the table. Waiting for Windows
+            // to stop this tree must leave the other sessions' PTYs accessible.
+            let stop = capture(pid)?;
+            drop(live);
+            stop()?;
+        }
+        Ok(Value::Null)
+    }
+
+    #[cfg(not(windows))]
     fn kill(&self, id: &str, expected_pid: Option<u32>) -> Result<Value> {
         let mut live = self.live.lock().map_err(err)?;
         let session = live.get_mut(id).ok_or("Session is not running")?;
@@ -1548,6 +1569,54 @@ fn history_source(p: &Value) -> Result<Option<(&str, bool)>> {
 #[cfg(test)]
 mod history_tests {
     use super::*;
+
+    #[test]
+    fn terminal_read_is_independent_of_another_sessions_metadata() {
+        let dir = std::env::temp_dir().join(format!("desktop-terminal-read-{}", Uuid::new_v4()));
+        let host = HostState::new(&dir).unwrap();
+        {
+            let registry = host.registry.lock().unwrap();
+            let project = registry.register(dir.to_str().unwrap()).unwrap();
+            for id in ["target", "unrelated"] {
+                registry
+                    .insert(&Session {
+                        id: id.into(),
+                        project_id: project.id.clone(),
+                        title: id.into(),
+                        kind: "terminal".into(),
+                        workdir: dir.to_string_lossy().into_owned(),
+                        status: "stopped".into(),
+                        created_at: now(),
+                        updated_at: now(),
+                        exit_code: None,
+                        error: None,
+                        untitled: false,
+                    })
+                    .unwrap();
+            }
+        }
+        std::fs::write(dir.join("transcripts/target.bin"), [0, 27, 255]).unwrap();
+        let before = host.request("session.read", &json!({"id":"target","offset":1}));
+        {
+            let db = rusqlite::Connection::open(dir.join("workspace.sqlite")).unwrap();
+            db.execute(
+                "UPDATE sessions SET created_at=x'00' WHERE id='unrelated'",
+                [],
+            )
+            .unwrap();
+        }
+        let after = host.request("session.read", &json!({"id":"target","offset":1}));
+        let idle = host.request("session.read", &json!({"id":"target","offset":10}));
+        let unknown = host.request("session.read", &json!({"id":"missing"}));
+        drop(host);
+        let _ = std::fs::remove_dir_all(dir);
+
+        let expected = json!({"offset":3,"bytes":[27,255],"end":3});
+        assert_eq!(before, Ok(expected.clone()));
+        assert_eq!(after, Ok(expected));
+        assert_eq!(idle, Ok(json!({"offset":3,"bytes":[],"end":3})));
+        assert_eq!(unknown, Err("Unknown session".into()));
+    }
 
     #[test]
     fn an_engine_exit_the_host_requested_is_a_normal_stop() {
@@ -3600,6 +3669,47 @@ mod history_tests {
             !is_contended,
             "session.write held HostState::live lock while blocked on PTY writer"
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn slow_windows_stop_leaves_another_sessions_writer_available() {
+        let dir = std::env::temp_dir().join(format!("desktop-stop-latency-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let writer: SharedWriter = Arc::new(Mutex::new(Box::new(Vec::<u8>::new())));
+        for (id, pid, writer) in [("victim", 123, None), ("survivor", 456, Some(writer))] {
+            host.live.lock().unwrap().insert(
+                id.into(),
+                LiveSession {
+                    master: None,
+                    writer,
+                    killer: None,
+                    agent_pid: Some(pid),
+                    engine: None,
+                    stop_requested: false,
+                },
+            );
+        }
+        let result = host.kill_windows_with("victim", Some(123), |pid| {
+            assert_eq!(pid, 123);
+            assert!(
+                host.live.try_lock().is_err(),
+                "capture must pin the current target"
+            );
+            let host = Arc::clone(&host);
+            Ok(move || {
+                assert!(
+                    host.live.try_lock().is_ok(),
+                    "the stop wait blocks the shared session table"
+                );
+                host.request("session.write", &json!({"id":"survivor","data":"hello"}))?;
+                Ok(())
+            })
+        });
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+        result.unwrap();
     }
 }
 fn engine_command(adopted: Option<&Path>) -> Result<Command> {

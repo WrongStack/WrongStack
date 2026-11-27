@@ -6,12 +6,40 @@ vi.mock('../src/platform', () => ({
 }));
 
 import { backendStream } from '../src/engine-stream';
+import { request } from '../src/platform';
 
 async function flush(): Promise<void> {
   for (let i = 0; i < 6; i++) await Promise.resolve();
 }
 
 describe('BackendStream stop during notification', () => {
+  it('backs off empty reads and wakes immediately when the user sends a command', async () => {
+    vi.useFakeTimers();
+    vi.mocked(request).mockClear();
+    const stream = backendStream('engine', 'idle-and-wake');
+    const stop = stream.subscribe({
+      changed() {},
+      onError(error) {
+        throw error;
+      },
+    });
+    const reads = () =>
+      vi.mocked(request).mock.calls.filter(([method]) => method === 'engine.events').length;
+    try {
+      await vi.advanceTimersByTimeAsync(2_100);
+      expect(reads()).toBe(5);
+      const previous = reads();
+      await stream.send('stats.get');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(reads()).toBe(previous + 1);
+      await vi.advanceTimersByTimeAsync(300);
+      expect(reads()).toBeGreaterThanOrEqual(previous + 3);
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+  });
+
   it('does not arm a poll after the last view stops inside changed()', async () => {
     vi.useFakeTimers();
     try {

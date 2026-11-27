@@ -6,7 +6,59 @@ import type {
   UIEvent,
   WheelEvent,
 } from 'react';
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+
+/** Batch layout and engine updates together and recheck the reader's intent before scrolling. */
+export function useTranscriptEndScroll({
+  active,
+  welcome,
+  waitingForInput,
+  messages,
+  approvals,
+  following,
+  pane,
+  end,
+}: {
+  active: boolean;
+  welcome: boolean;
+  waitingForInput: boolean;
+  messages: readonly unknown[];
+  approvals: readonly unknown[];
+  following: RefObject<boolean>;
+  pane: RefObject<HTMLDivElement | null>;
+  end: RefObject<HTMLDivElement | null>;
+}) {
+  const frame = useRef<number | null>(null);
+  const canFollow = useRef(false);
+  canFollow.current = active && !welcome && !waitingForInput;
+  const schedule = useCallback(() => {
+    if (!canFollow.current || !following.current || frame.current !== null) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      if (canFollow.current && following.current) end.current?.scrollIntoView({ block: 'nearest' });
+    });
+  }, [end, following]);
+
+  useEffect(() => {
+    if (active && welcome) pane.current?.scrollTo({ top: 0 });
+    else schedule();
+  }, [active, welcome, waitingForInput, messages, approvals, pane, schedule]);
+  useEffect(() => {
+    const node = pane.current;
+    if (!active || !node) return;
+    const size = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
+    size?.observe(node);
+    const mutation =
+      typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(schedule);
+    mutation?.observe(node, { childList: true, subtree: true });
+    return () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
+      size?.disconnect();
+      mutation?.disconnect();
+    };
+  }, [active, pane, schedule]);
+}
 
 /** Virtual-row layout never changes reader intent; only explicit input resumes a paused view. */
 export function useTranscriptFollowHandlers(

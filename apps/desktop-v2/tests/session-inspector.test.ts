@@ -50,7 +50,12 @@ async function mount(state = initial, command = vi.fn<EngineCommand>(async () =>
 describe('session inspector', () => {
   it('provides linked tabs, automatic arrow navigation, and a labelled collapse control', async () => {
     const view = await mount();
-    expect(view.tabs().map((tab) => tab.textContent)).toEqual(['Agents', 'Plan', 'Details']);
+    expect(view.tabs().map((tab) => tab.textContent)).toEqual([
+      'Agents',
+      'Plan',
+      'Companions',
+      'Details',
+    ]);
     for (const tab of view.tabs()) {
       const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '');
       expect(panel?.getAttribute('aria-labelledby')).toBe(tab.id);
@@ -65,13 +70,13 @@ describe('session inspector', () => {
     expect(view.tabs()[1]?.getAttribute('aria-selected')).toBe('true');
     expect(view.visiblePanel()?.textContent).toContain('No plan yet');
     await key('End');
-    expect(document.activeElement).toBe(view.tabs()[2]);
+    expect(document.activeElement).toBe(view.tabs()[3]);
     expect(view.visiblePanel()?.textContent).toContain('fixture-provider');
     expect(view.visiblePanel()?.textContent).toContain('fixture-model');
     await key('ArrowRight');
     expect(document.activeElement).toBe(view.tabs()[0]);
     await key('ArrowLeft');
-    expect(document.activeElement).toBe(view.tabs()[2]);
+    expect(document.activeElement).toBe(view.tabs()[3]);
     await key('Home');
     expect(document.activeElement).toBe(view.tabs()[0]);
     await view.toggle();
@@ -166,10 +171,46 @@ describe('session inspector', () => {
     expect(view.visiblePanel()?.querySelector('[role="alert"]')).toBeNull();
   });
 
+  it('opens companions from the collapsed rail and confirms changes through profile preferences', async () => {
+    const prefs = {
+      memoryCompanionEnabled: true,
+      exploreCompanionEnabled: false,
+      skillCompanionEnabled: true,
+    };
+    const command = vi.fn<EngineCommand>(async (type, payload) => {
+      if (type === 'prefs.update') Object.assign(prefs, payload);
+      return type === 'prefs.get' ? { ...prefs } : {};
+    });
+    const view = await mount(initial, command);
+    expect(command).not.toHaveBeenCalledWith('prefs.get', {}, ['prefs.updated']);
+    await view.toggle();
+    await view.select(2);
+    const panel = view.visiblePanel();
+    expect(panel?.closest<HTMLElement>('.session-inspector')?.dataset.collapsed).toBe('false');
+    expect(panel?.querySelectorAll('input[type="checkbox"]')).toHaveLength(4);
+    const memory = panel?.querySelector<HTMLInputElement>('[aria-label="Memory Companion"]');
+    expect(memory?.checked).toBe(true);
+    command.mockRejectedValueOnce(new Error('Could not save profile'));
+    await act(async () => memory?.click());
+    expect(memory?.checked).toBe(true);
+    expect(panel?.querySelector('[role="alert"]')?.textContent).toContain('Could not save profile');
+    await act(async () => memory?.click());
+    expect(command).toHaveBeenCalledWith('prefs.update', { memoryCompanionEnabled: false }, [
+      'key.operation_result',
+    ]);
+    expect(memory?.checked).toBe(false);
+    expect(panel?.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it('uses localized chrome', async () => {
     await surfaceI18n.changeLanguage('tr');
     const view = await mount();
-    expect(view.tabs().map((tab) => tab.textContent)).toEqual(['Ajanlar', 'Plan', 'Ayrıntılar']);
+    expect(view.tabs().map((tab) => tab.textContent)).toEqual([
+      'Ajanlar',
+      'Plan',
+      'Yardımcı ajanlar',
+      'Ayrıntılar',
+    ]);
     expect(view.host.querySelector('.session-inspector-heading h2')?.textContent).toBe('Ajanlar');
     expect(view.host.querySelector('.session-inspector')?.getAttribute('aria-label')).toBe(
       'Oturum paneli',
@@ -180,13 +221,13 @@ describe('session inspector', () => {
     const view = await mount();
     const rail = view.host.querySelector('.session-inspector-rail');
     expect(rail).not.toBeNull();
-    expect(rail?.querySelectorAll('[role="tab"]').length).toBe(3);
+    expect(rail?.querySelectorAll('[role="tab"]').length).toBe(4);
     expect(view.host.querySelector('.session-inspector-heading h2')?.textContent).toBe('Agents');
     await view.toggle();
     expect(view.host.querySelector<HTMLElement>('.session-inspector')?.dataset.collapsed).toBe(
       'true',
     );
-    expect(view.tabs().length).toBe(3);
+    expect(view.tabs().length).toBe(4);
     await view.select(1);
     expect(view.host.querySelector<HTMLElement>('.session-inspector')?.dataset.collapsed).toBe(
       'false',

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:21:50.750Z",
+  "generatedAt": "2026-11-27T12:24:19.579Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6620,
-    "testFiles": 6555,
-    "sourceLines": 1358543,
+    "sourceFiles": 6623,
+    "testFiles": 6556,
+    "sourceLines": 1359087,
     "workspaceEdges": 267,
-    "moduleEdges": 19423,
+    "moduleEdges": 19436,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 1,
+    "typeModuleCycles": 2,
     "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1064
   },
-  "errors": [],
+  "errors": [
+    "1 unexcepted module cycle(s)"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -427,8 +429,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 577,
-      "testFiles": 413,
+      "sourceFiles": 580,
+      "testFiles": 414,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +449,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 413
+          "testFiles": 414
         }
       ]
     },
@@ -1389,6 +1391,13 @@
       {
         "kind": "type-module-cycle",
         "members": [
+          "apps/desktop-v2/src/TranscriptVirtualizer.tsx",
+          "apps/desktop-v2/src/transcript-reading-position.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
           "packages/contracts/src/types/blocks.ts",
           "packages/contracts/src/types/context.ts",
           "packages/contracts/src/types/conversation-state.ts",
@@ -1405,7 +1414,15 @@
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-12"
     ],
-    "unexcepted": []
+    "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "apps/desktop-v2/src/TranscriptVirtualizer.tsx",
+          "apps/desktop-v2/src/transcript-reading-position.ts"
+        ]
+      }
+    ]
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -3397,6 +3414,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/service-health-acknowledgement.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-acp-mode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -42262,7 +42285,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 818,
+      "lines": 787,
       "relativeImports": 61
     },
     {
@@ -42322,7 +42345,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1082,
+      "lines": 1083,
       "relativeImports": 40
     },
     {
@@ -42332,12 +42355,12 @@
     },
     {
       "file": "apps/desktop-v2/src/useDesktop.ts",
-      "lines": 705,
-      "relativeImports": 14
+      "lines": 729,
+      "relativeImports": 15
     },
     {
       "file": "apps/desktop-v2/src/useFileWorkspace.ts",
-      "lines": 761,
+      "lines": 767,
       "relativeImports": 19
     },
     {
@@ -42374,7 +42397,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1082,
+      "lines": 1083,
       "relativeImports": 40
     },
     {
@@ -42473,11 +42496,6 @@
       "relativeImports": 1
     },
     {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 818,
-      "relativeImports": 61
-    },
-    {
       "file": "packages/client/src/client.ts",
       "lines": 816,
       "relativeImports": 4
@@ -42491,6 +42509,11 @@
       "file": "packages/vibeui/src/components/resource-hub.tsx",
       "lines": 800,
       "relativeImports": 12
+    },
+    {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 787,
+      "relativeImports": 61
     },
     {
       "file": "packages/plugins/src/branch-guard/index.ts",
@@ -42528,6 +42551,11 @@
       "relativeImports": 6
     },
     {
+      "file": "apps/desktop-v2/src/useFileWorkspace.ts",
+      "lines": 767,
+      "relativeImports": 19
+    },
+    {
       "file": "packages/plugins/src/adversary-mode/index.ts",
       "lines": 763,
       "relativeImports": 5
@@ -42536,11 +42564,6 @@
       "file": "packages/tui/src/reducers/panel-pickers.ts",
       "lines": 762,
       "relativeImports": 5
-    },
-    {
-      "file": "apps/desktop-v2/src/useFileWorkspace.ts",
-      "lines": 761,
-      "relativeImports": 19
     },
     {
       "file": "packages/coordination/src/agent-monitor.ts",
@@ -42833,7 +42856,7 @@
     },
     {
       "file": "apps/desktop-v2/src/MarkdownContent.tsx",
-      "name": "splitStreamBlocks"
+      "name": "scanStreamBlocks"
     },
     {
       "file": "apps/desktop-v2/src/memory-injections.ts",

@@ -1,4 +1,4 @@
-import { Info, ListTodo, PanelRightClose, PanelRightOpen, Users } from 'lucide-react';
+import { Bot, Info, ListTodo, PanelRightClose, PanelRightOpen, Users } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SessionAgentRail } from './AgentTranscripts';
@@ -9,6 +9,7 @@ import { PaneSplitter } from './PaneSplitter';
 import { paneBounds } from './pane-layout';
 import { usePaneLayout } from './pane-layout-context';
 import { native, scanOrphanEngines } from './platform';
+import { SessionCompanions } from './SessionCompanions';
 import { SessionTodos } from './SessionTodos';
 import { SessionToolSummary } from './SessionToolSummary';
 import { surfaceI18n } from './surface-i18n';
@@ -17,6 +18,7 @@ import './session-inspector.css';
 const tabs = [
   { id: 'agents', Icon: Users },
   { id: 'plan', Icon: ListTodo },
+  { id: 'companions', Icon: Bot },
   { id: 'details', Icon: Info },
 ] as const;
 type InspectorTab = (typeof tabs)[number]['id'];
@@ -86,8 +88,10 @@ export function SessionInspector({
   state,
   command,
   onLink,
+  projectId = '',
   showThinkingLogs = true,
 }: {
+  projectId?: string;
   state: EngineState;
   command: EngineCommand;
   onLink: (href: string) => void;
@@ -289,6 +293,16 @@ export function SessionInspector({
                 />
               ) : value === 'plan' ? (
                 <SessionTodos state={state} command={command} embedded />
+              ) : value === 'companions' ? (
+                tab === 'companions' &&
+                !collapsed && (
+                  <SessionCompanions
+                    key={projectId}
+                    projectId={projectId}
+                    connected={state.connected}
+                    command={command}
+                  />
+                )
               ) : (
                 <div className="session-inspector-details">
                   <SessionToolSummary activity={state} />

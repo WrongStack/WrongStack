@@ -26,7 +26,8 @@ describe('shared backend journal reader', () => {
       backendStream('profile', '').subscribe({ changed: () => {}, onError: () => {} }),
       backendStream('engine', 'recent-e').subscribe({ changed: () => {}, onError: () => {} }),
     ];
-    await vi.advanceTimersByTimeAsync(250);
+    // The fixture returns an empty first page, so the next read uses the idle interval.
+    await vi.advanceTimersByTimeAsync(500);
     const first = (command: string) => reads.find(([c]) => c === command)?.[1];
     expect(first('project.events')).toEqual({
       projectId: 'recent-p',

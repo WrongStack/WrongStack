@@ -130,10 +130,13 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   const next = reduceFrame(state, event);
   if (next === state) return state;
   const at = event.at ?? state.lastAt;
-  if (at && next.messages.length > state.messages.length)
-    next.messages = next.messages.map((message, index) =>
-      index < state.messages.length || message.at ? message : { ...message, at },
-    );
+  if (at && next.messages !== state.messages) {
+    // A frame adding messages already owns its new array. Stamp only the new tail.
+    for (let index = state.messages.length; index < next.messages.length; index++) {
+      const message = next.messages[index];
+      if (message && !message.at) next.messages[index] = { ...message, at };
+    }
+  }
   if (event.at) next.lastAt = event.at;
   return next;
 }

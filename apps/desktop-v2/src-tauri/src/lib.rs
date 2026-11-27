@@ -16,6 +16,8 @@ pub mod sessions;
 mod shell_dir;
 #[cfg(feature = "desktop")]
 mod speech;
+#[cfg(any(feature = "desktop", test))]
+mod terminal_poll;
 pub mod transcript;
 #[cfg(feature = "desktop")]
 mod update;

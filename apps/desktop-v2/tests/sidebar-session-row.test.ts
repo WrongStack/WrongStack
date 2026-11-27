@@ -7,10 +7,12 @@ import type { Session } from '../src/model';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const calls = vi.hoisted(() => ({ requests: [] as Array<[string, unknown]>, fail: '' }));
+const removal = vi.hoisted(() => ({ gate: undefined as Promise<void> | undefined }));
 vi.mock('../src/platform', () => ({
   request: async (method: string, params: unknown) => {
     calls.requests.push([method, params]);
     if (calls.fail) throw new Error(calls.fail);
+    if (method === 'session.remove') await removal.gate;
     return null;
   },
 }));
@@ -45,7 +47,9 @@ const click = (element: Element | null | undefined) =>
 async function mount(status: Session['status']) {
   const errors: unknown[] = [];
   const removed: string[] = [];
-  const run = async (action: () => Promise<unknown>) => {
+  const modes: boolean[] = [];
+  const run = async (action: () => Promise<unknown>, options?: { background?: boolean }) => {
+    modes.push(options?.background === true);
     try {
       await action();
     } catch (error) {
@@ -67,16 +71,34 @@ async function mount(status: Session['status']) {
     ),
   );
   const button = (name: string) => host.querySelector(`button[aria-label="${name}"]`);
-  return { host, button, errors, removed };
+  return { host, button, errors, removed, modes };
 }
 
 afterEach(() => {
   document.body.innerHTML = '';
   calls.requests = [];
   calls.fail = '';
+  removal.gate = undefined;
 });
 
 describe('a session row in the sidebar', () => {
+  it('marks only the target row busy until the host confirms removal', async () => {
+    let finish!: () => void;
+    removal.gate = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const { host, button, removed, modes } = await mount('running');
+    await click(button('Remove Refactor'));
+    await click(host.querySelector('[role="dialog"] .button.danger'));
+    expect(modes).toEqual([true]);
+    expect(removed).toEqual([]);
+    expect(host.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect((button('Stop Refactor') as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => finish());
+    expect(removed).toEqual(['s1']);
+    expect(host.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
   it('stops a running session', async () => {
     const { button } = await mount('running');
     await click(button('Stop Refactor'));

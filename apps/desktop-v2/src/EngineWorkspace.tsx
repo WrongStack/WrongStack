@@ -3,7 +3,7 @@ import { LoaderCircle, Square, X } from 'lucide-react';
 import { lazy, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ComposerFoldControls } from './ComposerFoldControls';
-import { ConversationApprovals } from './ConversationApprovals';
+import { ConversationApprovalNotice, ConversationApprovals } from './ConversationApprovals';
 import { ConversationNotices } from './ConversationNotices';
 import { useConversationShortcuts } from './ConversationShortcuts';
 import { ConversationWelcome } from './ConversationWelcome';
@@ -38,15 +38,8 @@ import { useMessagePins } from './message-pins';
 import type { Session } from './model';
 import { ProjectSessionTools } from './ProjectSessionTools';
 import { ProviderWaitingRoom } from './ProviderWaitingRoom';
-import {
-  native,
-  openExternal,
-  projectFormDraftStorage,
-  sessionObjectDraftStorage,
-} from './platform';
+import { native, openExternal, sessionObjectDraftStorage } from './platform';
 import { useRunSounds } from './RunSounds';
-import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
-import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SavedQuestionsReview } from './SavedQuestionsReview';
 import { ScheduledJobs } from './ScheduledJobs';
 import { SessionActivity } from './SessionActivity';
@@ -61,10 +54,12 @@ import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
 import { TranscriptPins } from './TranscriptPins';
 import { type TranscriptHandle, TranscriptVirtualizer } from './TranscriptVirtualizer';
 import { AgentWorking, LiveRunActivity } from './TurnTools';
-import { useTranscriptFollowHandlers } from './transcript-follow';
+import { useTranscriptEndScroll, useTranscriptFollowHandlers } from './transcript-follow';
+import { useTranscriptReadingPosition } from './transcript-reading-position';
 import { useComposerCollapse } from './useComposerCollapse';
 import { useDesignDraftPreparation } from './useDesignDraftPreparation';
 import { useEngine } from './useEngine';
+import { useSessionRecoveryLog } from './useSessionRecoveryLog';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { WorkspaceTools } from './WorkspaceTools';
 import './input-recovery.css';
@@ -159,17 +154,7 @@ export function EngineWorkspace({
   useEffect(() => {
     if (tab !== 'files' && tab !== 'changes') setFileTarget('');
   }, [tab]);
-  // Recovery operations started here persist per project session so they survive a restart.
-  useEffect(() => {
-    if (!projectId || !state.sessionId) return;
-    const sessionId = state.sessionId;
-    void recoveryLogKey(projectId, sessionId).then((key) =>
-      recoveryLog.attach(
-        sessionId,
-        projectFormDraftStorage(projectId, key) as ProjectFormDraftStorage<SavedRecoveryLog>,
-      ),
-    );
-  }, [projectId, state.sessionId]);
+  useSessionRecoveryLog(projectId, state.sessionId);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [designOpen, setDesignOpen] = useState(false);
   const prepareDesignDraft = useDesignDraftPreparation({
@@ -189,6 +174,7 @@ export function EngineWorkspace({
     setToolsOpen(false);
   };
   const end = useRef<HTMLDivElement>(null);
+  const approvalQueue = useRef<HTMLElement>(null);
   const chatPane = useRef<HTMLDivElement>(null);
   const transcript = useRef<TranscriptHandle>(null);
   const pins = useMessagePins(`${projectId}:${id}`, onError);
@@ -196,8 +182,6 @@ export function EngineWorkspace({
   // The empty conversation's welcome is read from its top: following the end there scrolled
   // its heading out of view as soon as the welcome was taller than the pane.
   const welcome = state.synced && !state.messages.length && !state.inputs.length;
-  const welcomeShown = useRef(welcome);
-  welcomeShown.current = welcome;
   const [showLatest, setShowLatest] = useState(false);
   // Messages there were when the reader scrolled away from the end, to count what arrived since.
   const leftAt = useRef(0);
@@ -206,10 +190,23 @@ export function EngineWorkspace({
     following.current = false;
     setShowLatest(true);
   };
-  const followHandlers = useTranscriptFollowHandlers(following, pauseFollowing, () => {
+  const resetFollowing = () => {
     following.current = true;
     setShowLatest(false);
+  };
+  const reading = useTranscriptReadingPosition({
+    key: state.sessionId ? JSON.stringify([projectId, id, state.sessionId]) : '',
+    ready: chatActive && state.synced && !state.inputs.length && state.messages.length > 0,
+    messages: state.messages,
+    transcript,
+    pause: pauseFollowing,
+    reset: resetFollowing,
   });
+  const resumeFollowing = () => {
+    if (!following.current) reading.forget();
+    resetFollowing();
+  };
+  const followHandlers = useTranscriptFollowHandlers(following, pauseFollowing, resumeFollowing);
   const [showConversation, setShowConversation] = useState(false);
   const hadQuestions = useRef(false);
   useEffect(() => {
@@ -231,36 +228,16 @@ export function EngineWorkspace({
     const frame = requestAnimationFrame(() => chatPane.current?.scrollTo({ top: 0 }));
     return () => cancelAnimationFrame(frame);
   }, [chatActive, state.inputs.length, showConversation]);
-  useEffect(() => {
-    if (!chatActive) return;
-    if (welcome) chatPane.current?.scrollTo({ top: 0 });
-    else if (!state.inputs.length && following.current)
-      end.current?.scrollIntoView({ block: 'nearest' });
-  }, [chatActive, welcome, state.messages, state.inputs, state.approvals]);
-  // A panel opening under the conversation shrinks it, and a card can grow after it renders;
-  // while following, keep the newest content in view through those changes too.
-  useEffect(() => {
-    const pane = chatPane.current;
-    if (
-      !chatActive ||
-      !pane ||
-      typeof ResizeObserver === 'undefined' ||
-      typeof MutationObserver === 'undefined'
-    )
-      return;
-    const keep = () => {
-      if (following.current && !welcomeShown.current)
-        end.current?.scrollIntoView({ block: 'nearest' });
-    };
-    const resize = new ResizeObserver(keep);
-    resize.observe(pane);
-    const mutation = new MutationObserver(keep);
-    mutation.observe(pane, { childList: true, subtree: true });
-    return () => {
-      resize.disconnect();
-      mutation.disconnect();
-    };
-  }, [chatActive]);
+  useTranscriptEndScroll({
+    active: chatActive,
+    welcome,
+    waitingForInput: state.inputs.length > 0,
+    messages: state.messages,
+    approvals: state.approvals,
+    following,
+    pane: chatPane,
+    end,
+  });
   const resolved = state.results['user.input_resolved']?.['requestId'];
   const interruptedInput = ['abort', 'unattended'].includes(
     String(state.results['user.input_resolved']?.['source']),
@@ -411,31 +388,18 @@ export function EngineWorkspace({
           {state.error}
         </div>
       )}
-      {state.approvals.length > 0 && (showLatest || !chatActive) && (
-        <div className="input-waiting-controls" role="status">
-          <span>
-            {t('chatView.approvalPending', {
-              count: state.approvals.length,
-              tool: String(state.approvals[0]?.['toolName'] ?? 'Tool'),
-              defaultValue:
-                state.approvals.length === 1
-                  ? `Approval needed for ${String(state.approvals[0]?.['toolName'] ?? 'Tool')}`
-                  : `${state.approvals.length} tool approvals waiting`,
-            })}
-          </span>
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => {
-              setTab('chat');
-              following.current = true;
-              setShowLatest(false);
-              requestAnimationFrame(() => end.current?.scrollIntoView({ block: 'nearest' }));
-            }}
-          >
-            {t('chatView.reviewApproval', { defaultValue: 'Review approval' })}
-          </button>
-        </div>
+      {!chatActive && (
+        <ConversationApprovalNotice
+          approvals={state.approvals}
+          onReview={() => {
+            setTab('chat');
+            requestAnimationFrame(() =>
+              approvalQueue.current
+                ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+                ?.focus(),
+            );
+          }}
+        />
       )}
       <div className="session-conversation-layout" hidden={!chatActive}>
         <div className="session-conversation-panes">
@@ -500,6 +464,10 @@ export function EngineWorkspace({
               className="native-chat-messages"
               aria-live="polite"
               {...followHandlers}
+              onScroll={(event) => {
+                followHandlers.onScroll(event);
+                if (!following.current) reading.capture();
+              }}
             >
               <TranscriptVirtualizer
                 ref={transcript}
@@ -561,12 +529,6 @@ export function EngineWorkspace({
                         connected={state.connected}
                       />
                     ))}
-                    <ConversationApprovals
-                      approvals={state.approvals}
-                      send={send}
-                      connected={state.connected}
-                      shortcuts={chatActive}
-                    />
                     {state.running && (
                       <AgentWorking
                         waiting={state.inputs.length > 0 || state.approvals.length > 0}
@@ -622,8 +584,7 @@ export function EngineWorkspace({
                     <button
                       type="button"
                       onClick={() => {
-                        following.current = true;
-                        setShowLatest(false);
+                        resumeFollowing();
                         end.current?.scrollIntoView({ block: 'nearest' });
                       }}
                     >
@@ -655,6 +616,13 @@ export function EngineWorkspace({
                   send={send}
                   command={command}
                   onAddToPrompt={(text) => void onDraftChange(appendToDraft(draft, text))}
+                />
+                <ConversationApprovals
+                  approvals={state.approvals}
+                  send={send}
+                  connected={state.connected && state.synced}
+                  shortcuts={state.synced}
+                  queueRef={approvalQueue}
                 />
                 {state.inputs.length > 0 && (
                   <div className="input-waiting-controls">
@@ -713,6 +681,7 @@ export function EngineWorkspace({
           </div>
           <SessionInspector
             key={`${id}:${state.sessionId}`}
+            projectId={projectId}
             showThinkingLogs={display.showThinkingLogs}
             state={state}
             command={command}

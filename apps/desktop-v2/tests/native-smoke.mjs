@@ -257,6 +257,8 @@ if (questionReloadOnly)
   artifactDir = resolve(root, '.temp_files/desktop-v2-native/question-reload');
 if (questionRestartOnly)
   artifactDir = resolve(root, '.temp_files/desktop-v2-native/question-restart');
+if (process.env.WRONGSTACK_DESKTOP_TEST_ARTIFACTS)
+  artifactDir = resolve(process.env.WRONGSTACK_DESKTOP_TEST_ARTIFACTS);
 await mkdir(artifactDir, { recursive: true });
 if (modelDraftRestartOnly || modelProfilesOnly)
   await rm(join(artifactDir, 'native-result.json'), { force: true });

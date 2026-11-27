@@ -166,29 +166,36 @@ export function useFileWorkspace({
   const applyGit = useCallback((r: PromiseSettledResult<Record<string, unknown>>) => {
     setGit(r.status === 'fulfilled' ? r.value : { error: String(r.reason?.message ?? r.reason) });
   }, []);
-  const refresh = useMemo(
+  const refreshTree = useMemo(
     () =>
       fileRefreshQueue(async () => {
         const marker = live.current.changed;
-        const results = await Promise.allSettled([
-          command('files.tree', { includeIgnored }, ['files.tree']),
-          command('git.changes', {}, ['git.changes']),
-        ]);
-        if (results[0].status !== 'fulfilled') throw results[0].reason;
-        treeCache.rememberTreeListing(listingKey, results[0].value['tree'], marker);
+        const listing = await command('files.tree', { includeIgnored }, ['files.tree']);
+        treeCache.rememberTreeListing(listingKey, listing['tree'], marker);
         if (live.current.key !== listingKey) return;
-        setTree(fileTree(results[0].value['tree']));
+        setTree(fileTree(listing['tree']));
         setTreeReady(true);
         setTreeFilter(includeIgnored);
-        applyGit(results[1]);
       }),
-    [command, includeIgnored, listingKey, applyGit],
+    [command, includeIgnored, listingKey],
   );
+  const refreshGitStatus = useMemo(
+    () =>
+      fileRefreshQueue(async () => {
+        const [result] = await Promise.allSettled([command('git.changes', {}, ['git.changes'])]);
+        if (live.current.key === listingKey) applyGit(result);
+      }),
+    [command, listingKey, applyGit],
+  );
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshTree(), refreshGitStatus()]);
+  }, [refreshTree, refreshGitStatus]);
   const reload = () => {
     treeCache.clearProjectTreeListings(projectId);
     return refresh();
   };
-  useEffect(() => () => refresh.clear(), [refresh]);
+  useEffect(() => () => refreshTree.clear(), [refreshTree]);
+  useEffect(() => () => refreshGitStatus.clear(), [refreshGitStatus]);
   useEffect(() => {
     const listing = treeCache.currentTreeListing(listingKey, live.current.changed);
     if (listing !== undefined) {
@@ -196,18 +203,17 @@ export function useFileWorkspace({
       setTreeReady(true);
       setTreeFilter(includeIgnored);
       setTreeLoading(false);
-      void Promise.allSettled([command('git.changes', {}, ['git.changes'])]).then(
-        ([r]) => live.current.key === listingKey && applyGit(r),
-      );
+      void refreshGitStatus();
       return;
     }
     setTreeLoading(true);
     const onFail = (e: unknown) =>
       live.current.key === listingKey && setError(e instanceof Error ? e.message : String(e));
-    void refresh()
+    void refreshTree()
       .catch(onFail)
       .finally(() => live.current.key === listingKey && setTreeLoading(false));
-  }, [refresh]);
+    void refreshGitStatus();
+  }, [refreshTree, refreshGitStatus]);
   useTreeChanges(state.results['files.tree.changed'], refresh, setError);
   const openFile = useCallback(
     async (rawPath: string) => {

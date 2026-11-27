@@ -1,18 +1,16 @@
 use crate::{
     err,
     host::Client,
+    terminal_poll::{PollPace, StreamControl},
     window_geometry::{self, Area, Geometry},
     Result,
 };
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex, RwLock,
-    },
+    sync::{atomic::AtomicBool, Arc, Mutex, RwLock},
     thread,
-    time::Duration,
+    time::Instant,
 };
 use tauri::{
     ipc::{Channel, InvokeResponseBody},
@@ -50,14 +48,10 @@ impl Desktop {
     pub(crate) fn cancel_streams(&self) {
         if let Ok(streams) = self.streams.lock() {
             for control in streams.values() {
-                control.cancel.store(true, Ordering::Relaxed);
+                control.stop();
             }
         }
     }
-}
-struct StreamControl {
-    cancel: AtomicBool,
-    ready: AtomicBool,
 }
 /** Logical work areas of the connected monitors, for deciding where a window may reopen. */
 fn monitor_areas(monitors: Vec<tauri::Monitor>) -> Vec<Area> {
@@ -222,7 +216,12 @@ async fn host_request(
         .unwrap_or_else(|| client.clone());
     let drafts = Arc::clone(&state.drafts);
     let aliases = Arc::clone(&state.project_aliases);
-    tauri::async_runtime::spawn_blocking(move || {
+    let terminal_id = if matches!(method.as_str(), "session.write" | "session.resize") {
+        params["id"].as_str().map(ToOwned::to_owned)
+    } else {
+        None
+    };
+    let result = tauri::async_runtime::spawn_blocking(move || {
         if method == "snapshot" || method == "project.register" || method.starts_with("project-menu.") {
             let dir = drafts.lock().map_err(err)?.dir.clone();
             return crate::project_menu::request(&dir, &method, &params, |method, params| {
@@ -341,7 +340,15 @@ async fn host_request(
         client.call(&method, params)
     })
     .await
-    .map_err(err)?
+    .map_err(err)?;
+    if let Some(id) = terminal_id.filter(|_| result.is_ok()) {
+        if let Ok(streams) = state.streams.lock() {
+            for stream in streams.values().filter(|stream| stream.id == id) {
+                stream.input();
+            }
+        }
+    }
+    result
 }
 #[tauri::command]
 async fn choose_project(window: WebviewWindow) -> Result<Option<String>> {
@@ -475,29 +482,27 @@ fn terminal_stream(
 ) -> Result<()> {
     trusted(&window)?;
     uuid::Uuid::parse_str(&subscription).map_err(err)?;
-    let cancel = Arc::new(StreamControl {
-        cancel: AtomicBool::new(false),
-        ready: AtomicBool::new(true),
-    });
+    let control = Arc::new(StreamControl::new(id));
     let key = format!("{}:{subscription}", window.label());
     if let Some(previous) = state
         .streams
         .lock()
         .map_err(err)?
-        .insert(key.clone(), Arc::clone(&cancel))
+        .insert(key.clone(), Arc::clone(&control))
     {
-        previous.cancel.store(true, Ordering::Relaxed);
+        previous.stop();
     }
     let client = state.client();
     let app = window.app_handle().clone();
     thread::spawn(move || {
         let mut offset: Option<u64> = None;
-        while !cancel.cancel.load(Ordering::Relaxed) {
-            if !cancel.ready.load(Ordering::Acquire) {
-                thread::sleep(Duration::from_millis(4));
-                continue;
+        let mut pace = PollPace::new();
+        let mut deadline = Instant::now();
+        while let Some(input) = control.wait_to_read(deadline) {
+            if input {
+                pace.input(Instant::now());
             }
-            match client.call("session.read", json!({"id":id,"offset":offset})) {
+            match client.call("session.read", json!({"id":control.id,"offset":offset})) {
                 Ok(result) => {
                     let next = result["offset"].as_u64().unwrap_or(0);
                     let bytes = result["bytes"]
@@ -509,25 +514,29 @@ fn terminal_stream(
                         })
                         .unwrap_or_default();
                     offset = Some(next);
-                    if !bytes.is_empty() {
-                        cancel.ready.store(false, Ordering::Release);
+                    let output = !bytes.is_empty();
+                    if output {
+                        control.chunk_sent();
                         if channel.send(InvokeResponseBody::Raw(bytes)).is_err() {
                             break;
                         }
                     }
-                    if next < result["end"].as_u64().unwrap_or(next) {
-                        continue;
-                    }
+                    let now = Instant::now();
+                    deadline = now
+                        + pace.after_read(
+                            now,
+                            output,
+                            next < result["end"].as_u64().unwrap_or(next),
+                        );
                 }
                 Err(_) => break,
             }
-            thread::sleep(Duration::from_millis(16));
         }
         if let Some(state) = app.try_state::<Desktop>() {
             if let Ok(mut streams) = state.streams.lock() {
                 if streams
                     .get(&key)
-                    .is_some_and(|current| Arc::ptr_eq(current, &cancel))
+                    .is_some_and(|current| Arc::ptr_eq(current, &control))
                 {
                     streams.remove(&key);
                 }
@@ -543,13 +552,13 @@ fn terminal_stop(
     subscription: String,
 ) -> Result<()> {
     trusted(&window)?;
-    if let Some(cancel) = state
+    if let Some(control) = state
         .streams
         .lock()
         .map_err(err)?
         .remove(&format!("{}:{subscription}", window.label()))
     {
-        cancel.cancel.store(true, Ordering::Relaxed);
+        control.stop();
     }
     Ok(())
 }
@@ -566,7 +575,7 @@ fn terminal_ack(
         .map_err(err)?
         .get(&format!("{}:{subscription}", window.label()))
     {
-        stream.ready.store(true, Ordering::Release);
+        stream.acknowledge();
     }
     Ok(())
 }
@@ -661,9 +670,9 @@ pub fn run() {
                 if let Some(state) = window.app_handle().try_state::<Desktop>() {
                     if let Ok(mut streams) = state.streams.lock() {
                         let prefix = format!("{}:", window.label());
-                        streams.retain(|key, cancel| {
+                        streams.retain(|key, control| {
                             if key.starts_with(&prefix) {
-                                cancel.cancel.store(true, Ordering::Relaxed);
+                                control.stop();
                                 false
                             } else {
                                 true

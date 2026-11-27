@@ -35,7 +35,7 @@ for(const [kind,content] of [['thinking','Worker thinking fixture'],['text','Wor
 function Fixture(){
  const pane=useRef(null), following=useRef(false);
  const [events,setEvents]=useState(initial),[live,setLive]=useState(true),[thinking,setThinking]=useState(true),[empty,setEmpty]=useState(false);
- useEffect(()=>{const params=new URLSearchParams(location.search);if(params.has('details'))document.querySelectorAll('[role="tab"]')[2]?.click();if(params.has('dark'))document.documentElement.dataset.mode='dark';},[]);
+ useEffect(()=>{const params=new URLSearchParams(location.search);if(params.has('details'))document.querySelector('[role="tab"][title="Details"]')?.click();if(params.has('dark'))document.documentElement.dataset.mode='dark';},[]);
  const state={...events.reduce(reduceEngine,base),running:live};
  const messages=empty?[]:[{id:'prompt',role:'user',at:fixtureAt-1000,text:'Fixture: center the conversation and group calls by iteration.'},{id:'answer',role:'assistant',at:fixtureAt,text:'I will inspect the source, then update the activity view.',activityAfter:events}];
  const display={showThinkingLogs:thinking,groupToolCalls:true,autoCollapseInput:false,keyboardShortcuts:true};
@@ -136,6 +136,18 @@ try {
           await page.getByRole('tab', { name: 'Details', exact: true }).click();
           await expect(page.locator('.session-tool-total dd')).toHaveText('2');
           await expect(page.locator('.session-tool-summary dl > div')).toHaveCount(3);
+          const companionsTab = page.getByRole('tab', { name: 'Companions', exact: true });
+          await companionsTab.focus();
+          await page.keyboard.press('Enter');
+          const companions = page.getByRole('tabpanel', { name: 'Companions', exact: true });
+          await expect(companions.getByRole('checkbox')).toHaveCount(4);
+          await expect(
+            companions.getByRole('checkbox', { name: 'Enable the Kanban Companion' }),
+          ).toBeDisabled();
+          assert.equal(
+            await companions.evaluate((panel) => panel.scrollWidth <= panel.clientWidth + 1),
+            true,
+          );
           await page.getByRole('tab', { name: 'Agents', exact: true }).click();
           const geometry = await page.evaluate(() => {
             const pane = document.querySelector('.native-chat-messages');
@@ -224,6 +236,8 @@ try {
           await expect(page.locator('.agent-step.thinking')).toHaveCount(0);
           await page.getByRole('button', { name: 'Toggle thinking' }).click();
           await expect(page.locator('.agent-step.thinking')).toHaveCount(1);
+          // The fixture controls are outside the compact inspector and dismiss its overlay.
+          await page.getByRole('tab', { name: 'Agents', exact: true }).click();
           await page.locator('.agent-step.thinking > summary').click();
           await expect(page.getByText('Worker thinking fixture', { exact: true })).toBeVisible();
           await page.screenshot({

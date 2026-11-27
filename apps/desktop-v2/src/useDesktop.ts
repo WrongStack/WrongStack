@@ -351,8 +351,8 @@ export function useDesktop() {
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, []);
-  const run = async (action: () => Promise<unknown>) => {
-    setPending(true);
+  const run = async (action: () => Promise<unknown>, { background = false } = {}) => {
+    if (!background) setPending(true);
     setError('');
     try {
       await action();
@@ -360,7 +360,7 @@ export function useDesktop() {
     } catch (e) {
       reportError(e);
     } finally {
-      setPending(false);
+      if (!background) setPending(false);
     }
   };
   const newSession = (preferred?: string, sessionKind: 'agent' | 'terminal' = 'agent') => {
@@ -381,6 +381,30 @@ export function useDesktop() {
   );
   const currentSession = snapshot.sessions.find((s) => s.id === selected);
   const sessionKind = currentSession?.kind;
+  const warmJournal =
+    native &&
+    section === 'fleet' &&
+    sessionKind === 'agent' &&
+    selected !== null &&
+    !Object.hasOwn(drafts, selected) &&
+    !draftErrors[selected];
+  useEffect(() => {
+    if (!warmJournal || selected === null) return;
+    let active = true;
+    let stop: (() => void) | undefined;
+    void import('./engine-stream')
+      .then(({ backendStream }) => {
+        if (active)
+          stop = backendStream('engine', selected).subscribe({ changed() {}, onError() {} });
+      })
+      .catch((error) => {
+        if (active) reportError(error);
+      });
+    return () => {
+      active = false;
+      stop?.();
+    };
+  }, [warmJournal, selected, reportError]);
   useEffect(() => {
     if (!selected || sessionKind !== 'agent' || Object.hasOwn(drafts, selected)) return;
     let active = true;

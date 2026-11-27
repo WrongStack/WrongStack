@@ -138,7 +138,7 @@
       "mailboxUnreadSummary"
     ],
     "apps/desktop-v2/src/MarkdownContent.tsx": [
-      "splitStreamBlocks"
+      "scanStreamBlocks"
     ],
     "apps/desktop-v2/src/memory-injections.ts": [
       "MEMORY_RUN_LIMIT"

@@ -6,9 +6,13 @@ import './fleet-policy.css';
 export function FleetPolicySettings({
   draft,
   change,
+  companionsOnly = false,
+  disabled = false,
 }: {
   draft: Record<string, unknown>;
   change: (key: string, value: unknown) => void;
+  companionsOnly?: boolean;
+  disabled?: boolean;
 }) {
   const { t } = useDesktopText();
   const toggle = (key: string, label: string, description: string, Icon: LucideIcon) => {
@@ -30,7 +34,7 @@ export function FleetPolicySettings({
         <input
           type="checkbox"
           aria-label={label}
-          disabled={!known}
+          disabled={disabled || !known}
           checked={draft[key] === true}
           onChange={(event) => change(key, event.target.checked)}
         />
@@ -39,51 +43,53 @@ export function FleetPolicySettings({
   };
   return (
     <div className="fleet-policy-settings">
-      <article className="fleet-capacity-card">
-        <header>
-          <Layers3 size={23} />
-          <div>
-            <span className="eyebrow">{t('fleetPolicy.eyebrow')}</span>
-            <h3>{t('fleetPolicy.title')}</h3>
+      {!companionsOnly && (
+        <article className="fleet-capacity-card">
+          <header>
+            <Layers3 size={23} />
+            <div>
+              <span className="eyebrow">{t('fleetPolicy.eyebrow')}</span>
+              <h3>{t('fleetPolicy.title')}</h3>
+            </div>
+          </header>
+          <p>{t('fleetPolicy.intro')}</p>
+          <div className="fleet-capacity-fields">
+            <label>
+              <strong>{t('fleetPolicy.concurrent')}</strong>
+              <input
+                aria-label={t('fleetPolicy.concurrent')}
+                type="number"
+                required
+                min={1}
+                step={1}
+                value={typeof draft['maxConcurrent'] === 'number' ? draft['maxConcurrent'] : ''}
+                onChange={(event) =>
+                  change(
+                    'maxConcurrent',
+                    event.target.value === '' ? undefined : Number(event.target.value),
+                  )
+                }
+              />
+              <small>{t('fleetPolicy.concurrentHelp')}</small>
+            </label>
+            <label>
+              <strong>{t('fleetPolicy.chatDetail')}</strong>
+              <select
+                aria-label={t('fleetPolicy.chatDetail')}
+                value={String(draft['fleetChatVerbosity'] ?? '')}
+                onChange={(event) => change('fleetChatVerbosity', event.target.value)}
+              >
+                <option value="" disabled>
+                  {t('fleetPolicy.notReported')}
+                </option>
+                <option value="off">{t('fleetPolicy.quiet')}</option>
+                <option value="full">{t('fleetPolicy.detailed')}</option>
+              </select>
+              <small>{t('fleetPolicy.chatHelp')}</small>
+            </label>
           </div>
-        </header>
-        <p>{t('fleetPolicy.intro')}</p>
-        <div className="fleet-capacity-fields">
-          <label>
-            <strong>{t('fleetPolicy.concurrent')}</strong>
-            <input
-              aria-label={t('fleetPolicy.concurrent')}
-              type="number"
-              required
-              min={1}
-              step={1}
-              value={typeof draft['maxConcurrent'] === 'number' ? draft['maxConcurrent'] : ''}
-              onChange={(event) =>
-                change(
-                  'maxConcurrent',
-                  event.target.value === '' ? undefined : Number(event.target.value),
-                )
-              }
-            />
-            <small>{t('fleetPolicy.concurrentHelp')}</small>
-          </label>
-          <label>
-            <strong>{t('fleetPolicy.chatDetail')}</strong>
-            <select
-              aria-label={t('fleetPolicy.chatDetail')}
-              value={String(draft['fleetChatVerbosity'] ?? '')}
-              onChange={(event) => change('fleetChatVerbosity', event.target.value)}
-            >
-              <option value="" disabled>
-                {t('fleetPolicy.notReported')}
-              </option>
-              <option value="off">{t('fleetPolicy.quiet')}</option>
-              <option value="full">{t('fleetPolicy.detailed')}</option>
-            </select>
-            <small>{t('fleetPolicy.chatHelp')}</small>
-          </label>
-        </div>
-      </article>
+        </article>
+      )}
       <section className="fleet-companions" aria-label={t('fleetPolicy.companionsLabel')}>
         <header>
           <div>
@@ -111,20 +117,22 @@ export function FleetPolicySettings({
           BookOpen,
         )}
       </section>
-      <section className="fleet-next-step-policy" aria-label={t('fleetPolicy.nextLabel')}>
-        <header>
-          <span className="eyebrow">{t('fleetPolicy.nextEyebrow')}</span>
-          <h3>{t('fleetPolicy.nextTitle')}</h3>
-          <p>{t('fleetPolicy.nextIntro')}</p>
-        </header>
-        {toggle(
-          'nextPrediction',
-          t('fleetPolicy.prediction'),
-          t('fleetPolicy.predictionHelp'),
-          Sparkles,
-        )}
-        {toggle('nextStepsTool', t('fleetPolicy.tool'), t('fleetPolicy.toolHelp'), ListChecks)}
-      </section>
+      {!companionsOnly && (
+        <section className="fleet-next-step-policy" aria-label={t('fleetPolicy.nextLabel')}>
+          <header>
+            <span className="eyebrow">{t('fleetPolicy.nextEyebrow')}</span>
+            <h3>{t('fleetPolicy.nextTitle')}</h3>
+            <p>{t('fleetPolicy.nextIntro')}</p>
+          </header>
+          {toggle(
+            'nextPrediction',
+            t('fleetPolicy.prediction'),
+            t('fleetPolicy.predictionHelp'),
+            Sparkles,
+          )}
+          {toggle('nextStepsTool', t('fleetPolicy.tool'), t('fleetPolicy.toolHelp'), ListChecks)}
+        </section>
+      )}
     </div>
   );
 }

@@ -72,12 +72,12 @@ export async function exerciseNativeApprovals({
   await send('allow');
   await card().waitFor({ timeout: 60000 });
   await waitFor(async () => {
-    const pane = await page.locator('.native-chat-messages').boundingBox();
+    const pane = await page.locator('.session-approval-queue').boundingBox();
     const button = await card()
       .getByRole('button', { name: 'Allow once', exact: true })
       .boundingBox();
     return pane && button && button.y >= pane.y && button.y + button.height <= pane.y + pane.height;
-  }, 'New approval actions follow the conversation into view');
+  }, 'New approval actions are visible in the approval queue beside the composer');
   // The banner names the whole command, every argument included, before anything is opened.
   await card()
     .locator('.approval-banner-subject')

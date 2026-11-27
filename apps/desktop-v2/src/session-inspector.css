@@ -182,6 +182,19 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
+.session-companions {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.session-companions .fleet-companions {
+  padding: 12px;
+}
+.session-companions .fleet-policy-switch {
+  gap: 8px;
+  padding: 10px 0;
+}
 .session-inspector-panel.inspector-agents {
   display: flex;
   overflow: hidden;
@@ -431,5 +444,17 @@
   .session-inspector .agent-tabs {
     flex: none;
     min-height: 72px;
+  }
+}
+
+@container conversation (max-width: 480px) {
+  @media (max-height: 420px) {
+    .session-conversation-panes > .session-leader-column {
+      overflow-y: auto;
+    }
+    .focused-session .session-leader-column > .native-chat-messages {
+      flex: 1 0 160px;
+      min-height: 160px;
+    }
   }
 }

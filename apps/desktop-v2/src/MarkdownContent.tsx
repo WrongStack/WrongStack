@@ -5,6 +5,7 @@ import {
   memo,
   type ReactNode,
   useCallback,
+  useLayoutEffect,
   useMemo,
   useRef,
 } from 'react';
@@ -78,26 +79,47 @@ const elements = [
   // Only the highlighter makes spans: raw HTML in a message is skipped before this list applies.
   'span',
 ];
-/**
- * Splits a streaming message into completed blocks and the block still being written, as the
- * WebUI does with its stable prefix. A block ends at a blank line outside an open code fence,
- * so completed blocks never change and each keeps its own cached parse across stream frames.
- */
-export function splitStreamBlocks(text: string): [blocks: string[], tail: string] {
-  const blocks: string[] = [];
-  let start = 0;
-  let fenceOpen = false;
-  let offset = 0;
-  for (const line of text.split('\n')) {
-    const end = offset + line.length + 1;
+type StreamBlocks = {
+  readonly text: string;
+  readonly blocks: readonly string[];
+  readonly tail: string;
+  readonly lineStart: number;
+  readonly fenceOpen: boolean;
+};
+
+const emptyStream: StreamBlocks = {
+  text: '',
+  blocks: [],
+  tail: '',
+  lineStart: 0,
+  fenceOpen: false,
+};
+
+/** Complete blocks retain their identity while the provider appends to the current block. */
+export function scanStreamBlocks(text: string, previous = emptyStream): StreamBlocks {
+  if (previous.text === text) return previous;
+  const base = text.startsWith(previous.text) ? previous : emptyStream;
+  let blocks: string[] | undefined;
+  let start = base.text.length - base.tail.length;
+  let lineStart = base.lineStart;
+  let fenceOpen = base.fenceOpen;
+  // Begin the newline search after the old input, even when its last line is incomplete.
+  let newline = text.indexOf('\n', base.text.length);
+  while (newline !== -1) {
+    const line = text.slice(lineStart, newline);
+    const end = newline + 1;
     if (/^\s*(```|~~~)/.test(line)) fenceOpen = !fenceOpen;
-    else if (!fenceOpen && line.trim() === '' && end <= text.length) {
-      if (offset > start) blocks.push(text.slice(start, end));
+    else if (!fenceOpen && line.trim() === '') {
+      if (lineStart > start) {
+        blocks ??= [...base.blocks];
+        blocks.push(text.slice(start, end));
+      }
       start = end;
     }
-    offset = end;
+    lineStart = end;
+    newline = text.indexOf('\n', end);
   }
-  return [blocks, text.slice(start)];
+  return { text, blocks: blocks ?? base.blocks, tail: text.slice(start), lineStart, fenceOpen };
 }
 
 type LinkHandler = ((url: string) => void) | undefined;
@@ -183,17 +205,23 @@ export const MarkdownContent = memo(function MarkdownContent({
   const current = useRef<LinkHandler>(onLink);
   current.current = onLink;
   const link = useCallback((url: string) => current.current?.(url), []);
-  const [blocks, tail] = useMemo(
-    () => (streaming ? splitStreamBlocks(text) : [[text], '']),
+  const committed = useRef<StreamBlocks | undefined>(undefined);
+  const scanned = useMemo(
+    () => (streaming ? scanStreamBlocks(text, committed.current) : undefined),
     [streaming, text],
+  );
+  useLayoutEffect(() => {
+    committed.current = scanned;
+  }, [scanned]);
+  const blocks = scanned?.blocks;
+  const completed = useMemo(
+    () => blocks?.map((block, index) => <ParsedMarkdown key={index} text={block} link={link} />),
+    [blocks, link],
   );
   return (
     <div className="markdown-content">
-      {blocks.map((block, index) => (
-        // A completed block never changes while the answer streams; its index is its identity.
-        <ParsedMarkdown key={index} text={block} link={link} />
-      ))}
-      {tail && <p className="markdown-stream-tail">{tail}</p>}
+      {streaming ? completed : <ParsedMarkdown key={0} text={text} link={link} />}
+      {scanned?.tail && <p className="markdown-stream-tail">{scanned.tail}</p>}
     </div>
   );
 });

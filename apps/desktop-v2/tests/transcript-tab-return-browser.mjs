@@ -35,6 +35,8 @@ window.feed = (type, payload) => {
 };
 const noop = () => {}, save = async () => true;
 function App(){
+  const [selected,setSelected]=useState('test');
+  window.switchFixtureSession = setSelected;
   const [inputDrafts,setInputDrafts] = useState({});
   const [sessionStatus,setSessionStatus] = useState('running');
   window.setSessionStatus = setSessionStatus;
@@ -42,7 +44,7 @@ function App(){
   return (
   <div className="app-shell"><div className="workspace-shell workspace-focused"><main className="main-content">
     <section className="session-workbench"><div className="session-workspace focused-session">
-      <EngineWorkspace id="test" sessionTitle="Reading position" projectId="project" projectRoot="D:/fixture"
+      <EngineWorkspace key={selected} id={selected} sessionTitle="Reading position" projectId="project" projectRoot="D:/fixture"
         scopeKey="D:/fixture" mode="btw" draft="Keep this draft" draftConflict={false} onModeChange={noop}
         validateDraft={save} onDraftChange={save} references={[]} attachments={[]} inputDrafts={inputDrafts} sessionStatus={sessionStatus}
         onError={error=>{throw error}} onAttachmentsChange={save} onReferencesChange={save}
@@ -295,30 +297,160 @@ async function checkReturn(browser, url, viewport) {
   await page.close();
 }
 
+async function checkReadingPersistence(browser, url) {
+  const viewport = { width: 1280, height: 840 };
+  const context = await browser.newContext({ viewport });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  const latest = (tab) => tab.locator('[data-message-id="message-99"]');
+  const paused = (tab) => tab.getByRole('button', { name: 'Jump to latest' });
+  const goto = (tab) => tab.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  const checkAnchor = async (tab, offset) => {
+    await paused(tab).waitFor();
+    try {
+      await tab.waitForFunction((expected) => {
+        const item = document.querySelector('[data-message-id="message-64"]');
+        const viewport = document.querySelector('.native-chat-messages');
+        return (
+          item &&
+          viewport &&
+          Math.abs(
+            item.getBoundingClientRect().top - viewport.getBoundingClientRect().top - expected,
+          ) <= 2
+        );
+      }, offset);
+    } catch (error) {
+      throw new Error(
+        `Expected offset ${offset}, got ${JSON.stringify(await tab.evaluate(readingPosition))}`,
+        { cause: error },
+      );
+    }
+  };
+  try {
+    await goto(page);
+    await latest(page).waitFor();
+    await page.keyboard.press('Control+f');
+    const find = page.locator('input[data-find-input="conversation"]');
+    await find.fill('Message 64 —');
+    await find.press('Enter');
+    await page.locator('.chat-message.find-current').waitFor();
+    await find.press('Escape');
+    await page.locator(pane).evaluate(async (view) => {
+      view.scrollTop += 11;
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+    });
+    const { offset } = await page.evaluate(readingPosition);
+    assert.equal(typeof offset, 'number');
+    await page.evaluate(() => window.switchFixtureSession('second'));
+    await latest(page).waitFor();
+    assert.equal(await paused(page).count(), 0, 'The other session opens at latest');
+    await page.evaluate(() => window.switchFixtureSession('test'));
+    await checkAnchor(page, offset);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await checkAnchor(page, offset);
+    const saved = await context.storageState();
+    const restarted = await browser.newContext({ viewport, storageState: saved });
+    try {
+      const tab = await restarted.newPage();
+      tab.setDefaultTimeout(8000);
+      await goto(tab);
+      await checkAnchor(tab, offset);
+      await paused(tab).click();
+      await latest(tab).waitFor();
+      await tab.reload({ waitUntil: 'domcontentloaded' });
+      await latest(tab).waitFor();
+      assert.equal(await paused(tab).count(), 0, 'Following latest survives a reload');
+    } finally {
+      await restarted.close();
+    }
+    console.log(
+      'PASS: message and offset survive a session switch, reload and fresh browser context',
+    );
+  } finally {
+    await context.close();
+  }
+}
+
+async function checkFollowWork(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 840 } });
+  try {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.locator('[data-message-id="message-99"]').waitFor();
+    const calls = await page.locator(pane).evaluate(async (view) => {
+      const original = Element.prototype.scrollIntoView;
+      let calls = 0;
+      Element.prototype.scrollIntoView = function (...args) {
+        if (view.contains(this)) calls++;
+        return original.apply(this, args);
+      };
+      const marker = document.createElement('span');
+      marker.hidden = true;
+      try {
+        await new Promise(requestAnimationFrame);
+        calls = 0;
+        for (let index = 0; index < 16; index++) {
+          view.append(marker);
+          await Promise.resolve();
+        }
+        await new Promise(requestAnimationFrame);
+        return calls;
+      } finally {
+        Element.prototype.scrollIntoView = original;
+        marker.remove();
+      }
+    });
+    assert.equal(calls, 1, `Follow-latest layout calls for 16 updates in one frame: ${calls}`);
+    console.log(`PASS: ${calls} follow-latest layout call for 16 updates in one frame`);
+  } finally {
+    await page.close();
+  }
+}
+
 let browser;
 try {
   await server.listen();
   browser = await chromium.launch({ headless: true });
   const url = server.resolvedUrls.local[0] + '__transcript-tab-return';
-  await checkReturn(browser, url, { width: 1280, height: 840 });
-  await checkReturn(browser, url, { width: 800, height: 600 });
+  if (!process.argv.includes('--compact')) await checkFollowWork(browser, url);
+  if (!process.argv.includes('--follow-work') && !process.argv.includes('--compact')) {
+    await checkReadingPersistence(browser, url);
+    await checkReturn(browser, url, { width: 1280, height: 840 });
+    await checkReturn(browser, url, { width: 800, height: 600 });
+  }
 
-  const compact = await browser.newPage({ viewport: { width: 400, height: 300 } });
-  compact.setDefaultTimeout(12000);
-  await compact.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  const transcript = compact.locator(pane);
-  await transcript.waitFor();
-  assert.ok((await transcript.boundingBox()).height >= 160);
-  const send = compact.getByRole('button', { name: 'Send message', exact: true });
-  await send.scrollIntoViewIfNeeded();
-  const button = await send.boundingBox();
-  assert.ok(button.y >= 0 && button.y + button.height <= 300);
-  assert.ok(
-    await compact.locator('.session-conversation-panes').evaluate((el) => el.scrollTop > 0),
-  );
-  assert.equal(await compact.evaluate(() => document.documentElement.scrollWidth), 400);
-  await compact.close();
-  console.log('PASS 400×300: the transcript and send action are reachable in the short workbench');
+  if (!process.argv.includes('--follow-work')) {
+    const compact = await browser.newPage({ viewport: { width: 400, height: 300 } });
+    compact.setDefaultTimeout(12000);
+    await compact.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    const transcript = compact.locator(pane);
+    await transcript.waitFor();
+    const transcriptBounds = await transcript.boundingBox();
+    assert.ok(
+      transcriptBounds.height >= 160,
+      `Compact transcript bounds: ${JSON.stringify(transcriptBounds)}`,
+    );
+    const send = compact.getByRole('button', { name: 'Send message', exact: true });
+    await send.scrollIntoViewIfNeeded();
+    const button = await send.boundingBox();
+    assert.ok(button.y >= 0 && button.y + button.height <= 300);
+    assert.ok(await compact.locator('.session-leader-column').evaluate((el) => el.scrollTop > 0));
+    assert.equal(
+      await send.evaluate((element) => {
+        const area = element.getBoundingClientRect();
+        return element.contains(
+          document.elementFromPoint(area.x + area.width / 2, area.y + area.height / 2),
+        );
+      }),
+      true,
+      'Send receives pointer input after scrolling the short workbench',
+    );
+    assert.equal(await compact.evaluate(() => document.documentElement.scrollWidth), 400);
+    await compact.close();
+    console.log(
+      'PASS 400×300: the transcript and send action are reachable in the short workbench',
+    );
+  }
 } finally {
   await browser?.close();
   await server.close();

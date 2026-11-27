@@ -10,9 +10,11 @@ import {
 } from 'react';
 import { Virtualizer, type VirtualizerHandle } from 'virtua';
 import type { ChatMessage } from './engine-state';
+import type { TranscriptReadingPosition } from './transcript-reading-position';
 
 export interface TranscriptHandle {
-  scrollToMessage(index: number): void;
+  scrollToMessage(index: number, offset?: number): void;
+  readingPosition(): TranscriptReadingPosition | undefined;
 }
 
 /** Only viewport rows mount; questions and approvals in the footer always remain available. */
@@ -34,6 +36,8 @@ export function TranscriptVirtualizer({
   ref?: Ref<TranscriptHandle>;
 }) {
   const list = useRef<VirtualizerHandle>(null);
+  const liveMessages = useRef(messages);
+  liveMessages.current = messages;
   const liveFollowing = useRef(following);
   liveFollowing.current = following;
   const followFrame = useRef<number | null>(null);
@@ -45,7 +49,7 @@ export function TranscriptVirtualizer({
     [],
   );
   const [focused, setFocused] = useState<number | null>(null);
-  const [target, setTarget] = useState<number | null>(null);
+  const [target, setTarget] = useState<{ index: number; offset: number } | null>(null);
   const items = useMemo(
     () => [
       { id: 'header', message: null },
@@ -57,28 +61,42 @@ export function TranscriptVirtualizer({
   useImperativeHandle(
     ref,
     () => ({
-      scrollToMessage(index) {
-        if (index >= 0 && index < messages.length) {
-          setTarget(index + 1);
-          list.current?.scrollToIndex(index + 1, { align: 'start' });
+      scrollToMessage(index, offset = 0) {
+        if (index >= 0 && index < liveMessages.current.length) {
+          setTarget({ index: index + 1, offset });
+          list.current?.scrollToIndex(index + 1, { align: 'start', offset });
         }
       },
+      readingPosition() {
+        const current = list.current;
+        const view = scrollRef.current;
+        const messages = liveMessages.current;
+        if (!current || !view || !messages.length) return;
+        const scrollTop = view.scrollTop;
+        const index = Math.max(1, Math.min(messages.length, current.findItemIndex(scrollTop)));
+        return {
+          messageId: messages[index - 1]!.id,
+          offset: Math.round(scrollTop - current.getItemOffset(index)),
+        };
+      },
     }),
-    [messages.length],
+    [scrollRef],
   );
   // Restore/find can land in an unmeasured row next to a very tall answer. Keep that one
   // row mounted, then navigate again after its real content has committed. Later messages
   // must not repeat an earlier navigation, especially while the transcript is hidden.
   // The message starts the row; centering a tall expanded activity can put it above the pane.
   useLayoutEffect(() => {
-    if (target !== null) list.current?.scrollToIndex(target, { align: 'start' });
+    if (target)
+      list.current?.scrollToIndex(target.index, { align: 'start', offset: target.offset });
   }, [target]);
   const kept = [0, items.length - 1];
   // An empty replay can measure both sentinel rows at zero. Keep the newest answer
   // measurable while following so the first message cannot fall outside that empty range.
   if (messages.length && following?.current) kept.push(items.length - 2);
   if (focused !== null && focused < items.length) kept.push(focused);
-  if (target !== null && target < items.length && !kept.includes(target)) kept.push(target);
+  if (target && target.index < items.length && !kept.includes(target.index))
+    kept.push(target.index);
   return (
     <Virtualizer
       ref={list}

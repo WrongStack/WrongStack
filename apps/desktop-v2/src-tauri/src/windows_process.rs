@@ -455,23 +455,60 @@ fn stop_descendants_after_root_exit(root: &Process, owned: &[Process]) -> crate:
     Ok(())
 }
 
-pub(crate) fn stop_tree(pid: u32) -> crate::Result<()> {
-    stop_tree_with(pid, Duration::from_secs(2), |pid| {
-        Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .creation_flags(0x08000000)
-            .status()
-            .map(|status| status.success())
-            .map_err(crate::err)
-    })
+pub(crate) struct StopTarget {
+    pid: u32,
+    owned: Vec<Process>,
 }
 
+impl StopTarget {
+    pub(crate) fn capture(pid: u32) -> crate::Result<Self> {
+        Ok(Self {
+            pid,
+            owned: owned_tree(pid)?,
+        })
+    }
+
+    pub(crate) fn stop(self) -> crate::Result<()> {
+        self.stop_with(Duration::from_secs(2), request_tree_stop)
+    }
+
+    fn stop_with(
+        self,
+        grace: Duration,
+        request_stop: impl FnOnce(u32) -> crate::Result<bool>,
+    ) -> crate::Result<()> {
+        stop_captured(self.pid, &self.owned, grace, request_stop)
+    }
+}
+
+pub(crate) fn stop_tree(pid: u32) -> crate::Result<()> {
+    StopTarget::capture(pid)?.stop()
+}
+
+fn request_tree_stop(pid: u32) -> crate::Result<bool> {
+    Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/T", "/F"])
+        .creation_flags(0x08000000)
+        .status()
+        .map(|status| status.success())
+        .map_err(crate::err)
+}
+
+#[cfg(test)]
 fn stop_tree_with(
     pid: u32,
     grace: Duration,
     request_stop: impl FnOnce(u32) -> crate::Result<bool>,
 ) -> crate::Result<()> {
-    let owned = owned_tree(pid)?;
+    StopTarget::capture(pid)?.stop_with(grace, request_stop)
+}
+
+fn stop_captured(
+    pid: u32,
+    owned: &[Process],
+    grace: Duration,
+    request_stop: impl FnOnce(u32) -> crate::Result<bool>,
+) -> crate::Result<()> {
     let Some(root) = owned.iter().find(|process| process.pid == pid) else {
         return Ok(());
     };
@@ -486,7 +523,7 @@ fn stop_tree_with(
     let mut descendants_checked = false;
     loop {
         let mut running = Vec::new();
-        for process in &owned {
+        for process in owned {
             if !process.exited()? {
                 running.push(process.pid);
             }
@@ -495,7 +532,7 @@ fn stop_tree_with(
             return Ok(());
         }
         if !descendants_checked && !running.contains(&pid) {
-            stop_descendants_after_root_exit(root, &owned)?;
+            stop_descendants_after_root_exit(root, owned)?;
             descendants_checked = true;
             continue;
         }

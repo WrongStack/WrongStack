@@ -10,13 +10,16 @@ const id = 'virtual:follow-proof',
 const source = `
 import {createRoot} from 'react-dom/client';
 import {useRef,useState} from 'react';
+import {MarkdownContent} from '/src/MarkdownContent.tsx';
 import {TranscriptVirtualizer} from '/src/TranscriptVirtualizer.tsx';
 import {useTranscriptFollowHandlers} from '/src/transcript-follow.ts';
+import '/src/chat.css';
+const prefix='**Stable paragraph**\\n\\n~~~ts\\nconst stable = true;\\n~~~\\n\\n';
 function Fixture(){
   const pane=useRef(null), following=useRef(true);
   const [lines,setLines]=useState(1),[active,setActive]=useState(true),[mounted,setMounted]=useState(true);
   const messages=[{id:'old',role:'assistant',text:'Short control answer'},
-    {id:'new',role:'assistant',text:Array.from({length:lines},(_,i)=>'Long line '+i).join('\\n')}];
+    {id:'new',role:'assistant',text:prefix+Array.from({length:lines},(_,i)=>'Long line '+i).join('\\n')}];
   const pause=()=>{following.current=false;setActive(false);};
   const resume=()=>{following.current=true;setActive(true);};
   const handlers=useTranscriptFollowHandlers(following,pause,resume);
@@ -28,7 +31,7 @@ function Fixture(){
       {...handlers}>
       {mounted&&<TranscriptVirtualizer following={following} scrollRef={pane} messages={messages}
         header={<span>Conversation</span>} footer={<div id="tail">Long reply complete.</div>}
-        renderMessage={m=><pre style={{margin:0,lineHeight:'20px'}}>{m.text}</pre>}/>}
+        renderMessage={m=><MarkdownContent text={m.text} streaming={m.id==='new'}/>}/>}
     </div></>;
 }
 createRoot(document.getElementById('root')).render(<Fixture/>);
@@ -106,6 +109,7 @@ try {
   });
   await page.goto(server.resolvedUrls.local[0] + '__follow');
   await page.getByText('Short control answer', { exact: true }).waitFor();
+  const stableBlock = await page.locator('.markdown-content strong').elementHandle();
   await page.getByRole('button', { name: 'Grow answer', exact: true }).click();
   await page.waitForFunction(() => {
     const pane = document.querySelector('#pane');
@@ -117,6 +121,12 @@ try {
     await page.locator('#pane').getAttribute('data-following'),
     'true',
     'Layout growth must not impersonate user scrolling',
+  );
+  assert(
+    await stableBlock.evaluate(
+      (block) => block.isConnected && block.textContent === 'Stable paragraph',
+    ),
+    'Growing the unfinished tail keeps the completed paragraph mounted',
   );
   await page.locator('#pane').hover();
   await page.mouse.wheel(0, -1000);
