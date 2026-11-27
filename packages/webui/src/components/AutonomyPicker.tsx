@@ -108,6 +108,10 @@ export function AutonomyPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        // WCAG 4.1.2: the popup's expanded state must be programmatically
+        // determinable — the visual chevron rotation is not enough.
+        aria-expanded={open}
+        aria-haspopup="true"
         className={cn(
           'flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium transition-colors hover:opacity-80',
           tone,
@@ -127,7 +131,14 @@ export function AutonomyPicker({
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 right-0 z-50 w-56 rounded-lg border bg-popover shadow-lg p-1">
+        // WCAG 4.1.2: the active mode is published with aria-pressed, so it
+        // does not depend on the accent background class alone.
+        // biome-ignore lint/a11y/useSemanticElements: native fieldset border/padding would change this styled popup.
+        <div
+          role="group"
+          aria-label={t('activity:autonomy.heading')}
+          className="absolute top-full mt-1 right-0 z-50 w-56 rounded-lg border bg-popover shadow-lg p-1"
+        >
           <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b mb-1">
             {t('activity:autonomy.heading')}
           </div>
@@ -135,6 +146,7 @@ export function AutonomyPicker({
             <button
               key={opt.mode}
               type="button"
+              aria-pressed={opt.mode === value}
               onClick={() => {
                 onChange(opt.mode);
                 setOpen(false);
@@ -154,7 +166,10 @@ export function AutonomyPicker({
                 </p>
               </div>
               {value === opt.mode && (
-                <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0"
+                />
               )}
             </button>
           ))}

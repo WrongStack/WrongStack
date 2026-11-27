@@ -27,7 +27,9 @@ export const webuiSetupHost: SetupHost = {
     config.setProvider(provider);
     config.setModel(model);
     // `model.switch` persists the choice on the server and broadcasts a session.start.
-    const result = await getWSClient(config.wsUrl).switchModel(provider, model, 5_000);
+    // No explicit deadline: the default already waits past the engine's 15 s
+    // profile-config lock, which an explicit 5 s here defeated (#448).
+    const result = await getWSClient(config.wsUrl).switchModel(provider, model);
     if (!result.success) return result;
     // First run in the truest sense: provider and model are settled, so the last thing left
     // to size is the system prompt. The picker starts the session on confirm, and marks the

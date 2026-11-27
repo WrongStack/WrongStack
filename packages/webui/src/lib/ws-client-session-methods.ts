@@ -21,6 +21,22 @@ export type WSMailboxSendOptions = {
   audience?: 'all' | 'leaders' | undefined;
 };
 
+/**
+ * How long the client waits for a `model.switch_result` before reporting a
+ * timeout.
+ *
+ * The server answers `model.switch` only after saving the profile config, and
+ * that write waits up to 15 s for the file lock when another writer (another
+ * engine, the CLI, a desktop instance on the same home) holds it. An 8 s
+ * deadline therefore timed out a perfectly healthy switch whose real answer
+ * arrived a few seconds later — "Model switch timed out. Please try again."
+ * The desktop client hit the same wall and was fixed the same way in #448 by
+ * waiting past the engine's own lock wait (measured: 15005–15101 ms with the
+ * lock held). Keep this above that lock wait with headroom for the provider
+ * build and the session re-announce that follow the save.
+ */
+const MODEL_SWITCH_TIMEOUT_MS = 45_000;
+
 export interface WsClientSessionHost {
   send(message: WSClientMessage, options?: WSSendOptions): boolean;
   withSession<T extends Record<string, unknown>>(
@@ -261,7 +277,7 @@ export const sessionMethods: WsClientSessionMethods = {
     this: WsClientSessionHost,
     provider: string,
     model: string,
-    timeoutMs = provider === 'acp' ? 60_000 : 8_000,
+    timeoutMs = provider === 'acp' ? 60_000 : MODEL_SWITCH_TIMEOUT_MS,
   ): Promise<WSModelSwitchResult['payload']> {
     const requestId = safeId();
     return new Promise((resolve) => {

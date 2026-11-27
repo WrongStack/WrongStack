@@ -2,6 +2,19 @@ import { safeId } from '@/lib/utils';
 import type { WSClientMessage } from '@/types';
 import type { WrongStackWebSocketClient } from './ws-client';
 
+/**
+ * How long to wait for the `key.operation_result` of an operation that saves
+ * the profile config.
+ *
+ * `key.add` / `key.update` / provider mutations answer only after writing the
+ * profile config, and that write waits up to 15 s for the file lock when
+ * another writer (another engine, the CLI, a desktop instance on the same
+ * home) holds it. An 8 s deadline reported "No response from the server"
+ * while the real answer was still on its way — the same failure the model
+ * switch had (#448). Keep this above the lock wait.
+ */
+const CONFIG_WRITE_OPERATION_TIMEOUT_MS = 45_000;
+
 /** A matching server acknowledgment, never an unrelated operation result. */
 export function requestAuthOperation(
   client: WrongStackWebSocketClient,
@@ -37,7 +50,7 @@ export function requestAuthOperation(
     timer = setTimeout(() => {
       onTimeout();
       finish(false);
-    }, 8000);
+    }, CONFIG_WRITE_OPERATION_TIMEOUT_MS);
     try {
       const outbound = {
         ...message,

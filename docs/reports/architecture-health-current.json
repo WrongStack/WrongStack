@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:14:15.654Z",
+  "generatedAt": "2026-11-27T12:16:52.664Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6617,
-    "testFiles": 6547,
-    "sourceLines": 1357916,
+    "testFiles": 6549,
+    "sourceLines": 1357967,
     "workspaceEdges": 267,
     "moduleEdges": 19415,
     "nonCommandSlashImports": 0,
@@ -1200,7 +1200,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 802,
-      "testFiles": 597,
+      "testFiles": 599,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1226,7 +1226,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 597
+          "testFiles": 599
         }
       ]
     },
@@ -36942,6 +36942,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/chatview-fmttok-unit-carry.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/chimera-store-proto.test.ts",
         "projects": [
           "webui-jsdom"
@@ -37159,6 +37165,12 @@
       },
       {
         "file": "packages/webui/tests/components/automation-view.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/autonomy-picker-state.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

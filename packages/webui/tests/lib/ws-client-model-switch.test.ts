@@ -70,4 +70,42 @@ describe('WrongStackWebSocketClient model switch', () => {
       runActive: true,
     });
   });
+
+  // The server answers `model.switch` only after saving the profile config,
+  // and that write waits up to 15 s for the file lock when another writer
+  // (another engine, the CLI, a desktop instance on the same home) holds it.
+  // The old 8 s deadline timed out a healthy switch whose real answer arrived
+  // later. The desktop client was fixed the same way in #448.
+  it('waits past the engine config lock instead of timing out at 8 s', async () => {
+    vi.useFakeTimers();
+    const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
+    const send = vi.spyOn(client, 'send').mockImplementation(() => true);
+    try {
+      let settled = false;
+      const pending = client.switchModel('openai', 'gpt-5').then((result) => {
+        settled = true;
+        return result;
+      });
+      // Past the old 8 s deadline, still inside the lock wait.
+      await vi.advanceTimersByTimeAsync(12_000);
+      expect(settled).toBe(false);
+      const requestId = (send.mock.calls[0]![0] as { payload: { requestId: string } }).payload
+        .requestId;
+      client.emit({
+        type: 'model.switch_result',
+        payload: {
+          requestId,
+          success: true,
+          message: 'Switched',
+          provider: 'openai',
+          model: 'gpt-5',
+          runActive: false,
+        },
+      });
+      await expect(pending).resolves.toMatchObject({ success: true });
+    } finally {
+      client.disconnect();
+      vi.useRealTimers();
+    }
+  });
 });

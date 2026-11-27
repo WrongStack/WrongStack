@@ -62,7 +62,12 @@ describe('auth operation acknowledgment', () => {
       new AbortController().signal,
       timeout,
     );
-    await vi.advanceTimersByTimeAsync(8000);
+    // A config-write operation answers only after saving the profile config,
+    // which waits up to 15 s for the file lock. The deadline must sit past
+    // that wait, so it is no longer the old 8 s.
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(timeout).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(37_000);
     expect(await expired).toBe(false);
     expect(timeout).toHaveBeenCalledOnce();
     expect(h.off).toHaveBeenCalledTimes(2);
