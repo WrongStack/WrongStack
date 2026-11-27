@@ -15,6 +15,7 @@ import {
 } from '../storage.js';
 import type { KanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
+import { runInsideStorageTransaction } from './kanban-storage-transaction.js';
 import type { KanbanWorkflowCommand, KanbanWorkflowState } from './protocol.js';
 import { initializeKanbanSchema, migrateLegacyKanbanFiles } from './sqlite-schema-migration.js';
 
@@ -263,12 +264,20 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
   }
 
   async readMetadata(key: string): Promise<string | null> {
-    return this.exclusive(() => {
-      const row = this.db.prepare('SELECT value FROM kanban_meta WHERE key = ?').get(key) as
-        | { value: string }
-        | undefined;
-      return row?.value ?? null;
-    });
+    return this.exclusive(() => this.readMetadataUnlocked(key));
+  }
+
+  /**
+   * Raw metadata read for callers already inside `exclusive` — reached only
+   * through the scoped transaction reader (`kanban-storage-transaction.ts`),
+   * so a mutator awaiting a policy read inside `mutateBoard` cannot deadlock
+   * on the same mutex.
+   */
+  private readMetadataUnlocked(key: string): string | null {
+    const row = this.db.prepare('SELECT value FROM kanban_meta WHERE key = ?').get(key) as
+      | { value: string }
+      | undefined;
+    return row?.value ?? null;
   }
 
   async writeMetadata(key: string, value: string): Promise<void> {
@@ -444,7 +453,13 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         }
         const readRevision = board.revision ?? 0;
         const before = fingerprint(board);
-        const result = await mutator(board);
+        // Mutators may await metadata reads (companion-policy gate/fence).
+        // They must read within THIS transaction via the scoped reader: a
+        // nested exclusive() would queue behind itself and deadlock.
+        const result = await runInsideStorageTransaction(
+          { readMetadata: async (key) => this.readMetadataUnlocked(key) },
+          () => mutator(board),
+        );
         if (this.closed) {
           throw new Error('Kanban SQLite storage is closed');
         }

@@ -13,7 +13,7 @@ describe('assertManagementWrite lease expiry validation', () => {
     type: 'task',
   } as unknown as KanbanTask;
 
-  it('refuses non-finite or non-numeric lease.expiresAt values instead of treating them as unexpired', () => {
+  it('refuses non-finite or non-numeric lease.expiresAt values instead of treating them as unexpired', async () => {
     for (const badExpiry of [Number.NaN, Number.POSITIVE_INFINITY, undefined]) {
       const board = {
         id: 'b1',
@@ -21,13 +21,13 @@ describe('assertManagementWrite lease expiry validation', () => {
         management: { lease: { token: 'tok-1', expiresAt: badExpiry } },
       } as unknown as KanbanBoard;
 
-      expect(() =>
-        assertManagementWrite(board, [task], {
+      await expect(
+        assertManagementWrite('b1-root', board, [task], {
           sessionId: 'session-test',
           expectedManagementToken: 'tok-1',
           expectedManagementTaskVersions: { t1: managementTaskVersion(board, task) },
         }),
-      ).toThrow(StaleWriteError);
+      ).rejects.toThrow(StaleWriteError);
     }
   });
 });

@@ -1,6 +1,7 @@
 import { Bot, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { useKanbanCompanion } from '@/hooks/useKanbanCompanion';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,9 @@ export function CompanionsButton() {
       skillCompanionEnabled: s.skillCompanionEnabled,
     })),
   );
+  // Project-wide Kanban companion: server state shared with the settings
+  // section, outside the personal toggle-all and the 3-way count below.
+  const kanban = useKanbanCompanion();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -207,6 +211,60 @@ export function CompanionsButton() {
                 </button>
               </div>
             ))}
+
+            {/* Project-wide Kanban companion. Server-owned state (not a local
+                pref): never counted by the personal toggle-all or the 3-way
+                summary above, and only mirrored once the server confirms. */}
+            <div className="pt-2">
+              <div className="flex items-start justify-between gap-2.5 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium leading-tight">
+                    {t('settings:fleet.kanbanCompanionLabel', {
+                      defaultValue: 'Kanban Companion',
+                    })}
+                  </div>
+                  <div className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                    {t('settings:fleet.kanbanCompanionHint', {
+                      defaultValue:
+                        'Project-wide: helps route requirements into Kanban, prepares and guides dispatch, and keeps cards clean. Assists the leader — it does not run independently.',
+                    })}
+                  </div>
+                  {kanban.error !== null && (
+                    <div className="mt-0.5 text-[10px] leading-snug text-destructive">
+                      {kanban.error ||
+                        t('settings:fleet.kanbanCompanionError', {
+                          defaultValue: 'Kanban Companion update failed.',
+                        })}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  data-testid="composer-kanban-companion-switch"
+                  aria-checked={kanban.enabled === true}
+                  aria-label={t('settings:fleet.kanbanCompanionLabel', {
+                    defaultValue: 'Kanban Companion',
+                  })}
+                  disabled={kanban.pending || !kanban.open}
+                  onClick={kanban.toggle}
+                  className={cn(
+                    'relative mt-0.5 inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors',
+                    kanban.enabled === true
+                      ? 'border-primary bg-primary'
+                      : 'border-input bg-muted hover:bg-muted/80',
+                    (kanban.pending || !kanban.open) && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-background shadow transition-transform',
+                      kanban.enabled === true && 'translate-x-4',
+                    )}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
         </ComposerPopover>
       )}

@@ -5,6 +5,7 @@ import {
   finalizeTaskCompletion,
   finishBoardManagement,
   getBoard,
+  getKanbanCompanionEnabled,
   getKanbanQueueHealth,
   type KanbanBoard,
   type KanbanExecutionRouting,
@@ -98,9 +99,38 @@ function resolveProjectRoot(deps: KanbanSupervisorDeps): string {
   return typeof root === 'function' ? root() : root;
 }
 
+/**
+ * Live project-wide companion switch, read straight from the workspace so a
+ * flip made here or by another host takes effect on the next scheduling pass.
+ * The switch can only ever restrict scheduling when it positively reads
+ * `false`: a failed read keeps agentic management exactly as it behaved
+ * before the flag existed, rather than silently disabling supervision on a
+ * transient I/O error.
+ */
+async function companionSwitchEnabled(
+  projectRoot: string,
+  log: ((message: string) => void) | undefined,
+): Promise<boolean> {
+  try {
+    return await getKanbanCompanionEnabled(projectRoot);
+  } catch (error) {
+    log?.(
+      `[KanbanSupervisor] companion flag read failed; management stays enabled: ${errMessage(error)}`,
+    );
+    return true;
+  }
+}
+
 export interface KanbanSupervisor {
   getSnapshot(boardId: string): KanbanSupervisorSnapshot | undefined;
   auditNow(boardId?: string): Promise<KanbanSupervisorSnapshot[]>;
+  /**
+   * Abort every in-flight agentic management run (companion disabled). Idempotent
+   * and a no-op when nothing runs; each run's own onDone/abandon path releases
+   * its watchdog and durable lease, whose fence rejects any finish that would
+   * clobber an already-persisted verdict.
+   */
+  cancelManagement(): void;
   getStats(): {
     snapshots: number;
     scheduledBoards: number;
@@ -156,6 +186,16 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   let activeProjectRoot = resolveProjectRoot(deps);
   let nextTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /**
+   * Stop every in-flight agentic management run now (companion was disabled).
+   * Mirrors the lease-loss abort: the spawned run sees the signal, its onDone
+   * cleanup clears watchdog/bookkeeping, and the fenced lease finish means an
+   * already-persisted verdict is never overwritten by the cancellation.
+   */
+  const cancelManagement = (): void => {
+    for (const controller of controllers.values()) controller.abort();
+  };
+
   const forgetBoard = (boardId: string): void => {
     snapshots.delete(boardId);
     broadcasted.delete(boardId);
@@ -207,7 +247,10 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     });
   };
 
-  const auditBoard = async (board: KanbanBoard): Promise<KanbanSupervisorSnapshot> => {
+  const auditBoard = async (
+    board: KanbanBoard,
+    companionOn: boolean,
+  ): Promise<KanbanSupervisorSnapshot> => {
     const projectRoot = resolveProjectRoot(deps);
     const config = effectiveConfig(board);
     const auditedAt = new Date().toISOString();
@@ -258,7 +301,12 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     const currentBoard = recovered?.board ?? gateSwept ?? reconciled?.board ?? board;
     const running =
       agentRunning.has(board.id) || (currentBoard.management?.lease?.expiresAt ?? 0) > Date.now();
+    // The project-wide companion switch gates agentic management on top of the
+    // per-board supervisor config: with it off, no manager is scheduled and the
+    // snapshot stops advertising management as pending — the deterministic
+    // reconcile/recovery sweeps above still ran.
     const pendingManagement =
+      companionOn &&
       config.mode === 'agentic' &&
       hasManageableWork(currentBoard) &&
       (currentBoard.management?.reviewCoverageVersion !== 1 ||
@@ -306,7 +354,11 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
       await publishKanbanBoard(deps.broadcast, changedBoard, () => listBoards(projectRoot));
     }
 
-    if (config.mode === 'agentic' && (hasManageableWork(currentBoard) || anomalyCount > 0)) {
+    if (
+      companionOn &&
+      config.mode === 'agentic' &&
+      (hasManageableWork(currentBoard) || anomalyCount > 0)
+    ) {
       await maybeRunAgent(currentBoard, config, health, snapshot);
     }
     return snapshots.get(board.id) ?? snapshot;
@@ -488,6 +540,8 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   const auditNow = async (boardId?: string): Promise<KanbanSupervisorSnapshot[]> => {
     if (disposed) return [];
     const projectRoot = currentProject();
+    const companionOn = await companionSwitchEnabled(projectRoot, deps.log);
+    if (!companionOn) cancelManagement();
     let boards: KanbanBoard[];
     if (boardId) {
       const board = await getBoard(projectRoot, boardId);
@@ -507,7 +561,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     const results: KanbanSupervisorSnapshot[] = [];
     for (const board of boards) {
       if (disposed || projectRoot !== resolveProjectRoot(deps)) break;
-      results.push(await auditBoard(board));
+      results.push(await auditBoard(board, companionOn));
     }
     scheduleNext();
     return results;
@@ -549,6 +603,8 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   const tick = async () => {
     if (disposed) return;
     const projectRoot = currentProject();
+    const companionOn = await companionSwitchEnabled(projectRoot, deps.log);
+    if (!companionOn) cancelManagement();
     try {
       const now = Date.now();
       const summaries = await listBoards(projectRoot);
@@ -557,7 +613,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
         if (disposed || projectRoot !== resolveProjectRoot(deps)) break;
         if ((nextDue.get(summary.id) ?? 0) > now) continue;
         const board = await getBoard(projectRoot, summary.id);
-        if (board && projectRoot === resolveProjectRoot(deps)) await auditBoard(board);
+        if (board && projectRoot === resolveProjectRoot(deps)) await auditBoard(board, companionOn);
       }
     } catch (error) {
       deps.log?.(`[KanbanSupervisor] ${errMessage(error)}`);
@@ -572,6 +628,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   return {
     getSnapshot: (boardId) => snapshots.get(boardId),
     auditNow,
+    cancelManagement,
     getStats: () => ({
       snapshots: snapshots.size,
       scheduledBoards: nextDue.size,

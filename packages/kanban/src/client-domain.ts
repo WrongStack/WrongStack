@@ -116,3 +116,5 @@ export const failKanbanDispatch = bindDomainOperation('failKanbanDispatch');
 export const cancelKanbanDispatch = bindDomainOperation('cancelKanbanDispatch');
 export const heartbeatKanbanDispatch = bindDomainOperation('heartbeatKanbanDispatch');
 export const pruneSessionBoards = bindDomainOperation('pruneSessionBoards');
+export const getKanbanCompanionEnabled = bindDomainOperation('getKanbanCompanionEnabled');
+export const setKanbanCompanionEnabled = bindDomainOperation('setKanbanCompanionEnabled');

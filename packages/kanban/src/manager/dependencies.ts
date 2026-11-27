@@ -61,11 +61,11 @@ export async function addDependency(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     const dependency = findTask(board, dependencyTaskId);
     if (!task || !dependency) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     addDependencyToTask(board, task, dependency);
     stampAtomicityAssessment(board, task);
     if (board.lifecycle?.mode !== 'managed') {
@@ -96,11 +96,11 @@ export async function splitTask(
   eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; parent: KanbanTask; children: KanbanTask[] } | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const parent = findTask(board, taskId);
     if (!parent) return null;
     const acceptedParent = structuredClone(parent);
-    assertManagementWrite(board, [parent], eventContext);
+    await assertManagementWrite(projectRoot, board, [parent], eventContext);
     const titles = input.titles.map((title) => requireNonBlank(title, 'Kanban split task title'));
     if (!titles.length) throw new Error('splitTask requires at least one child title.');
     const requestedColumnId = input.columnId ?? parent.columnId;
@@ -200,10 +200,10 @@ export async function mergeTasks(
   eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask; sourceTasks: KanbanTask[] } | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const sourceTasks = resolveTaskRefs(board, input.taskIds);
     if (sourceTasks.length < 2) throw new Error('mergeTasks requires at least two tasks.');
-    assertManagementWrite(board, sourceTasks, eventContext);
+    await assertManagementWrite(projectRoot, board, sourceTasks, eventContext);
     const sourceIds = new Set(sourceTasks.map((task) => task.id));
     const requestedColumnId = input.targetColumnId ?? sourceTasks[0]?.columnId;
     const columnId = existingColumnId(board, requestedColumnId);
@@ -357,7 +357,7 @@ export async function setTaskChain(
   eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; chainId: string; tasks: KanbanTask[] } | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const tasks = resolveTaskRefs(board, input.taskIds);
     if (!tasks.length) throw new Error('setTaskChain requires at least one task.');
     const chainId = input.chainId ?? randomUUID();
@@ -370,7 +370,7 @@ export async function setTaskChain(
         (task.chain &&
           (previousChainIds.includes(task.chain.chainId) || task.chain.chainId === chainId)),
     );
-    assertManagementWrite(board, affected, eventContext);
+    await assertManagementWrite(projectRoot, board, affected, eventContext);
     const now = nowIso();
     for (const existing of board.tasks) {
       if (existing.chain?.chainId === chainId && !tasks.includes(existing)) {

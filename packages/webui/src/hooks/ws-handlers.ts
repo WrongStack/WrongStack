@@ -1,4 +1,5 @@
 import { applyAtlasFrame } from '@wrongstack/project-surfaces/atlas/frames';
+import { handleKanbanCompanionStatus } from '@/lib/kanban-companion-wire';
 import { messageSessionId, pipeViz, sessionFor } from '@/lib/ws-client-utils';
 import type { SideEffectEntry } from '@/stores';
 import {
@@ -341,6 +342,11 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
     'kanban.decomposition.reject': handleKanbanResult,
     'kanban.decomposition.resolved': handleKanbanResult,
     'kanban.decomposition.applied': handleKanbanResult,
+    // Project-wide Kanban Companion switch: direct replies echo the requestId
+    // (correlated in kanban-companion-wire.ts); change broadcasts carry none.
+    'kanban.companion.status': (msg: WSServerMessage) => {
+      handleKanbanCompanionStatus(msg.payload);
+    },
     'tools.list': handleToolsList,
     'memory.list': handleMemoryList,
     'memory.sage.list': handleMemorySageList,

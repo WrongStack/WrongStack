@@ -18,7 +18,15 @@
 import type { KanbanDomainOperation } from '../domain-operations.js';
 import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
 
-export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 9;
+/**
+ * v10: `getKanbanCompanionEnabled`/`setKanbanCompanionEnabled` joined the
+ * `domainCall` allowlist (the companion policy must be toggled beside the
+ * board mutations it fences). The endpoint path embeds this version, so a
+ * daemon from before the allowlist change can never accept a client that
+ * sends the new operations — it would refuse them op-by-op with
+ * INVALID_INPUT instead of failing the handshake loudly.
+ */
+export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 10;
 
 export type KanbanDomainWireValue =
   | ['null']

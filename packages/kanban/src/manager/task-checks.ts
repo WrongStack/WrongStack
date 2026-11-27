@@ -30,10 +30,10 @@ export async function addCheckToTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     if (eventContext.expectedManagementToken !== undefined) {
       if (check.status !== undefined && check.status !== 'pending')
         throw new Error('Kanban manager acceptance checks must be pending.');
@@ -88,11 +88,11 @@ export async function updateCheckOnTask(
     return null;
   }
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     const check = task?.successCriteria?.find((candidate) => candidate.id === checkId);
     if (!task || !check) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     const before = { ...check };
     const acceptedTask = structuredClone(task);
     // Untyped/structural patches can carry id despite Omit; references must stay stable.
@@ -159,11 +159,11 @@ export async function removeCheckFromTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     const index = task?.successCriteria?.findIndex((candidate) => candidate.id === checkId) ?? -1;
     if (!task || index === -1) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     assertAcceptedContractUnchanged(board, task, {
       ...task,
       successCriteria: task.successCriteria!.filter((_, position) => position !== index),

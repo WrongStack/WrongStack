@@ -104,10 +104,10 @@ export async function upsertContractNode(
 ): Promise<{ board: KanbanBoard; node: KanbanContractNode } | null> {
   const sessionId = requireSessionId(eventContext.sessionId, 'upsert kanban contract node');
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, input.taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     validateContractBinding(task, input.checkId, input.metricId);
     validateWaiver(input.state, input.waiver);
 
@@ -212,7 +212,7 @@ export async function addContractEdge(
 ): Promise<{ board: KanbanBoard; edge: KanbanContractEdge } | null> {
   const sessionId = requireSessionId(eventContext.sessionId, 'add kanban contract edge');
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const now = nowIso();
     const graph = ensureContractGraph(board, now);
     const from = normalizeEndpoint(board, graph, input.from);
@@ -240,7 +240,7 @@ export async function addContractEdge(
     board.updatedAt = now;
     const ownerTask = taskForEndpoint(board, graph, from) ?? taskForEndpoint(board, graph, to);
     if (ownerTask) {
-      assertManagementWrite(board, [ownerTask], eventContext);
+      await assertManagementWrite(projectRoot, board, [ownerTask], eventContext);
       event = createKanbanEvent(board.id, ownerTask, 'contract.edge.added', {
         sessionId,
         after: { ...edge },
@@ -265,7 +265,7 @@ export async function removeContractNode(
 ): Promise<KanbanBoard | null> {
   const sessionId = requireSessionId(eventContext.sessionId, 'remove kanban contract node');
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const graph = board.contractGraph;
     if (!graph) return false;
     const index = graph.nodes.findIndex((node) => node.id === nodeId);
@@ -273,7 +273,7 @@ export async function removeContractNode(
     const node = graph.nodes[index]!;
     const task = findTask(board, node.taskId);
     if (task) {
-      assertManagementWrite(board, [task], eventContext);
+      await assertManagementWrite(projectRoot, board, [task], eventContext);
     }
     graph.nodes.splice(index, 1);
     graph.edges = graph.edges.filter((edge) => edge.from !== nodeId && edge.to !== nodeId);
@@ -300,7 +300,7 @@ export async function removeContractEdge(
 ): Promise<KanbanBoard | null> {
   const sessionId = requireSessionId(eventContext.sessionId, 'remove kanban contract edge');
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const graph = board.contractGraph;
     if (!graph) return false;
     const removed = graph.edges.find((edge) => edge.id === edgeId);
@@ -308,7 +308,7 @@ export async function removeContractEdge(
     const task =
       taskForEndpoint(board, graph, removed.from) ?? taskForEndpoint(board, graph, removed.to);
     if (task) {
-      assertManagementWrite(board, [task], eventContext);
+      await assertManagementWrite(projectRoot, board, [task], eventContext);
     }
     const before = graph.edges.length;
     graph.edges = graph.edges.filter((edge) => edge.id !== edgeId);

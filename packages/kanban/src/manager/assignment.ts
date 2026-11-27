@@ -186,11 +186,11 @@ export async function assignTask(
     true,
   );
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     assertBaselineInputs(board, taskId, capture);
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     if (task.status === 'archived' || task.mergedIntoTaskId) {
       throw new Error(`Cannot assign inactive task ${task.id}.`);
     }

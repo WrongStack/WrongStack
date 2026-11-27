@@ -2,6 +2,7 @@ import type { Context } from '@wrongstack/core/agent';
 import type { WebSocket } from 'ws';
 import { correlatedReply } from './correlated-reply.js';
 import { handleKanbanBoardRoute } from './kanban-board-routes.js';
+import { handleKanbanCompanionRoute } from './kanban-companion-routes.js';
 import { handleKanbanContractRoute } from './kanban-contract-routes.js';
 import { handleKanbanDecompositionRoute } from './kanban-decomposition-routes.js';
 import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from './kanban-dispatch.js';
@@ -66,6 +67,7 @@ export async function handleKanbanRoute(
     if (await handleKanbanOrchestrationRoute(ws, type, payload, ctx)) return true;
     if (await handleKanbanTaskLifecycleRoute(ws, type, payload, ctx)) return true;
     if (await handleKanbanItemRoute(ws, type, payload, ctx)) return true;
+    if (await handleKanbanCompanionRoute(ws, type, payload, ctx)) return true;
 
     switch (type) {
       case 'kanban.task.dispatch':

@@ -266,6 +266,10 @@
       "lines": 716,
       "relativeImports": 6
     },
+    "packages/webui-server/src/server/kanban-supervisor.ts": {
+      "lines": 723,
+      "relativeImports": 3
+    },
     "packages/webui-server/src/server/memory-handlers.ts": {
       "lines": 777,
       "relativeImports": 5
@@ -355,8 +359,8 @@
       "relativeImports": 19
     },
     "apps/desktop-v2/src/WrongStackSettings.tsx": {
-      "lines": 781,
-      "relativeImports": 48
+      "lines": 785,
+      "relativeImports": 49
     }
   }
 }

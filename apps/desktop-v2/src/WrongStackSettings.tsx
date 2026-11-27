@@ -42,6 +42,7 @@ import { prepareExecutionPolicyPatch } from './execution-policy-model';
 import { FleetPolicySettings } from './FleetPolicySettings';
 import { fleetPolicyIssue } from './fleet-policy-model';
 import { IntegrationSettings } from './IntegrationSettings';
+import { KanbanCompanionSettings } from './KanbanCompanionSettings';
 import { PluginInstaller } from './PluginInstaller';
 import { PluginToggles } from './PluginToggles';
 import { RefinementPolicySettings } from './RefinementPolicySettings';
@@ -271,7 +272,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     fleet: {
       title: 'Fleet & companions',
       description:
-        'Concurrent agents, Memory Companion, Explore Companion, Skill Companion and next-step guidance.',
+        'Concurrent agents, Memory Companion, Explore Companion, Skill Companion, next-step guidance and the project-wide Kanban Companion switch.',
     },
     'model-visibility': {
       title: 'Model visibility',
@@ -771,6 +772,9 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                 </div>
               </form>
               {section === 'capabilities' && <PluginInstaller command={command} />}
+              {section === 'fleet' && (
+                <KanbanCompanionSettings projectId={vm.currentProject?.id ?? ''} />
+              )}
             </>
           ) : null}
         </section>

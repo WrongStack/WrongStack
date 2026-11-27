@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:11:33.459Z",
+  "generatedAt": "2026-11-27T12:14:15.654Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6610,
-    "testFiles": 6539,
-    "sourceLines": 1356974,
+    "sourceFiles": 6617,
+    "testFiles": 6547,
+    "sourceLines": 1357916,
     "workspaceEdges": 267,
-    "moduleEdges": 19399,
+    "moduleEdges": 19415,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1062
+    "testOnlyExports": 1064
   },
   "errors": [],
   "packageCycles": [],
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 576,
-      "testFiles": 412,
+      "sourceFiles": 577,
+      "testFiles": 413,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 412
+          "testFiles": 413
         }
       ]
     },
@@ -582,8 +582,8 @@
     {
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
-      "sourceFiles": 108,
-      "testFiles": 130,
+      "sourceFiles": 110,
+      "testFiles": 132,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -597,7 +597,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 130
+          "testFiles": 132
         }
       ]
     },
@@ -1199,8 +1199,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 799,
-      "testFiles": 594,
+      "sourceFiles": 802,
+      "testFiles": 597,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1226,7 +1226,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 594
+          "testFiles": 597
         }
       ]
     },
@@ -1256,8 +1256,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 360,
-      "testFiles": 450,
+      "sourceFiles": 361,
+      "testFiles": 452,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1292,7 +1292,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 450
+          "testFiles": 452
         }
       ]
     },
@@ -2539,6 +2539,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/kanban-board-source.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-companion-settings.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19572,6 +19578,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/companion-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/completion-gate-soft-clears-park.test.ts",
         "projects": [
           "root-node"
@@ -19945,6 +19957,12 @@
       },
       {
         "file": "packages/kanban/tests/server-kanban-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/server/companion-policy-ipc.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35118,6 +35136,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/kanban-companion-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/kanban-contract-routes.test.ts",
         "projects": [
           "root-node"
@@ -35209,6 +35233,12 @@
       },
       {
         "file": "packages/webui-server/tests/kanban-source-integrity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/kanban-supervisor-companion.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36948,6 +36978,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/ChatInput/companions-button-kanban.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/ChatInput/companions-button.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -37357,6 +37393,12 @@
       },
       {
         "file": "packages/webui/tests/components/command-palette-export-utils.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/companion-agents-section-kanban.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -40122,6 +40164,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/kanban-companion-wire.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/kanban-store-dispatch.test.ts",
         "projects": [
           "webui-jsdom"
@@ -41196,6 +41244,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/KanbanCompanionSettings.tsx",
+      "specifier": "./fleet-policy.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/KanbanContractMap.tsx",
       "specifier": "./kanban-contract-map.css",
       "syntax": "import"
@@ -42125,6 +42178,11 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/webui-server/src/server/kanban-supervisor.ts",
+      "lines": 723,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
@@ -42236,8 +42294,8 @@
     },
     {
       "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
-      "lines": 781,
-      "relativeImports": 48
+      "lines": 785,
+      "relativeImports": 49
     }
   ],
   "hotspots": [
@@ -42398,8 +42456,8 @@
     },
     {
       "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
-      "lines": 781,
-      "relativeImports": 48
+      "lines": 785,
+      "relativeImports": 49
     },
     {
       "file": "packages/tools/src/design.ts",
@@ -42692,6 +42750,10 @@
     {
       "file": "apps/desktop-v2/src/KanbanBoardDialog.tsx",
       "name": "boardListTasks"
+    },
+    {
+      "file": "apps/desktop-v2/src/KanbanCompanionSettings.tsx",
+      "name": "companionEnabled"
     },
     {
       "file": "apps/desktop-v2/src/KanbanContractMap.tsx",
@@ -44396,6 +44458,10 @@
     {
       "file": "packages/kanban/src/manager/boards.ts",
       "name": "updateColumn"
+    },
+    {
+      "file": "packages/kanban/src/manager/companion-policy.ts",
+      "name": "KANBAN_COMPANION_METADATA_KEY"
     },
     {
       "file": "packages/kanban/src/manager/task-graph-bridge.ts",

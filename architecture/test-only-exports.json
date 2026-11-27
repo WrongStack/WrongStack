@@ -117,6 +117,9 @@
     "apps/desktop-v2/src/KanbanBoardDialog.tsx": [
       "boardListTasks"
     ],
+    "apps/desktop-v2/src/KanbanCompanionSettings.tsx": [
+      "companionEnabled"
+    ],
     "apps/desktop-v2/src/KanbanContractMap.tsx": [
       "readContractGraph"
     ],
@@ -1044,6 +1047,9 @@
       "addColumn",
       "removeColumn",
       "updateColumn"
+    ],
+    "packages/kanban/src/manager/companion-policy.ts": [
+      "KANBAN_COMPANION_METADATA_KEY"
     ],
     "packages/kanban/src/manager/task-graph-bridge.ts": [
       "buildTaskGraphFromKanbanBoard"

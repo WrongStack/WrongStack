@@ -1,6 +1,8 @@
 export const KANBAN_CLIENT_MESSAGE_TYPES = [
   'kanban.board.history',
   'kanban.capabilities',
+  'kanban.companion.get',
+  'kanban.companion.set',
   'kanban.contract.configure',
   'kanban.contract.edge.add',
   'kanban.contract.edge.remove',

@@ -1,4 +1,5 @@
 import { Bot } from 'lucide-react';
+import { useKanbanCompanion } from '@/hooks/useKanbanCompanion';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { PreferenceToggle } from './PreferenceToggle';
@@ -11,6 +12,9 @@ interface CompanionAgentsSectionProps {
 export function CompanionAgentsSection({ syncPref }: CompanionAgentsSectionProps) {
   const { t } = useAppTranslation();
   const localPrefs = useLocalPrefs();
+  // Project-wide Kanban companion: server state shared with the composer
+  // popover, outside the personal syncPref toggles below.
+  const kanban = useKanbanCompanion();
 
   return (
     <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
@@ -45,13 +49,35 @@ export function CompanionAgentsSection({ syncPref }: CompanionAgentsSectionProps
           />
         </div>
 
-        <div className="pt-3">
+        <div className="py-3">
           <PreferenceToggle
             label={t('settings:fleet.skillCompanionLabel')}
             hint={t('settings:fleet.skillCompanionHint')}
             value={localPrefs.skillCompanionEnabled}
             onChange={() => syncPref('skillCompanionEnabled', !localPrefs.skillCompanionEnabled)}
           />
+        </div>
+
+        {/* Project-wide Kanban companion. Server-owned state (not a local
+            pref): syncPref is untouched, and the switch only mirrors the
+            server's confirmed answer. */}
+        <div className="pt-3">
+          <PreferenceToggle
+            label={t('settings:fleet.kanbanCompanionLabel')}
+            hint={t('settings:fleet.kanbanCompanionHint')}
+            value={kanban.enabled === true}
+            disabled={kanban.pending || !kanban.open}
+            onChange={kanban.toggle}
+            testId="settings-kanban-companion-switch"
+          />
+          {kanban.error !== null && (
+            <p
+              className="mt-1 text-xs text-destructive"
+              data-testid="settings-kanban-companion-error"
+            >
+              {kanban.error || t('settings:fleet.kanbanCompanionError')}
+            </p>
+          )}
         </div>
       </div>
     </div>

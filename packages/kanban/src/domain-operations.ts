@@ -82,6 +82,11 @@ export const KANBAN_DOMAIN_OPERATIONS = [
   'cancelKanbanDispatch',
   'heartbeatKanbanDispatch',
   'pruneSessionBoards',
+  // Project-wide companion policy. The daemon owns the durable flag and the
+  // lease sweep, so the read/write must execute beside the board mutations
+  // that consult it.
+  'getKanbanCompanionEnabled',
+  'setKanbanCompanionEnabled',
 ] as const;
 
 export type KanbanDomainOperation = (typeof KANBAN_DOMAIN_OPERATIONS)[number];

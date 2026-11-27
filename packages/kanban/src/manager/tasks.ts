@@ -101,8 +101,8 @@ export async function addTask(
   eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
-    assertManagementWrite(board, [], eventContext);
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
+    await assertManagementWrite(projectRoot, board, [], eventContext);
     if (input.id?.trim() && board.tasks.some((t) => t.id === input.id!.trim())) {
       throw new Error(`Duplicate kanban task id: ${input.id.trim()}`);
     }
@@ -140,8 +140,8 @@ export async function copyTaskToBoard(
   if (!sourceTask) return null;
 
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, targetBoardId, (targetBoard) => {
-    assertManagementWrite(targetBoard, [], options.eventContext);
+  const updated = await mutateBoard(projectRoot, targetBoardId, async (targetBoard) => {
+    await assertManagementWrite(projectRoot, targetBoard, [], options.eventContext);
     const task = cloneTaskForBoard(targetBoard, sourceTask, {
       // Managed copies are new work and must restart at Backlog with a fresh
       // lifecycle ledger; carrying a mid-stream stage would fake progression.
@@ -179,12 +179,13 @@ export async function copyTaskToBoard(
   return updated ? { sourceBoard, targetBoard: updated.board, task: updated.result } : null;
 }
 
-function assertTaskRemovable(
+async function assertTaskRemovable(
+  projectRoot: string,
   board: KanbanBoard,
   taskToRemove: KanbanTask,
   eventContext: KanbanEventContext,
-): void {
-  assertManagementWrite(board, [taskToRemove], eventContext);
+): Promise<void> {
+  await assertManagementWrite(projectRoot, board, [taskToRemove], eventContext);
   const requirementId = taskToRemove.origin?.specRequirementId;
   const graphId = taskToRemove.origin?.graphId;
   const declaredByScope = Boolean(
@@ -247,7 +248,7 @@ export async function transferTaskToBoard(
     return moved && task ? { sourceBoard: moved, targetBoard: moved, task } : null;
   }
 
-  assertTaskRemovable(sourceBoard, sourceTask, options.eventContext);
+  await assertTaskRemovable(projectRoot, sourceBoard, sourceTask, options.eventContext);
 
   const copied = await copyTaskToBoard(projectRoot, sourceBoard.id, sourceTask.id, targetBoardId, {
     ...options,
@@ -281,14 +282,14 @@ export async function updateTask(
   options: { expectedUpdatedAt?: string | undefined } = {},
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
     if (options.expectedUpdatedAt !== undefined && task.updatedAt !== options.expectedUpdatedAt)
       throw new Error(
         'KANBAN_TASK_CONFLICT: The task changed since it was read. Reload it before saving.',
       );
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     if (
       eventContext.expectedManagementToken !== undefined &&
       Object.keys(input).some(
@@ -350,10 +351,10 @@ export async function removeTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const taskToRemove = findTask(board, taskId);
     if (!taskToRemove) return false;
-    assertTaskRemovable(board, taskToRemove, eventContext);
+    await assertTaskRemovable(projectRoot, board, taskToRemove, eventContext);
     const index = board.tasks.findIndex((task) => task.id === taskToRemove.id);
     if (index === -1) return false;
     event = createKanbanEvent(board.id, taskToRemove, 'task.removed', eventContext);
@@ -455,7 +456,7 @@ export async function recordTaskActivity(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
     const summary = requireNonBlank(input.summary, 'Kanban task activity summary');
@@ -519,10 +520,10 @@ export async function addGoalMetricToTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     const acceptedTask = structuredClone(task);
     const now = nowIso();
     const nextMetric: KanbanGoalMetric = {
@@ -559,11 +560,11 @@ export async function updateGoalMetricOnTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     const metric = task ? findGoalMetric(task.goalMetrics ?? [], metricId) : undefined;
     if (!task || !metric) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     const acceptedTask = structuredClone(task);
     const before = { ...metric };
     if (patch.name !== undefined)
@@ -600,10 +601,10 @@ export async function addNoteToTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext, 'note');
+    await assertManagementWrite(projectRoot, board, [task], eventContext, 'note');
     if (eventContext.expectedManagementToken !== undefined) {
       const existing = task.notes?.find(
         (item) => item.author === 'kanban-manager' && item.content.trim() === note.content.trim(),
@@ -637,10 +638,10 @@ export async function addLinkToTask(
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     if (eventContext.expectedManagementToken !== undefined) {
       const existing = task.links?.find((item) => item.url === link.url && item.type === link.type);
       if (existing) return existing;

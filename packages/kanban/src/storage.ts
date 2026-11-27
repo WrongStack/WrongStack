@@ -5,6 +5,7 @@ import { restrictDirPermissions, restrictFilePermissions } from '@wrongstack/per
 import { requireSessionId } from '@wrongstack/primitives';
 import { normalizeBoard, summarizeBoard } from './board-normalize.js';
 import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle-error.js';
+import { currentStorageTransactionReader } from './server/kanban-storage-transaction.js';
 import { getProductionKanbanStorage } from './server/remote-storage.js';
 import { getInstalledKanbanStorageBackend } from './storage-backend.js';
 import { isInProcessTestMode } from './test-mode.js';
@@ -497,6 +498,11 @@ export async function deleteBoardIf(
 }
 
 export async function readKanbanMetadata(projectRoot: string, key: string): Promise<string | null> {
+  // Inside an already-held exclusive storage transaction (mutateBoard), read
+  // through the transaction's scoped reader: a nested backend.readMetadata()
+  // would queue behind the same mutex and deadlock the transaction.
+  const scoped = currentStorageTransactionReader();
+  if (scoped) return scoped.readMetadata(key);
   const backend = runtimeStorage(projectRoot);
   if (!backend) return testMetadata.get(`${projectRoot}\0${key}`) ?? null;
   return backend.readMetadata(key);

@@ -122,8 +122,8 @@ async function wireProposalDependencies(
     if (dependsOn.length) edges.push({ taskId: childId, dependsOn });
   });
   if (!edges.length) return;
-  await mutateBoard(projectRoot, boardId, (board) => {
-    assertManagementWrite(board, [], eventContext);
+  await mutateBoard(projectRoot, boardId, async (board) => {
+    await assertManagementWrite(projectRoot, board, [], eventContext);
     const isManaged = board.lifecycle?.mode === 'managed';
     const now = nowIso();
     for (const edge of edges) {
@@ -171,10 +171,10 @@ export async function proposeTaskDecomposition(
 
   // Resolve the effective mode from the board policy when not overridden.
   let resolvedMode: 'auto' | 'approval' = input.mode ?? 'approval';
-  const seeded = await mutateBoard(projectRoot, boardId, (board) => {
+  const seeded = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     if (eventContext.expectedManagementToken !== undefined) {
       resolvedMode = 'approval';
     } else if (input.mode === undefined) {
@@ -236,10 +236,10 @@ export async function resolveDecompositionProposal(
 ): Promise<{ board: KanbanBoard; task: KanbanTask; proposal: KanbanDecompositionProposal } | null> {
   // Phase 1: validate + (reject | mark approved) inside the lock.
   let previousSubtasks: KanbanDecompositionSubtask[] | undefined;
-  const marked = await mutateBoard(projectRoot, boardId, (board) => {
+  const marked = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task?.decomposition || task.decomposition.id !== proposalId) return null;
-    assertManagementWrite(board, [task], eventContext);
+    await assertManagementWrite(projectRoot, board, [task], eventContext);
     if (task.decomposition.status !== 'proposed') return null;
     const now = nowIso();
     previousSubtasks = task.decomposition.proposedSubtasks.map((subtask) => ({ ...subtask }));
@@ -315,10 +315,10 @@ export async function resolveDecompositionProposal(
   );
 
   // Phase 3: stamp applied state on the proposal.
-  const stamped = await mutateBoard(projectRoot, boardId, (board) => {
+  const stamped = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task?.decomposition || task.decomposition.id !== proposalId) return null;
-    assertManagementWrite(board, [], eventContext);
+    await assertManagementWrite(projectRoot, board, [], eventContext);
     task.decomposition.status = 'applied';
     task.decomposition.appliedChildTaskIds = applied.children.map((child) => child.id);
     task.updatedAt = nowIso();

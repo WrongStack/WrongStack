@@ -36,10 +36,10 @@ export async function assessTaskAtomicity(
   assessment: KanbanAtomicityAssessment;
 } | null> {
   let event: KanbanEvent | undefined;
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    assertManagementWrite(board, [task], options.eventContext);
+    await assertManagementWrite(projectRoot, board, [task], options.eventContext);
     const assessment = assessAtomicity(
       candidateFromKanbanTask(task),
       options.config ?? board.atomicity?.config,

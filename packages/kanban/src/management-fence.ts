@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readKanbanCompanionPolicy } from './manager/companion-policy.js';
 import { StaleWriteError } from './manager/lifecycle-error.js';
 import type { KanbanBoard, KanbanEventContext, KanbanTask } from './types.js';
 
@@ -52,13 +53,20 @@ export function managementTaskVersion(board: KanbanBoard, task: KanbanTask): str
     .digest('hex');
 }
 
-/** MUST run inside the board mutation transaction, before modifying any card. */
-export function assertManagementWrite(
+/**
+ * MUST run inside the board mutation transaction, before modifying any card.
+ * Async because it reads the authoritative companion policy at commit time:
+ * a policy disable (or an epoch advance a crashed disable never projected
+ * onto this board) fences every token-driven write here, under the same
+ * owner write critical section as the mutation itself.
+ */
+export async function assertManagementWrite(
+  projectRoot: string,
   board: KanbanBoard,
   tasks: readonly KanbanTask[],
   context?: KanbanEventContext | undefined,
   action: 'contract' | 'note' = 'contract',
-): void {
+): Promise<void> {
   if (context?.expectedManagementToken === undefined) return;
   const refuse = (reason: string): never => {
     throw new StaleWriteError(`Kanban manager: ${reason}`);
@@ -74,6 +82,15 @@ export function assertManagementWrite(
     lease.expiresAt <= Date.now()
   )
     refuse('management lease expired or changed; nothing was written.');
+  // A lease claimed before the policy existed carries no epoch; that is
+  // compatible only with the unset policy (epoch 0) and is fenced by any
+  // later disable.
+  const policy = await readKanbanCompanionPolicy(projectRoot);
+  if (!lease || !policy.enabled || (lease.companionEpoch ?? 0) !== policy.epoch)
+    refuse(
+      'management lease was fenced by a companion policy change; nothing was written. ' +
+        'Claim a fresh management lease and re-read the board.',
+    );
   if (
     board.supervisor?.enabled === false ||
     board.supervisor?.mode === 'deterministic' ||

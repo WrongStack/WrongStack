@@ -58,6 +58,8 @@ export interface KanbanManagementState {
         fingerprint: string;
         expiresAt: number;
         reviews?: Record<string, KanbanManagementReview>;
+        /** Policy epoch at claim time; a mismatched epoch is refused everywhere. */
+        companionEpoch?: number | undefined;
       }
     | undefined;
   reviews?: Record<string, KanbanManagementReview> | undefined;

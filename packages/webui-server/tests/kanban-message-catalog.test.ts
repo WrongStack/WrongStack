@@ -27,6 +27,7 @@ const SERVER_DIR = path.resolve(import.meta.dirname, '../src/server');
 /** Route modules reachable from `handleKanbanRoute`. Host routes are separate. */
 const ROUTE_FILES = [
   'kanban-board-routes.ts',
+  'kanban-companion-routes.ts',
   'kanban-contract-routes.ts',
   'kanban-decomposition-routes.ts',
   'kanban-item-routes.ts',

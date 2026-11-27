@@ -3,6 +3,7 @@ export * from './manager/assignment.js';
 export * from './manager/atomicity.js';
 export * from './manager/board-kind-filter.js';
 export * from './manager/boards.js';
+export * from './manager/companion-policy.js';
 export * from './manager/contract-graph.js';
 export * from './manager/decomposition.js';
 export * from './manager/dependencies.js';

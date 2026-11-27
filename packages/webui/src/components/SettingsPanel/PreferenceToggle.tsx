@@ -24,6 +24,7 @@ export function PreferenceToggle({
   configKey,
   value,
   disabled,
+  testId,
 }: {
   label: string;
   hint?: string | undefined;
@@ -35,6 +36,8 @@ export function PreferenceToggle({
   /** Controlled mode: pass the current boolean value directly. When
    *  provided the component ignores selector and configKey entirely. */
   value?: boolean | undefined;
+  /** Stable selector for tests; the button keeps its role="switch" a11y name. */
+  testId?: string | undefined;
 }) {
   // Controlled mode wins when value is explicitly a boolean.
   const controlled = typeof value === 'boolean';
@@ -71,6 +74,7 @@ export function PreferenceToggle({
         type="button"
         id={switchId}
         role="switch"
+        data-testid={testId}
         aria-checked={on}
         aria-label={label}
         aria-describedby={hint ? `${switchId}-hint` : undefined}

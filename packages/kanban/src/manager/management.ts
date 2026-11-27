@@ -1,6 +1,7 @@
 import { assertManagementWrite, managementTaskVersion } from '../management-fence.js';
 import { mutateBoard } from '../storage.js';
 import type { KanbanEventContext, KanbanManagementReview } from '../types.js';
+import { readKanbanCompanionPolicy } from './companion-policy.js';
 
 const LEASE_MS = 120_000;
 
@@ -38,10 +39,14 @@ export async function recordTaskManagementReview(
     !input.reason?.trim()
   )
     throw new Error('A task review requires a valid disposition and a nonblank reason.');
-  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+  const updated = await mutateBoard(projectRoot, boardId, async (board) => {
+    // A disabled policy refuses the write; like every other refused review
+    // this surfaces as `null`. Lease/token/expiry mismatches below are still
+    // the write fence's job (StaleWriteError), unchanged.
+    if (!(await readKanbanCompanionPolicy(projectRoot)).enabled) return false;
     const task = board.tasks.find((candidate) => candidate.id === taskId);
     if (!task) return false;
-    assertManagementWrite(board, [task], eventContext, 'note');
+    await assertManagementWrite(projectRoot, board, [task], eventContext, 'note');
     const lease = board.management!.lease!;
     lease.reviews ??= Object.create(null) as Record<string, KanbanManagementReview>;
     setTaskReview(lease.reviews, task.id, {
@@ -72,7 +77,12 @@ export async function claimBoardManagement(
   boardId: string,
   input: { token: string; fingerprint: string; cooldownMs: number },
 ): Promise<boolean> {
-  const result = await mutateBoard(projectRoot, boardId, (board) => {
+  const result = await mutateBoard(projectRoot, boardId, async (board) => {
+    // Policy gate runs under the same board lock as the lease write, so a
+    // disable that committed before this claim can never be outrun. Refusal
+    // is a plain `false`: callers already treat that as "no lease".
+    const policy = await readKanbanCompanionPolicy(projectRoot);
+    if (!policy.enabled) return false;
     const now = Date.now();
     const state = board.management;
     if (
@@ -83,7 +93,11 @@ export async function claimBoardManagement(
       board.retention?.archivedAt
     )
       return false;
-    if (state?.lease && state.lease.expiresAt > now) return false;
+    // A lease stamped by an earlier policy epoch is dead even while its TTL
+    // runs — renew/finish refuse the token and the write fence refuses its
+    // writes — so the claim overrides it instead of waiting out the lease.
+    if (state?.lease && state.lease.expiresAt > now && state.lease.companionEpoch === policy.epoch)
+      return false;
     if (state?.reviewCoverageVersion === 1 && state.reviewedFingerprint === input.fingerprint)
       return false;
     if (state?.lastAttemptAt && now - state.lastAttemptAt < input.cooldownMs) return false;
@@ -109,6 +123,7 @@ export async function claimBoardManagement(
         fingerprint: input.fingerprint,
         expiresAt: now + LEASE_MS,
         reviews,
+        companionEpoch: policy.epoch,
       },
     };
     return true;
@@ -121,12 +136,17 @@ export async function renewBoardManagement(
   boardId: string,
   token: string,
 ): Promise<boolean> {
-  const result = await mutateBoard(projectRoot, boardId, (board) => {
+  const result = await mutateBoard(projectRoot, boardId, async (board) => {
+    const policy = await readKanbanCompanionPolicy(projectRoot);
     const lease = board.management?.lease;
     if (
       !lease ||
       lease.token !== token ||
       lease.expiresAt <= Date.now() ||
+      // A disabled policy, or a lease stamped by an earlier epoch (fenced
+      // across a disable→re-enable cycle), can never be renewed.
+      !policy.enabled ||
+      lease.companionEpoch !== policy.epoch ||
       board.supervisor?.enabled === false ||
       board.supervisor?.mode === 'deterministic' ||
       board.completedAt ||
@@ -150,9 +170,18 @@ export async function finishBoardManagement(
     error?: string | undefined;
   },
 ): Promise<boolean> {
-  const mutation = await mutateBoard(projectRoot, boardId, (board) => {
+  const mutation = await mutateBoard(projectRoot, boardId, async (board) => {
+    const policy = await readKanbanCompanionPolicy(projectRoot);
     const state = board.management;
-    if (!state?.lease || state.lease.token !== token || state.lease.expiresAt <= Date.now())
+    if (
+      !state?.lease ||
+      state.lease.token !== token ||
+      state.lease.expiresAt <= Date.now() ||
+      // Receipts from a disabled policy or an earlier epoch are refused: a
+      // fenced worker must not be able to commit its run after re-enable.
+      !policy.enabled ||
+      state.lease.companionEpoch !== policy.epoch
+    )
       return false;
     const active = board.tasks.filter(
       (task) => task.status !== 'completed' && task.status !== 'archived' && !task.mergedIntoTaskId,

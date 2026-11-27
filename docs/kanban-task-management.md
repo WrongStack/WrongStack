@@ -1,6 +1,17 @@
-# Background Kanban task management
+# Kanban Companion and background task management
 
-The Kanban supervisor now manages task quality as well as queue health. It runs
+**Kanban Companion** is the existing Kanban task manager, not a separate resident
+agent. Its project-wide switch is in the WebUI composer’s Companion Agents menu,
+WebUI Companion Agents settings, and Desktop v2’s right-sidebar **Companions**
+tab and Fleet settings. It is on by default and is separate from the personal
+companions’ bulk toggle.
+
+Turning the switch off stops new AI reviews and invalidates active management
+leases across hosts. It does not undo saved card edits, stop dispatched work,
+change per-board settings, or disable todo syncing, manual Kanban actions, or
+deterministic board maintenance. Turning it back on honors each board’s policy.
+
+The Kanban supervisor manages task quality as well as queue health. It runs
 in the CLI/TUI host, embedded WebUI and standalone WebUI. The existing todo,
 task and plan mirrors remain the entry point: a leader can start with a simple
 todo list and its board becomes eligible for background review automatically.
@@ -17,8 +28,13 @@ do not acquire management leases.
   actually necessary. Trivial cards can stay short.
 - Enriches unassigned cards with outcomes, scope, steps and pending acceptance
   checks. It can add real evidence links and explanatory notes.
+- Maps requirements already tracked on the board to existing cards, checks and
+  dependencies, and flags missing coverage rather than making duplicate cards.
 - Establishes genuine dependencies and task chains, and proposes decomposition
   when a card is too broad. The leader retains decomposition approval.
+- Recommends specific dependency-ready cards for dispatch. The leader rechecks
+  them and uses the existing authorized Kanban dispatch path; the companion
+  itself cannot launch workers.
 - Documents blockers, needed input and unblock conditions. An unknown owner or
   unobserved test result stays unknown.
 - Leaves proposals as notes on worker-owned cards. It cannot dispatch workers,
@@ -88,4 +104,4 @@ deduplication, explicit opt-out, cancellation, construction failure, restricted
 actions, session handoff, mirror preservation and competing owners through the
 real SQLite IPC daemon. These checks do not establish the quality of a live
 model's authored task descriptions. Restart running hosts after updating; the
-Kanban IPC protocol is version 9 for receipt-validated management completion.
+Kanban IPC protocol is version 10 for the project-wide companion policy.
