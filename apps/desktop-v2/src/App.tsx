@@ -5,6 +5,7 @@ import { DesktopStatusBar } from './DesktopStatusBar';
 import { useDesktopText } from './desktop-i18n';
 import { FleetPanel } from './FleetPanel';
 import { HostBuildNotice } from './HostBuildNotice';
+import { sessionTitle } from './model';
 import { NotificationMenu } from './NotificationMenu';
 import { useNotificationFeed } from './notification-feed';
 import { OfficeShortcut } from './OfficeShortcut';
@@ -168,6 +169,12 @@ function DesktopShell() {
                       wrongstack: t('rail.settings'),
                     }[section]}
           </h1>
+          {/* The open session, named after the project the title already gives. */}
+          {focused && currentSession && (
+            <span className="topbar-context">
+              {sessionTitle(currentSession, t('workbench.untitled'))}
+            </span>
+          )}
           <div className="topbar-right">
             {currentProject && !focused && section !== 'wrongstack' && (
               <button

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T00:23:08.875Z",
+  "generatedAt": "2026-11-27T00:25:26.519Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 51,
     "sourceFiles": 6592,
     "testFiles": 6517,
-    "sourceLines": 1353157,
+    "sourceLines": 1353244,
     "workspaceEdges": 267,
-    "moduleEdges": 19345,
+    "moduleEdges": 19346,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -41151,6 +41151,11 @@
     {
       "from": "apps/desktop-v2/src/main.tsx",
       "specifier": "./settings-workspace.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/main.tsx",
+      "specifier": "./ide-workbench.css",
       "syntax": "import"
     },
     {

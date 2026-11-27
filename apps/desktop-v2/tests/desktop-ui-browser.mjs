@@ -31,6 +31,37 @@ async function assertSquareCorners(page, state) {
   assert.deepEqual(rounded, [], `${state} must have square corners`);
 }
 
+async function assertActionInView(action, name) {
+  const result = await action.evaluate((element) => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return {
+      rect: [x, y, width, height],
+      reachable:
+        width >= 24 &&
+        height >= 24 &&
+        element.contains(document.elementFromPoint(x + width / 2, y + height / 2)) &&
+        element.contains(document.elementFromPoint(x + width / 2, y + height - 3)),
+    };
+  });
+  assert.ok(result.reachable, `${name} is immediately clickable: ${result.rect.join(', ')}`);
+}
+
+async function assertSearchIconSpacing(search) {
+  assert.ok(
+    await search.evaluate((element) => {
+      const icon = element.parentElement.querySelector('svg');
+      const style = getComputedStyle(element);
+      return (
+        icon &&
+        icon.getBoundingClientRect().right < element.getBoundingClientRect().left &&
+        style.borderLeftWidth === '0px' &&
+        style.marginTop === '0px'
+      );
+    }),
+    'The search icon and text share one frame in separate columns',
+  );
+}
+
 // Production App and controller. Only native transport, storage and runtime data are fixtures.
 const source = `
 import '/src/square-corners.css';
@@ -42,6 +73,7 @@ import '/src/brand-tokens.css'; import '/src/appearance.css'; import '/src/workb
 import '/src/project.css'; import '/src/files.css'; import '/src/knowledge.css';
 import '/src/atlas.css'; import '/src/chronicle.css'; import '/src/git-history.css';
 import '/src/skills.css'; import '/src/shell.css'; import '/src/controls.css';
+import '/src/ide-workbench.css';
 const now=Date.now();
 const projects=[{id:'p1',name:'WrongStack UI',root:'D:/fixture/ui',createdAt:now},{id:'p2',name:'Unicode 検証 '+ 'long-project-'.repeat(5),root:'D:/fixture/unicode',createdAt:now}];
 const titles=['Review the session workspace','Verify keyboard navigation','Investigate a failed build','Unicode 検証 '+ 'long-session-'.repeat(6)];
@@ -108,6 +140,7 @@ window.uiInvoke=async(command,args={})=>{
   else if(type==='providers.list')enqueue(params.id,{type:'provider.catalog',payload:{requestId,providers:[{id:acp?'acp':'fixture',name:acp?'ACP agents':'Fixture provider'}]}});
   else if(type==='providers.saved')enqueue(params.id,{type,payload:{requestId,providers:[]}});
   else if(type==='provider.models')enqueue(params.id,{type,payload:{requestId,provider:payload.providerId,models:[{id:model,name:acp?'Fixture agent':model},{id:longModel,name:'Review model'}]}});
+  else if(type==='model.switch')enqueue(params.id,{type:'model.switch_result',payload:{requestId,success:true,provider:payload.provider,model:payload.model}});
   else if(type==='acp.config_options' && window.failAcpOptions){
    window.failAcpOptions=false;
    enqueue(params.id,{type,payload:{requestId,ok:false,error:'Fixture agent unavailable'}});
@@ -276,10 +309,63 @@ try {
         assert.ok(await desktopMenu.evaluate((el) => el === document.activeElement));
         await desktopMenu.click();
         await desktopPopup.getByRole('menuitem').first().click();
-        const palette = page.getByRole('dialog');
+        const palette = page.getByRole('dialog', { name: 'Find anything', exact: true });
         await palette.waitFor();
+        const paletteSearch = palette.getByRole('combobox');
+        assert.ok(await paletteSearch.evaluate((element) => document.activeElement === element));
+        await assertSearchIconSpacing(paletteSearch);
+        assert.equal(await palette.getByRole('group', { name: 'Commands' }).count(), 1);
+        assert.equal(await palette.getByRole('group', { name: 'Projects' }).count(), 1);
+        assert.equal(await palette.getByRole('group', { name: 'Sessions' }).count(), 1);
+        if (width === 1440) {
+          const accessibility = await new AxeBuilder({ page })
+            .include('.workspace-palette')
+            .withRules([
+              'aria-allowed-role',
+              'aria-required-children',
+              'aria-valid-attr-value',
+              'color-contrast',
+            ])
+            .analyze();
+          assert.deepEqual(accessibility.violations, [], 'Command palette accessibility');
+        }
+        await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-palette.png`) });
+        const firstCommand = await paletteSearch.getAttribute('aria-activedescendant');
+        await paletteSearch.press('ArrowDown');
+        assert.notEqual(await paletteSearch.getAttribute('aria-activedescendant'), firstCommand);
+        assert.ok(await paletteSearch.evaluate((element) => document.activeElement === element));
+        await paletteSearch.fill('no-result-command');
+        await palette
+          .getByRole('status')
+          .getByText('No matching commands, projects, or sessions.')
+          .waitFor();
+        assert.equal(await paletteSearch.getAttribute('aria-activedescendant'), null);
+        await paletteSearch.fill('start a new agent session');
+        await paletteSearch.press('Enter');
+        await page.getByRole('dialog', { name: 'New session', exact: true }).waitFor();
         await page.keyboard.press('Escape');
         await palette.waitFor({ state: 'hidden' });
+        assert.equal(await page.getByRole('dialog').count(), 0);
+        if (width === 800 || width === 1440) {
+          const opener = page
+            .locator('.topbar')
+            .getByRole('button', { name: 'New session', exact: true });
+          await opener.click();
+          const newSession = page.getByRole('dialog');
+          await assertActionInView(
+            newSession.getByRole('button', { name: 'Create agent session' }),
+            'Create agent session',
+          );
+          await newSession.getByRole('button', { name: /Terminal/ }).click();
+          await assertActionInView(
+            newSession.getByRole('button', { name: 'Create terminal session' }),
+            'Create terminal session',
+          );
+          assert.equal(await newSession.getAttribute('aria-labelledby'), 'dialog-title');
+          await newSession.getByRole('button', { name: 'Cancel', exact: true }).click();
+          await newSession.waitFor({ state: 'hidden' });
+          assert.ok(await opener.evaluate((element) => element === document.activeElement));
+        }
         if (width === 1440) {
           const splitter = page.getByRole('separator', { name: 'Projects and sessions' });
           const original = Number(await splitter.getAttribute('aria-valuenow'));
@@ -357,7 +443,20 @@ try {
           .locator('.native-chat-messages')
           .getByText('The session layout is ready for review.', { exact: false })
           .waitFor();
+        await assertActionInView(page.locator('.composer-send'), 'Send message');
         if (width === 1440) {
+          const prose = await page
+            .locator('.native-chat-messages .markdown-content > p')
+            .first()
+            .evaluate((paragraph) => ({
+              width: paragraph.getBoundingClientRect().width,
+              available: paragraph.parentElement.getBoundingClientRect().width,
+              lineHeight: parseFloat(getComputedStyle(paragraph).lineHeight),
+            }));
+          assert.ok(
+            prose.width < prose.available && prose.lineHeight >= 25,
+            'Prose has a readable measure inside the wide transcript',
+          );
           const inspector = page.locator('.session-inspector');
           const divider = inspector.getByRole('separator');
           const start = Number(await divider.getAttribute('aria-valuenow'));
@@ -398,16 +497,37 @@ try {
         const picker = page.locator('.profile-model-picker');
         await picker.locator('button[aria-pressed="true"]').first().waitFor();
         const modelSearch = picker.getByRole('textbox');
+        assert.ok(await modelSearch.evaluate((element) => document.activeElement === element));
+        await assertSearchIconSpacing(modelSearch);
         await modelSearch.fill('no-result-model');
         assert.equal(await picker.locator('.composer-model-list > button').count(), 0);
         await modelSearch.fill('Review model');
         assert.equal(await picker.locator('.composer-model-list > button').count(), 1);
+        await modelSearch.press('ArrowDown');
+        const result = picker.locator('.composer-model-list > button').first();
+        assert.ok(await result.evaluate((element) => document.activeElement === element));
+        await result.press('ArrowUp');
+        assert.ok(await modelSearch.evaluate((element) => document.activeElement === element));
         await modelSearch.fill('');
         await assertSquareCorners(page, 'Model picker');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-models.png`) });
         await page.keyboard.press('Escape');
         await picker.waitFor({ state: 'hidden' });
         assert.ok(await modelButton.evaluate((el) => el === document.activeElement));
+        if (width === 1440) {
+          await modelButton.press('Enter');
+          await picker.locator('button[aria-pressed="true"]').first().waitFor();
+          await modelSearch.fill('Review model');
+          await modelSearch.press('Enter');
+          await picker.waitFor({ state: 'hidden' });
+          const switchedModel = await page.evaluate(
+            () =>
+              window.uiCalls.find(({ params }) => params.message?.type === 'model.switch')?.params
+                .message.payload.model,
+          );
+          assert.equal(switchedModel, 'review-model-with-a-long-qualified-name');
+          assert.ok(await modelButton.evaluate((element) => element === document.activeElement));
+        }
 
         const contextMenu = page.locator('.composer-options > summary');
         await contextMenu.press('Enter');
@@ -485,12 +605,53 @@ try {
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('.composer-options').getAttribute('open'), null);
         assert.equal(await options.evaluate((element) => element === document.activeElement), true);
-        await page.getByRole('button', { name: 'Collapse session panel', exact: true }).click();
+        const expandInspector = page.getByRole('button', {
+          name: 'Expand session panel',
+          exact: true,
+        });
+        const collapseInspector = page.getByRole('button', {
+          name: 'Collapse session panel',
+          exact: true,
+        });
+        if (width <= 800) {
+          await expandInspector.waitFor();
+          const transcript = page.locator('.native-chat-messages');
+          const initial = await transcript.boundingBox();
+          await expandInspector.press('Enter');
+          await collapseInspector.waitFor();
+          assert.deepEqual(
+            await transcript.boundingBox(),
+            initial,
+            'Inspector opens without moving the conversation',
+          );
+          await page.keyboard.press('Escape');
+          await expandInspector.waitFor();
+          assert.ok(
+            await expandInspector.evaluate((element) => element === document.activeElement),
+          );
+          await assertActionInView(
+            page.locator('.composer-send'),
+            'Send message after closing inspector',
+          );
+        } else await collapseInspector.click();
         assert.equal(
           await page.locator('.session-inspector').getAttribute('data-collapsed'),
           'true',
         );
-        await page.getByRole('button', { name: 'Expand session panel', exact: true }).click();
+        await expandInspector.click();
+        if (width === 1440) {
+          const inspector = page.locator('.session-inspector');
+          const original = (await inspector.boundingBox()).width;
+          await page.setViewportSize({ width: 800, height: 600 });
+          await expandInspector.waitFor();
+          await page.setViewportSize({ width, height });
+          await collapseInspector.waitFor();
+          assert.equal(
+            (await inspector.boundingBox()).width,
+            original,
+            'Compact layout leaves saved inspector width intact',
+          );
+        }
         assert.deepEqual(
           (await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()).violations,
           [],
@@ -762,14 +923,19 @@ try {
   }
 } catch (error) {
   if (page && !page.isClosed()) {
+    console.error(error);
     if (pageErrors.length) console.error(pageErrors);
-    await page.screenshot({ path: join(artifacts, 'failure.png') });
-    console.error(
-      await page.evaluate(() => ({
-        unexpected: window.uiUnexpected,
-        text: document.body.textContent.slice(0, 1800),
-      })),
-    );
+    try {
+      await page.screenshot({ path: join(artifacts, 'failure.png'), timeout: 4000 });
+      console.error(
+        await page.evaluate(() => ({
+          unexpected: window.uiUnexpected,
+          text: document.body.textContent.slice(0, 1800),
+        })),
+      );
+    } catch (captureError) {
+      console.error('Could not capture failure screenshot', captureError);
+    }
   }
   throw error;
 } finally {

@@ -1,0 +1,527 @@
+/* Desktop v2 IDE workbench.
+
+   The chrome that makes the desktop read as a workbench rather than a page:
+   a legible brand mark on the activity rail, an explorer that names its
+   sections and marks the current one by an edge rule, editor-style tabs, a
+   transcript whose roles are unmistakable, and a composer whose controls read
+   as one row of chips.
+
+   House rules: semantic colours only; the current position shown by an edge
+   rule rather than a floating fill; and corners kept square (square-corners.css
+   owns the global invariant, so no radius is set here). */
+
+/* ------------------------------------------------------------------ *
+ * Surfaces
+ * ------------------------------------------------------------------ */
+
+/* One ramp for the chrome, so the workbench reads as three planes: the
+   title bar and tab strip are chrome, the explorer sits between them and
+   the working surface, and the surface itself is the calmest of the three. */
+.app-shell .topbar,
+.app-shell .workspace-shell .session-tabs,
+.desktop-status-bar {
+  background: var(--raised);
+}
+
+/* ------------------------------------------------------------------ *
+ * Title bar
+ * ------------------------------------------------------------------ */
+
+.app-shell .topbar {
+  justify-content: flex-start;
+}
+
+.app-shell .topbar-right {
+  margin-left: auto;
+}
+
+.app-shell .topbar-title {
+  display: flex;
+  align-items: baseline;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What is open, named after the title it follows. */
+.app-shell .topbar-context {
+  display: inline-flex;
+  align-items: baseline;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 450;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The separator leads the trail, so it reads "project / thing". */
+.app-shell .topbar-context::before {
+  content: "/";
+  margin-right: 10px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* A narrow window has room for the workspace name, not for the path. The
+   session's own name is already on the tab strip below, so the trail yields
+   to the title rather than clipping both of them mid-word. */
+@media (max-width: 1000px) {
+  .app-shell .topbar-context {
+    display: none;
+  }
+}
+
+/* The older shell put the separator after the context; the trail reads
+   better with it in front. */
+.app-shell .topbar-context::after {
+  content: none;
+}
+
+/* The application menu is chrome, not a form field. */
+.app-shell .workbench-menu-trigger {
+  border-color: transparent;
+  background: transparent;
+}
+
+.app-shell .workbench-menu-trigger:hover,
+.app-shell .workbench-menu-trigger[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Activity rail
+ * ------------------------------------------------------------------ */
+
+/* The five-block mark, drawn as a vector at its true aspect: the wide
+   lockup squeezed into a 28 px box rendered as a seven-pixel smear. */
+.app-shell .rail-brand {
+  width: 44px;
+  height: 40px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+}
+
+.app-shell .rail-brand .brand-mark,
+.app-shell .rail-brand img {
+  width: 40px;
+  height: auto;
+  image-rendering: auto;
+}
+
+.app-shell .rail-brand:hover {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+/* An active rail item is the current position: an edge rule, not a fill. */
+.app-shell .rail-button {
+  border-radius: 0;
+}
+
+.app-shell .rail-button.active {
+  background: transparent;
+  color: var(--text);
+}
+
+.app-shell .rail-button.active svg {
+  color: var(--accent);
+}
+
+.app-shell .rail-button:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+
+/* The navigation group and the utility group are told apart by a rule. */
+.app-shell .rail-spacer + .rail-button::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 9px;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ------------------------------------------------------------------ *
+ * Explorer
+ * ------------------------------------------------------------------ */
+
+/* Section captions: the explorer names both of its groups. */
+.app-shell .explorer-caption {
+  margin-top: 0;
+  padding: 8px 9px 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The first caption sits directly under the search field. */
+.app-shell .explorer-caption-first {
+  margin-top: 2px;
+}
+
+.app-shell .explorer .quick-search {
+  margin-bottom: 10px;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--base) 70%, transparent);
+  color: var(--muted);
+}
+
+.app-shell .explorer .quick-search:hover {
+  border-color: var(--accent-border);
+  color: var(--text);
+}
+
+.app-shell .explorer .project-views {
+  gap: 1px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+}
+
+.app-shell .explorer .project-views > button {
+  gap: 9px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.app-shell .explorer .project-views > button:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+
+/* The open page is the current position: an edge rule, not a tint. */
+.app-shell .explorer .project-views > button[aria-current="page"] {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.app-shell .explorer .project-views > button[aria-current="page"] svg {
+  color: var(--accent);
+}
+
+/* The selected project carries the rule across its row. */
+.app-shell .explorer .project-branch-heading[data-selected="true"] {
+  background: transparent;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.app-shell .explorer .project-item {
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.app-shell .explorer .project-item:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.app-shell .explorer .project-item.selected {
+  background: transparent;
+  color: var(--text);
+}
+
+.app-shell .explorer .project-item.selected .project-folder-icon {
+  color: var(--accent);
+}
+
+/* The row's own actions stay quiet until the row is used. */
+.app-shell .explorer .project-drag-handle,
+.app-shell .explorer .project-remove {
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.app-shell .explorer .project-branch-heading:hover .project-drag-handle,
+.app-shell .explorer .project-branch-heading:hover .project-remove,
+.app-shell .explorer .project-branch-heading:focus-within .project-drag-handle,
+.app-shell .explorer .project-branch-heading:focus-within .project-remove {
+  opacity: 1;
+}
+
+.app-shell .explorer .project-drag-handle:hover,
+.app-shell .explorer .project-remove:hover {
+  color: var(--text);
+}
+
+/* Sessions under a project: an indented run of rows on a guide line. */
+.app-shell .explorer .tree-session {
+  min-height: 28px;
+  padding: 4px 9px 4px 26px;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.app-shell .explorer .tree-session:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+
+.app-shell .explorer .tree-session.chosen {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.app-shell .explorer .tree-session::before {
+  inset-inline-start: 14px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Session tab strip
+ * ------------------------------------------------------------------ */
+
+/* The strip is a band of chrome. The active tab sits on the work surface
+   below it, the way an open editor tab joins the editor. */
+.app-shell .workspace-shell .session-tabs {
+  gap: 0;
+  min-height: 40px;
+}
+
+/* The tab list takes the room its tabs need; the view switcher follows
+   them instead of being pushed to the far end of an empty strip. */
+.app-shell .workspace-shell .session-tab-list {
+  flex: 0 1 auto;
+}
+
+.app-shell .workspace-shell .session-view-slot {
+  margin-left: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.app-shell .workspace-shell .session-tab {
+  border-top: 2px solid transparent;
+  color: var(--muted);
+}
+
+.app-shell .workspace-shell .session-tab:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+/* The open tab joins the panel below it: it covers the strip's rule and
+   carries the panel's own surface, so the two read as one surface. */
+.app-shell .workspace-shell .session-tab.active-session-tab {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -1px;
+  border-top-color: var(--accent);
+  background: var(--base);
+  color: var(--text);
+}
+
+/* The panel below the strip carries no rule of its own: the strip's rule
+   is the divider, and the open tab interrupts it. */
+.app-shell .workspace-shell .session-workspace.focused-session {
+  border-top: 0;
+}
+
+.app-shell .workspace-shell .session-tab-label {
+  padding: 9px 8px 9px 12px;
+  font-size: 12.5px;
+}
+
+.app-shell .workspace-shell .session-tab.active-session-tab .session-tab-label {
+  color: var(--text);
+}
+
+/* The view switcher is its own group of tabs, told apart by a rule. */
+.app-shell .workspace-shell .session-view-slot {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.app-shell .workspace-shell .session-view-slot .workspace-tabs {
+  gap: 2px;
+  padding: 0;
+}
+
+.app-shell .workspace-shell .session-view-slot .workspace-tabs button {
+  min-height: 26px;
+  padding: 4px 10px;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.app-shell .workspace-shell .session-view-slot .workspace-tabs button:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+
+/* The open view is the current position: an edge rule, not a filled chip. */
+.app-shell .workspace-shell .session-view-slot .workspace-tabs button.chosen-tab {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.app-shell .workspace-shell .session-view-slot .workspace-tabs button.chosen-tab svg {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Transcript
+ * ------------------------------------------------------------------ */
+
+/* Each turn says who is speaking before it says what. */
+.native-chat-messages .chat-message > header {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.native-chat-messages .chat-message > header > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.native-chat-messages .chat-message > header > span:first-child::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--muted);
+}
+
+.native-chat-messages .chat-message.assistant > header > span:first-child::before {
+  background: var(--accent);
+}
+
+.native-chat-messages .chat-message.assistant > header > span:first-child {
+  color: var(--text);
+}
+
+.native-chat-messages .chat-message > header > span:first-child > time {
+  margin-left: 2px;
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The operator's own turn is a quoted prompt, marked by an edge rule. */
+.native-chat-messages .chat-message.user .user-chat-body {
+  border: 0;
+  border-left: 2px solid var(--accent);
+  background: var(--raised);
+  padding: 10px 14px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Composer
+ * ------------------------------------------------------------------ */
+
+/* The fold control is a tab on the composer's edge, not a box floating
+   above it: it shares the composer's surface and has no lower border, so
+   the two read as one shape. The rule is scoped to the shell so it wins
+   over the component's own rule, which the lazy chunk injects later. */
+.app-shell .composer-fold-controls:has(+ .composer-host:not([hidden])) > .button {
+  top: -11px;
+  right: calc(var(--composer-inline) + 10px);
+  min-width: 26px;
+  min-height: 0;
+  height: 20px;
+  gap: 0;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 0;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 0;
+  line-height: 0;
+}
+
+.app-shell .composer-fold-controls:has(+ .composer-host:not([hidden])) > .button:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
+}
+
+/* Every control in the composer row reads as the same chip. The value
+   chips (model, effort, mode) already carry the frame; the select inside
+   one must not draw a second control inside it. */
+.native-composer .composer-toolbar .composer-chip select {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+}
+
+/* ------------------------------------------------------------------ *
+ * File workspace
+ * ------------------------------------------------------------------ */
+
+/* The tree is an editor's file tree: one row per entry, the open file
+   marked by an edge rule rather than a filled row. */
+.app-shell .file-tree-row {
+  color: var(--muted);
+}
+
+.app-shell .file-tree-row:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+
+.app-shell .file-tree-row.selected {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.app-shell .file-tree-row.selected > :where(svg) {
+  color: var(--accent);
+}
+
+/* The panel that lists the tree names its section the way the explorer
+   does, so the two read as one system. */
+.app-shell .file-navigation > header {
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.app-shell .file-navigation > footer {
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+/* The open-file strip is an editor tab bar: the open document joins the
+   surface below it. */
+.app-shell .file-open-tabs {
+  background: var(--raised);
+}
+
+.app-shell .file-open-tabs .file-tab-current {
+  background: var(--base);
+  color: var(--text);
+  box-shadow: inset 0 2px 0 var(--accent);
+}

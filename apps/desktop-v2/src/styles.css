@@ -1791,40 +1791,6 @@ h1 {
 .form-check input {
   width: auto;
 }
-.palette-input {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--subtle);
-  margin-bottom: 15px;
-}
-.palette-input input {
-  margin: 0;
-}
-.palette > button {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 13px 6px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-  color: var(--muted);
-}
-.palette > button small {
-  margin-left: auto;
-  color: var(--subtle);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-}
-.palette footer {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 20px;
-  color: var(--subtle);
-  font-size: 11px;
-}
 .spin {
   animation: rotate 1s linear infinite;
 }

@@ -279,25 +279,33 @@ export function Sidebar({ vm, explorer }: { vm: DesktopController; explorer: Wor
           <kbd>Ctrl K</kbd>
         </button>
         {currentProject && (
-          <nav
-            className="project-views"
-            aria-label={t('explorer.workspace', { name: currentProject.name })}
-          >
-            {pinnedViews(section === 'fleet' && vm.currentSession?.kind === 'agent').map(
-              ({ id, Icon }) => (
-                <button
-                  type="button"
-                  key={id}
-                  aria-current={page === id ? 'page' : undefined}
-                  onClick={() => vm.openProjectPage(currentProject.id, id)}
-                >
-                  <Icon size={15} />
-                  <span>{t(`pages.${id}`)}</span>
-                </button>
-              ),
-            )}
-            <ToolsLauncher page={page} onOpen={(id) => vm.openProjectPage(currentProject.id, id)} />
-          </nav>
+          <>
+            <div className="explorer-caption explorer-caption-first">
+              <span>{t('explorer.views')}</span>
+            </div>
+            <nav
+              className="project-views"
+              aria-label={t('explorer.workspace', { name: currentProject.name })}
+            >
+              {pinnedViews(section === 'fleet' && vm.currentSession?.kind === 'agent').map(
+                ({ id, Icon }) => (
+                  <button
+                    type="button"
+                    key={id}
+                    aria-current={page === id ? 'page' : undefined}
+                    onClick={() => vm.openProjectPage(currentProject.id, id)}
+                  >
+                    <Icon size={15} />
+                    <span>{t(`pages.${id}`)}</span>
+                  </button>
+                ),
+              )}
+              <ToolsLauncher
+                page={page}
+                onOpen={(id) => vm.openProjectPage(currentProject.id, id)}
+              />
+            </nav>
+          </>
         )}
         <div className="explorer-caption">
           <span>{t('explorer.projects')}</span>

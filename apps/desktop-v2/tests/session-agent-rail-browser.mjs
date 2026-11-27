@@ -124,7 +124,6 @@ try {
         const errors = [];
         page.on('pageerror', (error) => errors.push(String(error)));
         await page.goto(url);
-        await page.locator('.session-agent-rail').waitFor();
         await page.evaluate((mode) => {
           document.documentElement.dataset.mode = mode;
           document.documentElement.classList.toggle('dark', mode === 'dark');
@@ -135,6 +134,14 @@ try {
             exact: true,
           })
           .waitFor();
+        const compact = width <= 760;
+        const agents = page.getByRole('tab', { name: 'Agents', exact: true });
+        const inspector = page.locator('.session-inspector');
+        if (compact) {
+          await inspector.waitFor({ state: 'hidden' });
+          await agents.press('Enter');
+        }
+        await page.locator('.session-agent-rail').waitFor();
         assert.equal(await page.locator('.agent-tabs button').count(), 25);
         assert.equal(await page.getByText('Foreign worker').count(), 0);
         await leader.evaluate((element) => {
@@ -177,7 +184,7 @@ try {
               width: chat.width,
             },
             icons: { x: icons.x, right: icons.right, width: icons.width, height: icons.height },
-            panes: { x: panes.x, right: panes.right },
+            panes: { x: panes.x, right: panes.right, bottom: panes.bottom },
             title: document.querySelector('.session-inspector-heading h2')?.textContent ?? '',
             strips: document.querySelectorAll('.session-inspector-tabs').length,
             overflow: document.documentElement.scrollWidth > innerWidth,
@@ -192,10 +199,8 @@ try {
           `Icon menu sits at the far right edge: ${JSON.stringify(geometry.icons)}`,
         );
         assert.ok(geometry.icons.width >= 32, 'Icon menu keeps a usable target width');
-        if (width > 760)
-          assert.ok(geometry.rail.x >= geometry.chat.right - 1, 'Rail is on the right');
-        else assert.ok(geometry.rail.bottom <= geometry.chat.y + 1, 'Rail stacks above leader');
-        if (width > 760) {
+        if (!compact) assert.ok(geometry.rail.x >= geometry.chat.right - 1, 'Rail is on the right');
+        if (!compact) {
           assert.ok(
             geometry.composer.right <= geometry.rail.x + 1,
             'Composer ends before inspector',
@@ -204,11 +209,12 @@ try {
             Math.abs(geometry.composer.bottom - geometry.rail.bottom) < 2,
             'Inspector spans composer height',
           );
-        } else
+        } else {
           assert.ok(
-            geometry.composer.y >= geometry.rail.bottom,
-            'Stacked inspector never overlaps input',
+            geometry.rail.x >= geometry.chat.x && geometry.rail.bottom <= geometry.panes.bottom,
+            'Compact inspector overlays the right edge within the workbench',
           );
+        }
         await page.getByRole('tab', { name: 'Agents', exact: true }).focus();
         await page.keyboard.press('ArrowRight');
         await page
@@ -252,12 +258,22 @@ try {
         );
         assert.equal(await page.locator('.session-inspector-rail').isVisible(), true);
         const expandedChat = await leader.boundingBox();
-        assert.ok(
-          width > 760
-            ? expandedChat.width > geometry.chat.width + 200
-            : expandedChat.height > geometry.chat.height,
-          'Collapse releases space to chat',
-        );
+        if (compact) {
+          assert.equal(
+            expandedChat.width,
+            geometry.chat.width,
+            'Compact overlay leaves chat width intact',
+          );
+          assert.equal(
+            expandedChat.height,
+            geometry.chat.height,
+            'Compact overlay leaves chat height intact',
+          );
+        } else
+          assert.ok(
+            expandedChat.width > geometry.chat.width + 200,
+            'Collapse releases space to chat',
+          );
         await page.getByRole('tab', { name: 'Plan', exact: true }).click();
         assert.equal(
           await page.locator('.session-inspector').getAttribute('data-collapsed'),
@@ -287,6 +303,11 @@ try {
           'true',
         );
         assert.equal(await leader.getAttribute('data-proof-kept'), 'yes');
+        if (compact) {
+          await page.keyboard.press('Escape');
+          await inspector.waitFor({ state: 'hidden' });
+          assert.ok(await agents.evaluate((element) => element === document.activeElement));
+        }
         const composer = page.getByRole('textbox', { name: 'Message WrongStack', exact: true });
         await composer.fill('Explicit leader message from fixture');
         await page.getByRole('button', { name: 'Send message', exact: true }).click();
@@ -297,6 +318,7 @@ try {
         );
         assert.equal(sends.length, 1);
         assert.equal(sends[0].params.id, 'proof');
+        if (compact) await agents.click();
         await page.locator('.agent-tabs button').first().focus();
         await page.keyboard.press('End');
         assert.equal(
@@ -323,6 +345,7 @@ try {
         assert.equal(await leader.isVisible(), true);
         assert.equal(await page.locator('.session-agent-count').textContent(), '12');
         await page.reload();
+        if (compact) await agents.click();
         await page.getByRole('button', { name: 'Undo cleanup (13)', exact: true }).waitFor();
         assert.equal(
           await page.locator('.agent-tabs button').count(),
@@ -352,15 +375,20 @@ try {
   }
 } catch (error) {
   if (activePage && !activePage.isClosed()) {
-    await activePage.screenshot({ path: join(artifacts, 'failure.png') });
-    console.error(
-      await activePage.evaluate(() => ({
-        text: document.querySelector('.session-leader-column')?.textContent?.slice(0, 1000),
-        errors: window.proofErrors,
-        chat: document.querySelector('.native-chat-messages')?.getBoundingClientRect().toJSON(),
-        calls: window.proofCalls.filter((call) => call.method !== 'engine.events').slice(-8),
-      })),
-    );
+    console.error(error);
+    try {
+      await activePage.screenshot({ path: join(artifacts, 'failure.png'), timeout: 4000 });
+      console.error(
+        await activePage.evaluate(() => ({
+          text: document.querySelector('.session-leader-column')?.textContent?.slice(0, 1000),
+          errors: window.proofErrors,
+          chat: document.querySelector('.native-chat-messages')?.getBoundingClientRect().toJSON(),
+          calls: window.proofCalls.filter((call) => call.method !== 'engine.events').slice(-8),
+        })),
+      );
+    } catch (captureError) {
+      console.error('Could not capture failure screenshot', captureError);
+    }
   }
   throw error;
 } finally {

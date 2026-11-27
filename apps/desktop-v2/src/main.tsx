@@ -22,6 +22,8 @@ import './skills.css';
 import './shell.css';
 import './controls.css';
 import './settings-workspace.css';
+// Last: the IDE workbench's own surface treatment overrides the older shell rules.
+import './ide-workbench.css';
 
 applyAppearance(
   cachedAppearance(),

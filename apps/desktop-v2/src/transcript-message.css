@@ -53,6 +53,15 @@
 .native-chat-messages .transcript-row > .chat-message {
   padding-block: 14px;
 }
+/* Give running prose a reading measure while code, tables and tool activity use the full row. */
+.native-chat-messages .chat-message .markdown-content > :is(p, ul, ol, blockquote),
+.native-chat-messages .chat-message > .user-chat-body {
+  max-inline-size: 76ch;
+}
+:root:not([data-density="compact"]) .native-chat-messages .chat-message > div > .markdown-content {
+  font-size: 15px;
+  line-height: 1.7;
+}
 .message-actions > .copy-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

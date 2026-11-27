@@ -56,6 +56,8 @@
 .composer-actions {
   margin-left: auto;
   flex-shrink: 0;
+  max-width: 100%;
+  justify-content: flex-end;
 }
 .composer-chip {
   display: inline-flex;

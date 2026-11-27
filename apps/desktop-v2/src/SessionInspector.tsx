@@ -1,5 +1,5 @@
 import { Info, ListTodo, PanelRightClose, PanelRightOpen, Users } from 'lucide-react';
-import { type KeyboardEvent, useEffect, useId, useState } from 'react';
+import { type KeyboardEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SessionAgentRail } from './AgentTranscripts';
 import { useDesktopText } from './desktop-i18n';
@@ -97,26 +97,93 @@ export function SessionInspector({
   const id = useId();
   const [tab, setTab] = useState<InspectorTab>('agents');
   const [localCollapsed, setLocalCollapsed] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const [compactOpen, setCompactOpen] = useState(false);
+  const panel = useRef<HTMLElement>(null);
+  const rail = useRef<HTMLDivElement>(null);
+  const compactOpener = useRef<HTMLElement>(null);
   const paneLayout = usePaneLayout();
   const inspector = paneLayout?.panes.inspector;
-  // The saved pane layout owns collapse and width when the App provider is
-  // present; standalone fixtures keep the local fallback state.
-  const collapsed = paneLayout && inspector ? !inspector.open : localCollapsed;
-  const setCollapsed =
-    paneLayout && inspector
-      ? (value: boolean) => paneLayout.setOpen('inspector', !value)
-      : setLocalCollapsed;
+  // Read the container query's mode rather than using the window width. The
+  // explorer can make the conversation compact without resizing the window.
+  useLayoutEffect(() => {
+    const panes = panel.current?.parentElement;
+    const layout = panes?.closest('.session-conversation-layout');
+    if (!panes || !layout) return;
+    let previous: boolean | undefined;
+    const update = () => {
+      if (!layout.clientWidth) return;
+      const overlay =
+        getComputedStyle(panes).getPropertyValue('--session-inspector-placement').trim() ===
+        'overlay';
+      if (overlay === previous) return;
+      previous = overlay;
+      if (overlay && panel.current?.contains(document.activeElement)) {
+        rail.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+      }
+      setCompact(overlay);
+      if (!overlay) setCompactOpen(false);
+    };
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    let frame: number | undefined;
+    const observer = new ResizeObserver(() => {
+      if (frame !== undefined) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        update();
+      });
+    });
+    observer.observe(layout);
+    return () => {
+      observer.disconnect();
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!compact || !compactOpen) return;
+    const contains = (target: EventTarget | null) =>
+      target instanceof Node && (panel.current?.contains(target) || rail.current?.contains(target));
+    const dismiss = (event: PointerEvent) => {
+      if (!contains(event.target)) setCompactOpen(false);
+    };
+    const dismissOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || !contains(event.target)) return;
+      event.preventDefault();
+      setCompactOpen(false);
+      compactOpener.current?.focus();
+    };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [compact, compactOpen]);
+
+  const collapsed = compact ? !compactOpen : inspector ? !inspector.open : localCollapsed;
+  const setCollapsed = (value: boolean, opener?: HTMLElement) => {
+    if (compact) {
+      if (opener && !value) compactOpener.current = opener;
+      setCompactOpen(!value);
+    } else if (paneLayout && inspector) {
+      paneLayout.setOpen('inspector', !value);
+    } else {
+      setLocalCollapsed(value);
+    }
+  };
   const pane =
-    paneLayout && inspector?.open
+    !compact && paneLayout && inspector?.open
       ? {
           width: inspector.width,
           setWidth: (width: number) => paneLayout.setWidth('inspector', width),
         }
       : undefined;
   /** The icon rail lives at the screen edge, so choosing a section also opens the sidebar. */
-  const open = (value: InspectorTab) => {
+  const open = (value: InspectorTab, opener?: HTMLElement) => {
     setTab(value);
-    setCollapsed(false);
+    setCollapsed(false, opener);
   };
   const navigate = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = tabs.findIndex((item) => item.id === tab);
@@ -133,12 +200,55 @@ export function SessionInspector({
     const target = tabs[next];
     if (!target) return;
     event.preventDefault();
-    open(target.id);
-    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+    const button = event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
+    open(target.id, button);
+    button?.focus();
   };
   return (
     <>
+      <div className="session-inspector-rail" ref={rail}>
+        <div
+          className="session-inspector-rail-tabs"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label={words('title')}
+          onKeyDown={navigate}
+        >
+          {tabs.map(({ id: value, Icon }) => (
+            <button
+              key={value}
+              id={`${id}-${value}-tab`}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              aria-controls={`${id}-${value}-panel`}
+              title={words(value)}
+              tabIndex={tab === value ? 0 : -1}
+              onClick={(event) => open(value, event.currentTarget)}
+            >
+              <Icon size={16} aria-hidden="true" />
+              <span className="session-inspector-rail-label">{words(value)}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="session-inspector-toggle"
+          aria-label={words(collapsed ? 'expand' : 'collapse')}
+          title={words(collapsed ? 'expand' : 'collapse')}
+          aria-expanded={!collapsed}
+          aria-controls={`${id}-body`}
+          onClick={(event) => setCollapsed(!collapsed, event.currentTarget)}
+        >
+          {collapsed ? (
+            <PanelRightOpen size={16} aria-hidden="true" />
+          ) : (
+            <PanelRightClose size={16} aria-hidden="true" />
+          )}
+        </button>
+      </div>
       <aside
+        ref={panel}
         className="session-inspector"
         data-collapsed={collapsed}
         data-pane-width={pane ? pane.width : undefined}
@@ -165,6 +275,7 @@ export function SessionInspector({
               key={value}
               id={`${id}-${value}-panel`}
               role="tabpanel"
+              tabIndex={compact ? 0 : undefined}
               aria-labelledby={`${id}-${value}-tab`}
               hidden={tab !== value}
               className={`session-inspector-panel inspector-${value}`}
@@ -207,47 +318,6 @@ export function SessionInspector({
           ))}
         </div>
       </aside>
-      <div className="session-inspector-rail">
-        <div
-          className="session-inspector-rail-tabs"
-          role="tablist"
-          aria-orientation="vertical"
-          aria-label={words('title')}
-          onKeyDown={navigate}
-        >
-          {tabs.map(({ id: value, Icon }) => (
-            <button
-              key={value}
-              id={`${id}-${value}-tab`}
-              type="button"
-              role="tab"
-              aria-selected={tab === value}
-              aria-controls={`${id}-${value}-panel`}
-              title={words(value)}
-              tabIndex={tab === value ? 0 : -1}
-              onClick={() => open(value)}
-            >
-              <Icon size={16} aria-hidden="true" />
-              <span className="session-inspector-rail-label">{words(value)}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="session-inspector-toggle"
-          aria-label={words(collapsed ? 'expand' : 'collapse')}
-          title={words(collapsed ? 'expand' : 'collapse')}
-          aria-expanded={!collapsed}
-          aria-controls={`${id}-body`}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <PanelRightOpen size={16} aria-hidden="true" />
-          ) : (
-            <PanelRightClose size={16} aria-hidden="true" />
-          )}
-        </button>
-      </div>
     </>
   );
 }

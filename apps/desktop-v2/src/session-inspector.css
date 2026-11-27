@@ -375,33 +375,34 @@
   .session-conversation-panes,
   .session-conversation-panes:has(> .session-inspector[data-collapsed="true"]),
   .session-conversation-panes:has(> .session-inspector[data-pane-width]) {
+    --session-inspector-placement: overlay;
+    position: relative;
     grid-template-columns: minmax(0, 1fr) var(--session-rail);
-    grid-template-rows: minmax(0, auto) minmax(120px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
   .session-conversation-panes > .session-leader-column {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 1;
+  }
+  .focused-session .session-leader-column > .native-chat-messages {
+    min-height: 0;
   }
   .session-conversation-panes > .session-inspector {
-    grid-column: 1;
-    grid-row: 1;
-    border-left: 0;
-    border-bottom: 1px solid var(--border);
-    max-height: min(30dvh, 240px);
-  }
-  /* Saved width and the resize handle only apply to the side-by-side layout. */
-  .session-conversation-panes > .session-inspector[data-pane-width] {
-    width: auto;
-  }
-  .session-conversation-panes > .session-inspector > .pane-splitter {
-    display: none;
+    position: absolute;
+    grid-area: auto;
+    inset-block: 0;
+    inset-inline-end: var(--session-rail);
+    z-index: 5;
+    width: min(296px, calc(100% - var(--session-rail)));
+    border: 1px solid var(--border);
+    box-shadow: -10px 0 28px color-mix(in srgb, var(--base) 65%, transparent);
   }
   .session-conversation-panes > .session-inspector[data-collapsed="true"] {
     display: none;
   }
   .session-conversation-panes > .session-inspector-rail {
     grid-column: 2;
-    grid-row: 1 / -1;
+    grid-row: 1;
   }
   .session-inspector .session-agent-rail {
     max-height: none;
@@ -430,17 +431,5 @@
   .session-inspector .agent-tabs {
     flex: none;
     min-height: 72px;
-  }
-  @container conversation (max-width: 760px) {
-    /* Keep a usable transcript when the inspector stacks above a tall composer. */
-    .session-conversation-panes {
-      overflow-y: auto;
-    }
-    .session-leader-column {
-      overflow: visible;
-    }
-    .focused-session .session-leader-column > .native-chat-messages {
-      min-height: 160px;
-    }
   }
 }

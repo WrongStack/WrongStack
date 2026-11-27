@@ -9,6 +9,23 @@
     border-radius: 0 !important;
   }
 
+  /* Motion exceptions: these indicators rotate or ripple, and their motion only reads
+     right on a circle. The chat's "WrongStack is working…" orb has an orbit ring (a
+     partial border that spins) and a ripple; squared, the ring's corners swing out past
+     the orb and the spin looks jumpy. The Office desk's web-tool signal is three partial
+     borders that only read as radio-wave arcs on a circle (squared, they pulse as
+     chevrons), and its read/search lens is a ring. They must stay in this layer: an
+     !important in a later layer or in unlayered CSS loses to the rule above. */
+  .agent-working-orb,
+  .agent-working-orb::before,
+  .agent-working-orb::after,
+  .agent-office__scene.is-tool-web .agent-office__activity-fx > :is(span, i, b),
+  .agent-office__scene:is(.is-tool-read, .is-tool-search) .agent-office__activity-fx > span {
+    /* design-ignore: radius.hardcoded -- These animated indicators are circular by design. */
+    /* biome-ignore lint/complexity/noImportantStyles: only an !important rule in this layer beats the square-corner invariant. */
+    border-radius: 50% !important;
+  }
+
   ::-webkit-scrollbar-track,
   ::-webkit-scrollbar-thumb,
   ::-webkit-scrollbar-corner {
