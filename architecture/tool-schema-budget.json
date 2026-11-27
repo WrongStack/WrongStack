@@ -5,124 +5,124 @@
   "profiles": {
     "off": {
       "count": 82,
-      "wireBytes": 103584,
-      "estimatedTokens": 28652
+      "wireBytes": 103619,
+      "estimatedTokens": 28663
     },
     "minimal": {
       "count": 30,
-      "wireBytes": 31744,
-      "estimatedTokens": 8724
+      "wireBytes": 31976,
+      "estimatedTokens": 8789
     },
     "light": {
       "count": 30,
-      "wireBytes": 31744,
-      "estimatedTokens": 8724
+      "wireBytes": 31976,
+      "estimatedTokens": 8789
     },
     "medium": {
       "count": 57,
-      "wireBytes": 86843,
-      "estimatedTokens": 24148
+      "wireBytes": 86878,
+      "estimatedTokens": 24159
     },
     "aggressive": {
       "count": 30,
-      "wireBytes": 31744,
-      "estimatedTokens": 8724
+      "wireBytes": 31976,
+      "estimatedTokens": 8789
     },
     "lean": {
       "count": 6,
-      "wireBytes": 5304,
-      "estimatedTokens": 1448
+      "wireBytes": 5470,
+      "estimatedTokens": 1496
     },
     "offV4": {
       "count": 82,
-      "wireBytes": 103137,
-      "estimatedTokens": 28527
+      "wireBytes": 103619,
+      "estimatedTokens": 28663
     },
     "offV5": {
       "count": 65,
-      "wireBytes": 94235,
-      "estimatedTokens": 26173
+      "wireBytes": 94717,
+      "estimatedTokens": 26309
     },
     "offV6": {
       "count": 47,
-      "wireBytes": 56450,
-      "estimatedTokens": 15589
+      "wireBytes": 56932,
+      "estimatedTokens": 15725
     },
     "mediumV1": {
       "count": 56,
-      "wireBytes": 63297,
-      "estimatedTokens": 17435
+      "wireBytes": 63779,
+      "estimatedTokens": 17571
     },
     "mediumV6": {
       "count": 42,
-      "wireBytes": 50919,
-      "estimatedTokens": 14064
+      "wireBytes": 51401,
+      "estimatedTokens": 14200
     },
     "quickLegacy": {
       "count": 11,
-      "wireBytes": 14544,
-      "estimatedTokens": 4032
+      "wireBytes": 14710,
+      "estimatedTokens": 4080
     },
     "quickV1": {
       "count": 11,
-      "wireBytes": 9812,
-      "estimatedTokens": 2680
+      "wireBytes": 9978,
+      "estimatedTokens": 2728
     },
     "quickBash": {
       "count": 10,
-      "wireBytes": 8784,
-      "estimatedTokens": 2397
+      "wireBytes": 8950,
+      "estimatedTokens": 2445
     },
     "quickPwsh": {
       "count": 10,
-      "wireBytes": 8826,
-      "estimatedTokens": 2409
+      "wireBytes": 8992,
+      "estimatedTokens": 2457
     },
     "scoutLegacy": {
       "count": 13,
-      "wireBytes": 16275,
-      "estimatedTokens": 4502
+      "wireBytes": 16382,
+      "estimatedTokens": 4532
     },
     "scoutBash": {
       "count": 11,
-      "wireBytes": 9976,
-      "estimatedTokens": 2724
+      "wireBytes": 10083,
+      "estimatedTokens": 2754
     },
     "scoutPwsh": {
       "count": 11,
-      "wireBytes": 10018,
-      "estimatedTokens": 2736
+      "wireBytes": 10125,
+      "estimatedTokens": 2766
     }
   },
   "quickFingerprints": {
     "quickLegacy": {
-      "declarations": "3154bc61a29ba61a9d7327ee1f07407178769edbcd27c7a74d193c816c0cace2",
+      "declarations": "0c1e3399b5ea9e5aea5947df78fad2d80d58868bac831df0774def5666edcc12",
       "usageHints": "5c648e0c1111e03baedb1f89537fb3d581ce5a3090946f1ebae29a21f39a8a3a"
     },
     "quickV1": {
-      "declarations": "5de3c1d82f7301a4b54d27f5c34b12a3f5b9cb5b77a21f8bce573e5e5dc69f87",
+      "declarations": "4fbb40ef29b7c991f45a99c7561750d2f4aa99ac71af737b38ae16978ea8a2a3",
       "usageHints": "842b6333be3e58fdb0b0e1248f2b73d186fbe71a5a532012673402aed2e097e2"
     },
     "quickBash": {
-      "declarations": "da2a7e95575eb6f5d7c2898f0bf9b2ee98221a1bdf9575121c36923496a116ae",
+      "declarations": "9a1a72625473195dd2fb15cc170b4743175d0c4cfc73835c7a088fabce5a7a29",
       "usageHints": "50d5f0ea2e6decc34a5bb0d1fbb67dff3b30c585808d2c94dcd671c52326d93c"
     },
     "quickPwsh": {
-      "declarations": "4359214b46e8f38af6dbd5414763f86d576650b9f798a756e9df131228674a88",
+      "declarations": "4091b812df4232d6df5de44f7e58e52d21a1fe63e4431d69c43c3aba5140d839",
       "usageHints": "8cb5ab509f86dff77c57d6bdb1488e26d427d8508de75cad41e3b97c430b899b"
     }
   },
   "scoutFingerprints": {
     "scoutLegacy": {
-      "declarations": "e16899fab9da862d16e132c71b26b93386c6b64444683479bf3fd5e8bb09d3b7",
+      "declarations": "3139ee288ba0275b659573aa2810bc14f8d436d6db635bc2124c7c38eef8e81e",
       "usageHints": "0841884efbc502a230990eed4d8747056198b48bea4f58a4a5a12ae68408fd02"
     },
     "scoutBash": {
-      "declarations": "87fcda185379efc5214e1d5f156bc1d37a2d8ddb31eac769f351dfcce31d061c",
+      "declarations": "511442255f8a822353cdc4fc9435e36f4406229e4e3e9c59d5ddd33d9a36fa0c",
       "usageHints": "11ef411eac973c723d779158c49113be49bb2bacaf6916c844fb313ea952f478"
     },
     "scoutPwsh": {
-      "declarations": "9bc9781c52a25391ffbee8ff4baf33b90daffd62a8d65f7d8c1c44e71fe40478",
+      "declarations": "4da02b6805bda5339d86ff90e602acf1a658ff8edd0ccc400f6cde2cdd6e3378",
       "usageHints": "a10be953cb32758ba29423142fcef1803423695372359bdd991d8f85a3baa959"
     }
   }

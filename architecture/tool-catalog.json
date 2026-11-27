@@ -2432,7 +2432,7 @@
     {
       "name": "diff",
       "owner": "builtin-tools",
-      "description": "Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.",
+      "description": "Show git diffs — the working tree when called with no arguments, `staged: true` for the index, `a`/`b` for commits or branches, `mode: \"stat\"` for a summary — or dump `files` with line numbers. Prefer it over raw `git diff` in a shell.",
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
@@ -2480,7 +2480,7 @@
       },
       "icon": "diff",
       "category": "Filesystem",
-      "usageHint": "USE FOR CODE REVIEW AND CHANGE INSPECTION:\n\n- `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes). Result `mode` is \"dump\".\n- `a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).\n- `staged: true` → only show staged changes.\n- `mode` only affects the git-diff path: \"stat\" runs `git diff --stat`; \"side-by-side\" is unimplemented and falls back to unified (result `mode` reports what was produced).\n- `context` sets the unified-diff context line count on the git path (`-U<n>`); the dump path has no context notion.\n\nNOTE: For a true file-vs-file unified diff, supply `a` and `b` so the tool delegates to `git diff`. The `files`-only path is a line-numbered dump, not a diff.\n\nThis tool has important safety guards against flag injection (see previous security findings).",
+      "usageHint": "USE FOR CODE REVIEW AND CHANGE INSPECTION:\n\n- no `files`/`a`/`b` → `git diff` of the working tree (unstaged changes), optionally limited by `path`.\n- `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes). Result `mode` is \"dump\".\n- `a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).\n- `staged: true` → only show staged changes.\n- `mode` only affects the git-diff path: \"stat\" runs `git diff --stat`; \"side-by-side\" is unimplemented and falls back to unified (result `mode` reports what was produced).\n- `context` sets the unified-diff context line count on the git path (`-U<n>`); the dump path has no context notion.\n\nNOTE: For a true file-vs-file unified diff, supply `a` and `b` so the tool delegates to `git diff`. The `files`-only path is a line-numbered dump, not a diff.\n\nThis tool has important safety guards against flag injection (see previous security findings).",
       "issues": [],
       "color": "#93c5fd"
     },
@@ -2884,7 +2884,7 @@
           },
           "path": {
             "type": "string",
-            "description": "Limit search to this directory or file (relative to project root)."
+            "description": "Limit search to this directory or file (relative to project root). Shell-style braces and single-segment wildcards expand to several roots (e.g. \"packages/{cli,tui}/src\", \"packages/*/src\"); use `glob` for recursive `**` filters."
           },
           "glob": {
             "type": "string",
@@ -3014,7 +3014,7 @@
     {
       "name": "json",
       "owner": "builtin-tools",
-      "description": "Read, query, validate, or merge JSON/JSON5/YAML files while preserving valid structure (read-only — does not write). Use it instead of raw text edits when reading or querying structured data.",
+      "description": "Parse, query (JMESPath), schema-validate, transform or deep-merge JSON, JSONC (comments, trailing commas — e.g. tsconfig) and YAML files or inline text. Read-only: never writes files. Use it instead of reading and hand-parsing config or data files.",
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
@@ -3037,11 +3037,11 @@
           },
           "file": {
             "type": "string",
-            "description": "Path to a JSON file (parse/query/validate/transform)"
+            "description": "Path to a JSON, JSONC (comments/trailing commas) or YAML (.yaml/.yml) file (parse/query/validate/transform)"
           },
           "data": {
             "type": "string",
-            "description": "JSON string (parse/query/validate/transform, alternative to file)"
+            "description": "Inline JSON, JSONC or YAML text (parse/query/validate/transform, alternative to file)"
           },
           "format": {
             "type": "string",
@@ -5543,7 +5543,7 @@
     {
       "name": "todo",
       "owner": "builtin-tools",
-      "description": "Create, update, or list the session’s concrete work items and their progress. Use it to keep multi-step work visible; it does not implement the tasks itself.",
+      "description": "Set the session’s concrete work items and their progress: each call sends the whole list (order, content, status). Unfinished items you leave out are kept — mark them completed to remove them. Keep exactly one item in_progress. It tracks work; it does not do it.",
       "permission": "confirm",
       "mutating": true,
       "exposure": "direct",
@@ -5883,93 +5883,93 @@
   "schemaMeasurements": {
     "off": {
       "count": 82,
-      "wireBytes": 103137,
-      "estimatedTokens": 28527
+      "wireBytes": 103619,
+      "estimatedTokens": 28663
     },
     "minimal": {
       "count": 30,
-      "wireBytes": 31601,
-      "estimatedTokens": 8683
+      "wireBytes": 31976,
+      "estimatedTokens": 8789
     },
     "light": {
       "count": 30,
-      "wireBytes": 31601,
-      "estimatedTokens": 8683
+      "wireBytes": 31976,
+      "estimatedTokens": 8789
     },
     "medium": {
       "count": 57,
-      "wireBytes": 86396,
-      "estimatedTokens": 24023
+      "wireBytes": 86878,
+      "estimatedTokens": 24159
     },
     "aggressive": {
       "count": 30,
-      "wireBytes": 31601,
-      "estimatedTokens": 8683
+      "wireBytes": 31976,
+      "estimatedTokens": 8789
     },
     "lean": {
       "count": 6,
-      "wireBytes": 5304,
-      "estimatedTokens": 1448
+      "wireBytes": 5470,
+      "estimatedTokens": 1496
     },
     "offV4": {
       "count": 82,
-      "wireBytes": 103137,
-      "estimatedTokens": 28527
+      "wireBytes": 103619,
+      "estimatedTokens": 28663
     },
     "offV5": {
       "count": 65,
-      "wireBytes": 94235,
-      "estimatedTokens": 26173
+      "wireBytes": 94717,
+      "estimatedTokens": 26309
     },
     "offV6": {
       "count": 47,
-      "wireBytes": 56450,
-      "estimatedTokens": 15589
+      "wireBytes": 56932,
+      "estimatedTokens": 15725
     },
     "mediumV1": {
       "count": 56,
-      "wireBytes": 63297,
-      "estimatedTokens": 17435
+      "wireBytes": 63779,
+      "estimatedTokens": 17571
     },
     "mediumV6": {
       "count": 42,
-      "wireBytes": 50919,
-      "estimatedTokens": 14064
+      "wireBytes": 51401,
+      "estimatedTokens": 14200
     },
     "quickLegacy": {
       "count": 11,
-      "wireBytes": 14544,
-      "estimatedTokens": 4032
+      "wireBytes": 14710,
+      "estimatedTokens": 4080
     },
     "quickV1": {
       "count": 11,
-      "wireBytes": 9812,
-      "estimatedTokens": 2680
+      "wireBytes": 9978,
+      "estimatedTokens": 2728
     },
     "quickBash": {
       "count": 10,
-      "wireBytes": 8784,
-      "estimatedTokens": 2397
+      "wireBytes": 8950,
+      "estimatedTokens": 2445
     },
     "quickPwsh": {
       "count": 10,
-      "wireBytes": 8826,
-      "estimatedTokens": 2409
+      "wireBytes": 8992,
+      "estimatedTokens": 2457
     },
     "scoutLegacy": {
       "count": 13,
-      "wireBytes": 16275,
-      "estimatedTokens": 4502
+      "wireBytes": 16382,
+      "estimatedTokens": 4532
     },
     "scoutBash": {
       "count": 11,
-      "wireBytes": 9976,
-      "estimatedTokens": 2724
+      "wireBytes": 10083,
+      "estimatedTokens": 2754
     },
     "scoutPwsh": {
       "count": 11,
-      "wireBytes": 10018,
-      "estimatedTokens": 2736
+      "wireBytes": 10125,
+      "estimatedTokens": 2766
     }
   }
 }

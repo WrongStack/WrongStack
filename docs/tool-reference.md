@@ -2482,7 +2482,7 @@ Permission: `confirm`; mutating: `true`; icon: `scaffold`; color: `#c084fc`.
 
 ## diff
 
-Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.
+Show git diffs — the working tree when called with no arguments, `staged: true` for the index, `a`/`b` for commits or branches, `mode: "stat"` for a summary — or dump `files` with line numbers. Prefer it over raw `git diff` in a shell.
 
 Permission: `auto`; mutating: `false`; icon: `diff`; color: `#93c5fd`.
 
@@ -2490,6 +2490,7 @@ Permission: `auto`; mutating: `false`; icon: `diff`; color: `#93c5fd`.
 
 USE FOR CODE REVIEW AND CHANGE INSPECTION:
 
+- no `files`/`a`/`b` → `git diff` of the working tree (unstaged changes), optionally limited by `path`.
 - `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes). Result `mode` is "dump".
 - `a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).
 - `staged: true` → only show staged changes.
@@ -2997,7 +2998,7 @@ Prefer: glob.
     },
     "path": {
       "type": "string",
-      "description": "Limit search to this directory or file (relative to project root)."
+      "description": "Limit search to this directory or file (relative to project root). Shell-style braces and single-segment wildcards expand to several roots (e.g. \"packages/{cli,tui}/src\", \"packages/*/src\"); use `glob` for recursive `**` filters."
     },
     "glob": {
       "type": "string",
@@ -3124,7 +3125,7 @@ This tool has proper capability declaration and is heavily recommended in the se
 
 ## json
 
-Read, query, validate, or merge JSON/JSON5/YAML files while preserving valid structure (read-only — does not write). Use it instead of raw text edits when reading or querying structured data.
+Parse, query (JMESPath), schema-validate, transform or deep-merge JSON, JSONC (comments, trailing commas — e.g. tsconfig) and YAML files or inline text. Read-only: never writes files. Use it instead of reading and hand-parsing config or data files.
 
 Permission: `auto`; mutating: `false`; icon: `json`; color: `#eab308`.
 
@@ -3158,11 +3159,11 @@ Prefer this over raw `read` + manual parsing when dealing with configuration or 
     },
     "file": {
       "type": "string",
-      "description": "Path to a JSON file (parse/query/validate/transform)"
+      "description": "Path to a JSON, JSONC (comments/trailing commas) or YAML (.yaml/.yml) file (parse/query/validate/transform)"
     },
     "data": {
       "type": "string",
-      "description": "JSON string (parse/query/validate/transform, alternative to file)"
+      "description": "Inline JSON, JSONC or YAML text (parse/query/validate/transform, alternative to file)"
     },
     "format": {
       "type": "string",
@@ -5703,7 +5704,7 @@ Run tests frequently. A clean test run is usually required before the task can b
 
 ## todo
 
-Create, update, or list the session’s concrete work items and their progress. Use it to keep multi-step work visible; it does not implement the tasks itself.
+Set the session’s concrete work items and their progress: each call sends the whole list (order, content, status). Unfinished items you leave out are kept — mark them completed to remove them. Keep exactly one item in_progress. It tracks work; it does not do it.
 
 Permission: `confirm`; mutating: `true`; icon: `todo`; color: `#facc15`.
 
