@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.24] — 2026-11-27
+
+Workflow plugin tools now fill in omitted inputs from the project, and the
+lint, test and type gates check the code that was actually edited. Kanban
+Companion gets a project-wide switch and the TUI gains a memory browser. This
+release also fixes built-in tools, stop and dispose races, and malformed JSON
+replies.
+
+### Added
+
+- Plugins: workflow tools fill in omitted inputs from the project. The
+  default is the working-tree change, the declared workspace packages, a
+  bounded source walk or the conventional root file, and each result says
+  which one it used. Evidence analyzers gain a project mode.
+- Kanban: a project-wide Kanban Companion switch in WebUI and Desktop
+  settings. Turning it off cancels any outstanding management grants, so a
+  stale grant can no longer write to the board.
+- TUI: bare `/memory` opens a browse-only memory panel. When a copy fails,
+  the TUI now says why: no clipboard tool, text over the OSC 52 limit, or no
+  TTY.
+- Desktop: the session inspector shows the agent's own ACP mode selectors,
+  and the transcript returns to where you stopped reading when you come back
+  to the tab.
+- ACP: Claude's acceptEdits, auto and bypassPermissions modes are available
+  as leader modes.
+
+### Changed
+
+- Provider definitions, presets, the setup key card and the website no longer
+  carry referral or affiliate links.
+- MCP servers passed with `--mcp` start active and expose their tools
+  immediately. Lazy MCP loading now applies only on the aggressive
+  token-saving tier.
+
+### Fixed
+
+- Plugins: lint-gate lints the new content inside the project. With Biome's
+  `vcs.useIgnoreFile` set, it used to pass every write without checking it.
+  test-runner-gate finds package `tests/` directories and index tests, and
+  type-gate checks the nearest package tsconfig.
+- Plugins: import-organizer applies only the import rules (requires Biome
+  2.4 or later). Its old default applied every unsafe Biome fix, which could
+  change how code behaves. Workflow, semver and LSP tool inputs now have
+  descriptions.
+- Built-in tools:
+  - json reads the JSONC, JSON5 and YAML files it advertises, and read
+    decodes UTF-16 text.
+  - grep expands brace patterns in `path`.
+  - exec and pwsh name a missing working directory, and PowerShell error
+    streams come back as plain text.
+  - typecheck reports paths relative to the project.
+- Stopping or closing a session no longer leaves ACP sessions, browsers,
+  timers, worktrees or LSP servers running when a step finishes late.
+- Provider token refresh, the ACP transport, Telegram setup, update checks,
+  config import and the HQ device vault report a null or non-object JSON
+  reply as malformed instead of crashing.
+- HQ answers 400 to malformed request URLs and requires JSON object bodies.
+- WebUI model switches and key operations wait past the 15 s config lock
+  instead of reporting a timeout (#448).
+- Desktop terminals stay responsive while the terminal is still rendering
+  earlier output. Stopping one Windows process tree no longer cuts off other
+  sessions' terminals.
+- SAGE and SDD verify-task no longer lose quoted parts of a command or treat
+  backslashes in Windows paths as escapes.
+
 ## [1.7.23] — 2026-11-27
 
 The desktop workbench gains a grouped command palette and a compact session

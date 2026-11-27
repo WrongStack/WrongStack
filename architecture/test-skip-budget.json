@@ -457,6 +457,11 @@
       "fingerprint": "9110b9520598d838"
     },
     {
+      "file": "packages/plugins/tests/lint-gate-biome-vcs.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "09dc8ca08e2d49f6"
+    },
+    {
       "file": "packages/plugins/tests/process-guard.test.ts",
       "kind": "runIf",
       "fingerprint": "13553b25590667dc"
@@ -589,7 +594,17 @@
     {
       "file": "packages/sdd/tests/verify-task.test.ts",
       "kind": "skipIf",
+      "fingerprint": "607cefdd7a7575f8"
+    },
+    {
+      "file": "packages/sdd/tests/verify-task.test.ts",
+      "kind": "skipIf",
       "fingerprint": "8e08561629b784b4"
+    },
+    {
+      "file": "packages/sdd/tests/verify-task.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "a54253ed84e67609"
     },
     {
       "file": "packages/sdd/tests/verify-task.test.ts",
@@ -950,6 +965,16 @@
       "file": "packages/tools/tests/session-shell-default-probe.test.ts",
       "kind": "skipIf",
       "fingerprint": "c3c22e76e9dc7d40"
+    },
+    {
+      "file": "packages/tools/tests/shell-tools-error-readability.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "60814928fa1fe989"
+    },
+    {
+      "file": "packages/tools/tests/shell-tools-error-readability.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "c7d8b518e65c343f"
     },
     {
       "file": "packages/tools/tests/win32-resolve.test.ts",

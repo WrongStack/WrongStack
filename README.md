@@ -55,16 +55,15 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.7.23
+### What's new in 1.7.24
 
-- **Desktop workbench:** `Ctrl+K` searches commands, projects and sessions.
-  The session inspector opens without shifting the transcript, and model
-  settings search saved catalogs and accept typed references.
-- **ACP project services:** desktop-hosted ACP leaders can use project
-  indexing, SAGE, Mailbox, Kanban and Intake. Starting a leader in Desktop or
-  WebUI refreshes the official agent registry in the background.
-- **WebUI accessibility:** dialogs restore keyboard focus, tab groups support
-  arrow keys, and screen readers announce loading states and icon labels.
+- **Workflow tools fill in inputs from the project:** changed files,
+  workspace packages and manifests come from the working tree when the model
+  leaves them out.
+- **Plugin gates check edited code:** lint, test and type gates check the
+  code you just edited, and import-organizer applies only import fixes.
+- **Kanban Companion switch and TUI memory browser:** turn the companion on
+  or off per project, and browse memory with `/memory`.
 
 Every earlier release is in the [changelog](CHANGELOG.md).
 
@@ -382,7 +381,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.23**; versions follow semver
+- Release notes: **v1.7.24**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

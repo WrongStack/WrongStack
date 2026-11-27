@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.23 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.24 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.24',
+    date: '2026-11-27',
+    tagline: 'Workflow tools that fill in inputs from the project',
+    latest: true,
+    highlights: [
+      'Workflow plugin tools fill in changed files, packages and manifests from the project',
+      'Lint, test and type gates check the code that was edited; import-organizer applies only import fixes',
+      'Turn Kanban Companion on or off for a whole project from WebUI or Desktop',
+      'Browse memory in the TUI with /memory',
+      'Fixes for built-in tools, stop and dispose races, and malformed JSON replies',
+    ],
+  },
+  {
     version: '1.7.23',
     date: '2026-11-27',
     tagline: 'Desktop command palette and ACP project services',
-    latest: true,
     highlights: [
       'Search commands, projects and sessions from the desktop command palette',
       'Open the session inspector without shifting the transcript',

@@ -271,7 +271,7 @@ export const toolCatalog = [
   {
     name: 'todo',
     summary:
-      'Create, update, or list the session’s concrete work items and their progress. Use it to keep multi-step work visible; it does not implement the tasks itself.',
+      'Set the session’s concrete work items and their progress: each call sends the whole list (order, content, status). Unfinished items you leave out are kept — mark them completed to remove them. Keep exactly one item in_progress. It tracks work; it does not do it.',
     permission: 'confirm',
     mutating: true,
     category: 'Work & state',
@@ -319,7 +319,7 @@ export const toolCatalog = [
   {
     name: 'json',
     summary:
-      'Read, query, validate, or merge JSON/JSON5/YAML files while preserving valid structure (read-only — does not write). Use it instead of raw text edits when reading or querying structured data.',
+      'Parse, query (JMESPath), schema-validate, transform or deep-merge JSON, JSONC (comments, trailing commas — e.g. tsconfig) and YAML files or inline text. Read-only: never writes files. Use it instead of reading and hand-parsing config or data files.',
     permission: 'auto',
     mutating: false,
     category: 'Files & search',
@@ -327,7 +327,7 @@ export const toolCatalog = [
   {
     name: 'diff',
     summary:
-      'Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.',
+      'Show git diffs — the working tree when called with no arguments, `staged: true` for the index, `a`/`b` for commits or branches, `mode: "stat"` for a summary — or dump `files` with line numbers. Prefer it over raw `git diff` in a shell.',
     permission: 'auto',
     mutating: false,
     category: 'Files & search',

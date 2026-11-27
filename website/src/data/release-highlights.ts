@@ -1,27 +1,27 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.7.23',
-  title: 'A command palette for the desktop workbench.',
+  version: '1.7.24',
+  title: 'Workflow tools that fill in inputs from the project.',
   summary:
-    'Search commands, projects and sessions from one desktop palette. Open the session inspector without shifting the transcript, use project services from desktop-hosted ACP leaders, and navigate WebUI more easily with a keyboard or screen reader.',
+    'Workflow plugin tools fill in changed files, packages and manifests from the project when the model leaves them out. Lint, test and type gates check the code that was edited, Kanban Companion gets a project-wide switch, and the TUI gains a memory browser.',
   socialDescription:
-    'WrongStack 1.7.23: a desktop command palette, ACP project services and better WebUI keyboard and screen-reader navigation.',
+    'WrongStack 1.7.24: workflow tools fill in inputs from the project, plugin gates check edited code, a Kanban Companion switch and a TUI memory browser.',
   cards: [
     {
-      title: 'Desktop workbench',
-      body: 'Use Ctrl+K to find commands, projects and sessions. Pick a model from your saved catalogs or type a model reference in settings.',
-      href: '/interfaces',
-      linkLabel: 'Explore the interfaces',
+      title: 'Workflow plugins',
+      body: 'Omitted inputs come from the working-tree change, the workspace packages or the conventional root file, and each result says which one it used.',
+      href: '/plugins',
+      linkLabel: 'Browse the plugins',
     },
     {
-      title: 'ACP project services',
-      body: 'Desktop-hosted ACP leaders can use project indexing, SAGE, Mailbox, Kanban and Intake.',
-      href: '/acp',
-      linkLabel: 'Use WrongStack over ACP',
+      title: 'Gates that check your edit',
+      body: 'lint-gate, test-runner-gate and type-gate check the file you just edited, and import-organizer applies only the import rules.',
+      href: '/plugins',
+      linkLabel: 'See the plugin gates',
     },
     {
-      title: 'WebUI accessibility',
-      body: 'Dialogs restore focus, tab groups respond to arrow keys, and screen readers announce loading states and icon controls.',
+      title: 'Kanban Companion switch',
+      body: 'Turn the companion on or off for a whole project from WebUI or Desktop settings. Turning it off cancels its pending board writes.',
       href: '/getting-started',
       linkLabel: 'Upgrade your installation',
     },
