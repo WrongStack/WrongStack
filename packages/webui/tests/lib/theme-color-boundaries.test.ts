@@ -50,7 +50,6 @@ const ISOLATED_COLOR_SURFACES = new Map<string, string>([
     'project-surfaces/ui/ProviderLogo.tsx',
     'Brand-mark tiles keep fixed white (dark for Kimi) backgrounds in both themes so original logo colors stay legible.',
   ],
-  ['project-surfaces/setup/ProviderKeyCard.tsx', 'QR encoder requires explicit dark/light colors.'],
   ['webui/components/TerminalPanel.tsx', 'xterm owns a complete terminal ANSI palette.'],
   [
     'project-surfaces/sage/vector/VectorMemoryPanel.tsx',
