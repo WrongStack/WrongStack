@@ -71,6 +71,34 @@ describe('command anchor verification via existence probe (2026-08-02)', () => {
     expect(missing.anchors[0]?.reason).toContain('definitely-missing-binary-f1525');
   });
 
+  it('keeps a quoted assignment value with spaces inside one word', async () => {
+    // `NODE_OPTIONS="--a --b" node` was split at the space and `--b"` probed
+    // as the executable, demoting a working command memory to stale.
+    for (const command of [
+      'NODE_OPTIONS="--max-old-space-size=4096 --trace-warnings" node --version',
+      "FOO='a b' node --version",
+      'env FOO="a b" node --version',
+      'A="x y" B=2 sudo -u www node --version',
+    ]) {
+      const result = await verifyMemoryAnchors(tempDir, makeMemory([{ type: 'command', command }]));
+      expect(result.anchors[0]?.status, command).toBe('verified');
+    }
+    // The executable after the quoted value is still the one probed.
+    const missing = await verifyMemoryAnchors(
+      tempDir,
+      makeMemory([{ type: 'command', command: 'FOO="a b" definitely-missing-binary-quoted' }]),
+    );
+    expect(missing.anchors[0]?.status).toBe('stale');
+    expect(missing.anchors[0]?.reason).toContain('"definitely-missing-binary-quoted"');
+    // A wholly quoted first word is still a command name, not an assignment.
+    const quotedName = await verifyMemoryAnchors(
+      tempDir,
+      makeMemory([{ type: 'command', command: '"FOO=bar" node' }]),
+    );
+    expect(quotedName.anchors[0]?.status).toBe('stale');
+    expect(quotedName.anchors[0]?.reason).toContain('"FOO=bar"');
+  });
+
   it('resolves known value-taking wrapper flags and their arguments', async () => {
     // `sudo -u www node` — '-u' consumes 'www'; the command is 'node'.
     const anchor: MemoryAnchor = { type: 'command', command: 'sudo -u www node --version' };

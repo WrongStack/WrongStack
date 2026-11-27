@@ -62,10 +62,12 @@ export interface CommandVerifierOptions {
  * Tokenize a command string into an argv array **without** shell interpolation.
  *
  * Splits on whitespace while respecting single and double quotes (matching
- * POSIX shell quoting rules for the common cases). Shell metacharacters
- * (`;`, `|`, `&&`, `$()`, backticks, `>`, `<`) that appear *inside* a token
- * are preserved as literal characters — they are passed to the executable as
- * argument data, never interpreted by a shell.
+ * POSIX shell quoting rules for the common cases). On Windows, a backslash
+ * outside quotes is preserved as a path separator unless it escapes
+ * whitespace or a quote. Shell metacharacters (`;`, `|`, `&&`, `$()`,
+ * backticks, `>`, `<`) that appear *inside* a token are preserved as literal
+ * characters — they are passed to the executable as argument data, never
+ * interpreted by a shell.
  *
  * Returns `undefined` when the input is empty/whitespace or contains
  * unbalanced quotes (which would indicate a malformed command).
@@ -123,8 +125,23 @@ export function tokenizeCommand(command: string): string[] | undefined {
     }
 
     if (ch === '\\' && i + 1 < trimmed.length) {
+      // On Windows a backslash is normally a path separator, not a POSIX
+      // escape. Keep it unless it escapes whitespace or a quote — those are
+      // the cases a caller needs to embed a literal delimiter in one token.
+      const next = trimmed[i + 1]!;
+      if (
+        process.platform === 'win32' &&
+        next !== ' ' &&
+        next !== '\t' &&
+        next !== '"' &&
+        next !== "'"
+      ) {
+        current += ch;
+        hasToken = true;
+        continue;
+      }
       // Outside quotes, backslash escapes the next character literally.
-      current += trimmed[i + 1]!;
+      current += next;
       i++;
       hasToken = true;
       continue;

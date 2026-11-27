@@ -48,6 +48,17 @@ describe('tokenizeCommand', () => {
     expect(tokenizeCommand('echo a\\ b')).toEqual(['echo', 'a b']);
   });
 
+  it.skipIf(process.platform !== 'win32')(
+    'preserves native Windows path separators outside quotes',
+    () => {
+      const native = 'C:\\tools\\verify.cmd';
+      expect(tokenizeCommand(`${native} --flag`)).toEqual([native, '--flag']);
+      // Whitespace escaping still works — a backslash before a space is not a
+      // path separator, it embeds that space in one argv token.
+      expect(tokenizeCommand('echo a\\ b')).toEqual(['echo', 'a b']);
+    },
+  );
+
   it('collapses runs of whitespace without emitting empty tokens (:99)', () => {
     expect(tokenizeCommand('pnpm  vitest\t\trun')).toEqual(['pnpm', 'vitest', 'run']);
   });
@@ -112,6 +123,28 @@ describe('makeCommandVerifier', () => {
     const out = await verify({ task: task({ verificationCommand: trueExe }), result, cwd });
     expect(out.ok).toBe(true);
   });
+
+  it.skipIf(process.platform !== 'win32')(
+    'runs an unquoted native Windows .cmd verifier path',
+    async () => {
+      const dir = mkdtempSync(path.join(os.tmpdir(), 'ws-verify-native-path-'));
+      const cmdPath = path.join(dir, 'verify.cmd');
+      writeFileSync(cmdPath, '@exit /b 0\r\n', 'utf8');
+      try {
+        // Native path separators must survive tokenization; a valid verifier
+        // must not be rejected just because the operator omitted quotes.
+        expect(cmdPath).toContain('\\');
+        const out = await makeCommandVerifier({ timeoutMs: 5_000 })({
+          task: task({ verificationCommand: cmdPath }),
+          result,
+          cwd: dir,
+        });
+        expect(out).toEqual({ ok: true });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it('fails with a reason on non-zero exit', async () => {
     const verify = makeCommandVerifier();

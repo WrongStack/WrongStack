@@ -198,12 +198,22 @@ interface TokenInfo {
   raw: string;
 }
 
+/**
+ * One shell word: unquoted runs and quoted segments concatenated, so a quoted
+ * value keeps its spaces inside the word (`FOO="a b"`, `"C:\Program Files\x"`).
+ * Matching only an entirely-quoted word split `NODE_OPTIONS="--a --b" node` at
+ * the space and probed `--b"` as the executable. A lone unterminated quote is
+ * kept literally.
+ */
+const SHELL_WORD = /^(?:[^\s"']+|"[^"]*"|'[^']*'|["'])+/;
+
 function firstTokenInfo(input: string): TokenInfo | undefined {
-  const match = /^"([^"]+)"|^'([^']+)'|^(\S+)/.exec(input);
+  const match = SHELL_WORD.exec(input);
   if (!match) return undefined;
-  const token = (match[1] ?? match[2] ?? match[3] ?? '').trim();
+  const raw = match[0];
+  const token = raw.replace(/"([^"]*)"|'([^']*)'/g, '$1$2').trim();
   if (!token) return undefined;
-  return { token, raw: match[0] };
+  return { token, raw };
 }
 
 /** A POSIX `NAME=value` assignment word (`env FOO=bar node`, `CI=1 node`). */
