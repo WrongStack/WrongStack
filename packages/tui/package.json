@@ -27,6 +27,7 @@
     "!dist/**/*.map"
   ],
   "scripts": {
+    "bench:input-latency": "bun bench/input-latency.tsx",
     "build": "bun ../../scripts/build-package.mjs",
     "test": "bun --bun run vitest run --config vitest.config.ts",
     "test:status-bar": "bun --bun run vitest run --config vitest.status-bar-sgr.config.ts",

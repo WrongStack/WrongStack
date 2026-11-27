@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:19:57.595Z",
+  "generatedAt": "2026-11-27T12:21:50.750Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6620,
-    "testFiles": 6554,
+    "testFiles": 6555,
     "sourceLines": 1358543,
     "workspaceEdges": 267,
     "moduleEdges": 19423,
@@ -1118,7 +1118,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 520,
-      "testFiles": 512,
+      "testFiles": 513,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1147,7 +1147,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 512
+          "testFiles": 513
         }
       ]
     },
@@ -31591,6 +31591,12 @@
       },
       {
         "file": "packages/tui/tests/input-key-router.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/input-latency-bench.test.ts",
         "projects": [
           "root-node"
         ]
