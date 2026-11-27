@@ -125,7 +125,11 @@ async function exchangeCode(
     const text = await res.text().catch(() => '');
     throw new Error(`Google token exchange failed (${res.status}): ${text || res.statusText}`);
   }
-  const json = (await res.json()) as GoogleTokenResponse;
+  const rawJson: unknown = await res.json();
+  if (!rawJson || typeof rawJson !== 'object' || Array.isArray(rawJson)) {
+    throw new Error('Google token exchange returned no access token.');
+  }
+  const json = rawJson as GoogleTokenResponse;
   if (typeof json.access_token !== 'string' || json.access_token.length === 0) {
     throw new Error('Google token exchange returned no access token.');
   }

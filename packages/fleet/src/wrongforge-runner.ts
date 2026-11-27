@@ -280,15 +280,17 @@ export function makeWrongForgeRunner(options: WrongForgeRunnerOptions): Subagent
     const failure = taskFailure(record, ctx.signal);
     if (failure) throw failure;
     const result = record.result;
-    if (!result || (!result.text.trim() && result.tool_calls === 0)) {
+    const rawText = typeof result?.text === 'string' ? result.text : '';
+    const toolCalls = typeof result?.tool_calls === 'number' ? result.tool_calls : 0;
+    if (!result || (!rawText.trim() && toolCalls === 0)) {
       throw subagentError('empty_response', 'WrongForge finished with no text and no tool calls');
     }
     const text =
       stepTexts
         .map((t) => t.trim())
         .filter(Boolean)
-        .join('\n\n') || result.text;
-    return { result: text, iterations: result.steps, toolCalls: result.tool_calls };
+        .join('\n\n') || rawText;
+    return { result: text, iterations: result.steps, toolCalls };
   };
 }
 

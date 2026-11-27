@@ -61,6 +61,7 @@ function isLoopbackHostHeader(rawHost: string): boolean {
 
 export function createAcpConnectionGate(opts: AcpConnectionGateOptions): AcpConnectionGate {
   const { host, port, token } = opts;
+  const urlHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
   const rawMax = opts.maxConnections;
   const maxConnections =
     typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1 ? Math.floor(rawMax) : 8;
@@ -73,7 +74,7 @@ export function createAcpConnectionGate(opts: AcpConnectionGateOptions): AcpConn
     }
     try {
       return (
-        new URL(req.url ?? '/', `http://${host}:${port}`).searchParams.get('token') ?? undefined
+        new URL(req.url ?? '/', `http://${urlHost}:${port}`).searchParams.get('token') ?? undefined
       );
     } catch {
       return undefined;
@@ -93,7 +94,11 @@ export function createAcpConnectionGate(opts: AcpConnectionGateOptions): AcpConn
       // Real ACP clients send no Origin. A browser always does, so a present
       // Origin that is not this server means a web page is dialling in.
       const origin = req.headers.origin;
-      if (origin && origin !== `http://${host}:${port}` && origin !== `ws://${host}:${port}`) {
+      if (
+        origin &&
+        origin !== `http://${urlHost}:${port}` &&
+        origin !== `ws://${urlHost}:${port}`
+      ) {
         return { ok: false, code: 1008, reason: 'cross-origin forbidden' };
       }
       // DNS-rebinding guard: on a loopback bind the Host must itself be loopback.

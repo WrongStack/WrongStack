@@ -421,7 +421,13 @@ export class ClientTransport implements ACPClientTransport {
         return;
       }
       try {
-        this.dispatch(JSON.parse(raw) as ACPMessage, raw.length);
+        const parsed: unknown = JSON.parse(raw);
+        // Mirror StdioTransport: a null/primitive/array frame would reach read()
+        // as a falsy or non-JSON-RPC message and corrupt protocol handling.
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          continue;
+        }
+        this.dispatch(parsed as ACPMessage, raw.length);
       } catch {
         // skip malformed
       }

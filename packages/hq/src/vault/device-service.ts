@@ -630,13 +630,16 @@ export class HqCredentialService {
       );
     }
     if (!response.ok) {
-      const error = (parsed as { error?: { code?: string; message?: string } | string }).error;
+      const error =
+        parsed !== null && typeof parsed === 'object'
+          ? (parsed as { error?: { code?: string; message?: string } | string | null }).error
+          : undefined;
       const message =
         typeof error === 'string' ? error : (error?.message ?? `HQ answered ${response.status}.`);
       throw new HqVaultClientRequestError(
         message,
         response.status,
-        typeof error === 'object' ? error?.code : undefined,
+        typeof error === 'object' && error !== null ? error.code : undefined,
         parsed,
       );
     }

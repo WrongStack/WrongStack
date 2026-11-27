@@ -40,18 +40,22 @@ export const configExportCmd: SubcommandHandler = async (_args, deps) => {
 /** `wstack config-import` — apply ./wstack-config.json behavior settings to the active profile. */
 export const configImportCmd: SubcommandHandler = async (_args, deps) => {
   const target = path.resolve(deps.cwd, FILE_NAME);
-  let payload: Record<string, unknown>;
+  let rawPayload: unknown;
   try {
-    payload = JSON.parse((await fs.readFile(target, 'utf8')).replace(/^\uFEFF/, '')) as Record<
-      string,
-      unknown
-    >;
+    rawPayload = JSON.parse((await fs.readFile(target, 'utf8')).replace(/^\uFEFF/, ''));
   } catch (err) {
     deps.renderer.writeError(
       `Import failed: cannot read ${FILE_NAME} in ${deps.cwd} — ${toErrorMessage(err)}`,
     );
     return 1;
   }
+  if (rawPayload === null || typeof rawPayload !== 'object' || Array.isArray(rawPayload)) {
+    deps.renderer.writeError(
+      `Import failed: ${FILE_NAME} is not a wstack config export (expected a JSON object).`,
+    );
+    return 1;
+  }
+  const payload = rawPayload as Record<string, unknown>;
   if (payload['kind'] !== 'wstack-config') {
     deps.renderer.writeError(
       `Import failed: ${FILE_NAME} is not a wstack config export (missing "kind": "wstack-config").`,
@@ -59,7 +63,7 @@ export const configImportCmd: SubcommandHandler = async (_args, deps) => {
     return 1;
   }
   const settings = payload['settings'];
-  if (settings === null || typeof settings !== 'object') {
+  if (settings === null || typeof settings !== 'object' || Array.isArray(settings)) {
     deps.renderer.writeError('Import failed: the export carries no settings object.');
     return 1;
   }
@@ -76,9 +80,12 @@ export const configImportCmd: SubcommandHandler = async (_args, deps) => {
       let disk: Record<string, unknown> = {};
       try {
         // A leading UTF-8 BOM is valid (RFC 8259); the config loader accepts it.
-        disk = JSON.parse(
+        const parsedDisk: unknown = JSON.parse(
           (await fs.readFile(profilePath, 'utf8')).replace(/^\uFEFF/, ''),
-        ) as Record<string, unknown>;
+        );
+        if (parsedDisk !== null && typeof parsedDisk === 'object' && !Array.isArray(parsedDisk)) {
+          disk = parsedDisk as Record<string, unknown>;
+        }
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
         // Fresh/missing profile: start empty — the loader re-materializes defaults.

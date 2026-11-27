@@ -116,7 +116,16 @@ export async function refreshAntigravityToken(
       ANTIGRAVITY_PROVIDER_ID,
     );
   }
-  const json = (await res.json()) as {
+  const rawJson: unknown = await res.json();
+  if (!rawJson || typeof rawJson !== 'object' || Array.isArray(rawJson)) {
+    throw new ProviderError(
+      'Antigravity token refresh returned no access token',
+      500,
+      false,
+      ANTIGRAVITY_PROVIDER_ID,
+    );
+  }
+  const json = rawJson as {
     access_token?: unknown;
     expires_in?: unknown;
     refresh_token?: unknown;

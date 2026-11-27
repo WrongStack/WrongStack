@@ -31,9 +31,18 @@ async function exchangeOpenRouterCode(
   });
   let body: OpenRouterKeyResponse = {};
   try {
-    body = (await response.json()) as OpenRouterKeyResponse;
-  } catch {
-    if (response.ok) throw new Error('OpenRouter OAuth returned invalid JSON');
+    const parsed: unknown = await response.json();
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      body = parsed as OpenRouterKeyResponse;
+    } else if (response.ok) {
+      throw new Error('OpenRouter OAuth response carries no API key');
+    }
+  } catch (err) {
+    if (response.ok) {
+      throw err instanceof Error && err.message === 'OpenRouter OAuth response carries no API key'
+        ? err
+        : new Error('OpenRouter OAuth returned invalid JSON');
+    }
   }
   if (!response.ok) {
     const detail =

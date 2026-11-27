@@ -56,17 +56,23 @@ async function fetchLatestRelease(timeoutMs: number, signal?: AbortSignal): Prom
       context: { op: 'checkForUpdate', registry: 'github-releases', url: API_LATEST },
     });
   }
-  const data = (await res.json()) as { tag_name?: unknown; assets?: unknown };
-  if (typeof data.tag_name !== 'string') throw new Error('Latest release has no tag');
-  const assets = Array.isArray(data.assets)
-    ? data.assets.filter(
+  const data: unknown = await res.json();
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Latest release has no tag');
+  }
+  const obj = data as { tag_name?: unknown; assets?: unknown };
+  if (typeof obj.tag_name !== 'string') throw new Error('Latest release has no tag');
+  const assets = Array.isArray(obj.assets)
+    ? obj.assets.filter(
         (a): a is ReleaseAsset =>
-          typeof a?.name === 'string' &&
-          typeof a?.browser_download_url === 'string' &&
+          Boolean(a) &&
+          typeof a === 'object' &&
+          typeof a.name === 'string' &&
+          typeof a.browser_download_url === 'string' &&
           (a.digest === undefined || a.digest === null || typeof a.digest === 'string'),
       )
     : [];
-  return { version: data.tag_name.replace(/^v/, ''), assets };
+  return { version: obj.tag_name.replace(/^v/, ''), assets };
 }
 
 /** The latest release's executable for `target`, with its SHA256SUMS. */

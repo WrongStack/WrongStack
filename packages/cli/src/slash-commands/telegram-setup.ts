@@ -127,7 +127,7 @@ export function buildTelegramSetupCommand(opts: SlashCommandContext): SlashComma
         };
       }
 
-      if (!botInfo.ok || !botInfo.result) {
+      if (!botInfo || typeof botInfo !== 'object' || !botInfo.ok || !botInfo.result) {
         return {
           message: [
             `${color.red('✗')} Invalid bot token.`,

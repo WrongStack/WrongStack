@@ -116,8 +116,8 @@ export async function discoverTelegramPairingCandidates(
     `https://api.telegram.org/bot${botToken}/getUpdates?${params.toString()}`,
     { signal: AbortSignal.timeout(10_000) },
   );
-  const payload = (await response.json()) as TelegramUpdatesResponse;
-  if (!payload.ok || !Array.isArray(payload.result)) {
+  const payload = (await response.json()) as TelegramUpdatesResponse | null;
+  if (!payload || typeof payload !== 'object' || !payload.ok || !Array.isArray(payload.result)) {
     throw new Error('Telegram chat discovery failed.');
   }
   return extractTelegramPairingCandidates(payload.result);
