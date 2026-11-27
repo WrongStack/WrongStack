@@ -79,6 +79,8 @@ export function useProjectImage(filePath: string | undefined, key?: string): Pro
 export function formatImageBytes(bytes: number | undefined): string {
   if (bytes === undefined) return '';
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  // Promote on the rounded value: 1_048_575 B is "1.0 MiB", not "1024.0 KiB".
+  const kib = (bytes / 1024).toFixed(1);
+  if (Number(kib) < 1024) return `${kib} KiB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }

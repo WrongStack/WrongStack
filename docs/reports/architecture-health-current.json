@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T17:10:26.445Z",
+  "generatedAt": "2026-11-27T17:12:24.918Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6624,
-    "testFiles": 6562,
-    "sourceLines": 1359738,
+    "testFiles": 6563,
+    "sourceLines": 1359740,
     "workspaceEdges": 267,
     "moduleEdges": 19437,
     "nonCommandSlashImports": 0,
@@ -1200,7 +1200,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 802,
-      "testFiles": 600,
+      "testFiles": 601,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1226,7 +1226,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 600
+          "testFiles": 601
         }
       ]
     },
@@ -39415,6 +39415,12 @@
       },
       {
         "file": "packages/webui/tests/i18n/provider-labels.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/image-bytes-unit-promotion.test.ts",
         "projects": [
           "webui-jsdom"
         ]
