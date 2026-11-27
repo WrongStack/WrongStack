@@ -15,7 +15,7 @@ const modeProtocol = process.argv.includes('mode-modern')
     ? 'legacy'
     : undefined;
 let mode = 'auto';
-const modeIds = ['auto', 'default', 'plan'];
+const modeIds = ['auto', 'default', 'plan', 'acceptEdits', 'bypassPermissions', 'dontAsk'];
 const modeOptions = () => [
   {
     id: 'mode',

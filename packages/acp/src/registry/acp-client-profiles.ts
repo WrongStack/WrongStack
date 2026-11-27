@@ -71,7 +71,7 @@ const CLAUDE_PROFILE: AcpClientProfile = {
   systemPromptChannel: 'meta-system-prompt-append',
   mcpToolNaming: 'claude-double-underscore',
   initialMode: { id: 'default', require: true },
-  leaderModes: { mode: ['default', 'plan'] },
+  leaderModes: { mode: ['default', 'plan', 'acceptEdits', 'auto', 'bypassPermissions'] },
   bridgeByDefault: true,
 };
 

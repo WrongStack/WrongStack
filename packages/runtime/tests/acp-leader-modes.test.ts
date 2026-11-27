@@ -51,8 +51,10 @@ it.each(['modern', 'legacy'])(
           'toString: inspect\n  Agent offers: inspect\n  Selectable: view only',
         );
       }
-      expect(await run('plan')).toContain('mode: plan');
-      expect(await run('auto')).toContain('cannot switch');
+      expect(await run('auto')).toContain('mode: auto');
+      expect(await run('acceptEdits')).toContain('mode: acceptEdits');
+      expect(await run('bypassPermissions')).toContain('mode: bypassPermissions');
+      expect(await run('dontAsk')).toContain('cannot switch');
       expect(await run('missing')).toContain('does not offer');
 
       const output: string[] = [];
@@ -66,7 +68,8 @@ it.each(['modern', 'legacy'])(
       )) {
         if (event.type === 'text_delta') output.push(event.text);
       }
-      expect(output.join('')).toBe('Mode plan on fresh-session');
+      expect(output.join('')).toBe('Mode bypassPermissions on fresh-session');
+      expect(await run('plan')).toContain('mode: plan');
       expect(await run('mode default')).toContain('mode: default');
     } finally {
       await provider.closeAll();
