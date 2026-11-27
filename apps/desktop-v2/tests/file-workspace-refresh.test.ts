@@ -124,7 +124,7 @@ it('renders and refreshes the directory while Git status is still pending', asyn
   const command: EngineCommand = vi.fn(async (type) => {
     if (type === 'git.changes') {
       if (!resolveGit)
-        return new Promise((resolve) => {
+        return new Promise<Record<string, unknown>>((resolve) => {
           resolveGit = resolve;
         });
       return { files: [] };

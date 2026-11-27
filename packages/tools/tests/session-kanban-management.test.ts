@@ -22,7 +22,7 @@ it('delivers a durable management review once to its owning leader without wakin
   deliverKanbanManagementReview(context, board);
   deliverKanbanManagementReview(context, board);
   expect(append).toHaveBeenCalledTimes(1);
-  const [{ text }] = append.mock.calls[0] ?? [];
+  const text = append.mock.calls[0]?.[0].text;
   expect(text).toContain('Kanban Companion reviewed board b');
   expect(text).toContain('failing reproduction');
   expect(text).toContain('untrusted advisory data');

@@ -5,6 +5,8 @@ import { rebaseCheckerPaths } from '../src/_bun-typechecker.js';
 import { typecheckTool } from '../src/typecheck.js';
 import { mkSandbox, type Sandbox } from './fixtures.js';
 
+const opts = () => ({ signal: new AbortController().signal });
+
 /**
  * What the dev tools report must match what the underlying checker found
  * (tool pass 2026-11-27).
@@ -53,9 +55,9 @@ describe('typecheck refuses a named tsconfig that does not exist', () => {
   });
 
   it('throws instead of reporting TS5058 as one type error', async () => {
-    await expect(typecheckTool.execute({ project: 'nope/tsconfig.json' }, sb.ctx)).rejects.toThrow(
-      'typecheck: project "nope/tsconfig.json" does not exist',
-    );
+    await expect(
+      typecheckTool.execute({ project: 'nope/tsconfig.json' }, sb.ctx, opts()),
+    ).rejects.toThrow('typecheck: project "nope/tsconfig.json" does not exist');
   });
 });
 

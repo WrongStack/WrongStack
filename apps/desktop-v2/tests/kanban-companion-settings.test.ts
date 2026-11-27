@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { companionEnabled, KanbanCompanionSettings } from '../src/KanbanCompanionSettings';
 
 const { journalTail, projectRequest } = vi.hoisted(() => ({
-  journalTail: vi.fn(() => ({ listen: vi.fn(() => () => undefined) })),
+  journalTail: vi.fn(() => ({
+    listen: vi.fn((_listener: (frame: StatusFrame) => void) => () => undefined),
+  })),
   projectRequest: vi.fn(),
 }));
 vi.mock('../src/journal-tail', () => ({ journalTail, projectRequest }));
@@ -168,10 +170,10 @@ describe('the project-wide Kanban Companion switch', () => {
   it('converges on request-less broadcasts but not on other clients’ replies', async () => {
     let deliver!: (frame: StatusFrame) => void;
     journalTail.mockImplementationOnce(() => ({
-      listen: (listener: (frame: StatusFrame) => void) => {
+      listen: vi.fn((listener: (frame: StatusFrame) => void) => {
         deliver = listener;
         return () => undefined;
-      },
+      }),
     }));
     projectRequest.mockReturnValueOnce(Promise.resolve({ success: true, data: { enabled: true } }));
     const { host, root, close } = await boot();

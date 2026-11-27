@@ -5,6 +5,8 @@ import { polyglotInvariantEngine as invariantEngine } from '../src/codebase-inde
 import { securityAstScanTool } from '../src/security-ast-scan-tool.js';
 import { mkSandbox, type Sandbox } from './fixtures.js';
 
+const opts = () => ({ signal: new AbortController().signal });
+
 const spawnMocks = vi.hoisted(() => ({
   next: { stdout: '', stderr: '', exitCode: 0 } as Record<string, unknown>,
 }));
@@ -92,7 +94,7 @@ describe('invariant check stays out of ordinary refactors', () => {
 describe('security-ast-scan with nothing to scan', () => {
   it('fails the call instead of reporting "clean"', async () => {
     await expect(
-      securityAstScanTool.execute({}, { projectRoot: process.cwd() } as never),
+      securityAstScanTool.execute({}, { projectRoot: process.cwd() } as never, opts()),
     ).rejects.toThrow(/provide `file`/);
   });
 });
@@ -115,20 +117,24 @@ describe('codebase-targeted-test separates "runner missing" from "tests failed"'
       exitCode: 1,
     };
     await expect(
-      codebaseTargetedTestTool.execute({ testFiles: ['a.test.ts'] }, sb.ctx),
+      codebaseTargetedTestTool.execute({ testFiles: ['a.test.ts'] }, sb.ctx, opts()),
     ).rejects.toThrow(/test runner could not start: vitest is not installed/);
   });
 
   it('throws when the runner binary could not be spawned', async () => {
     spawnMocks.next = { stdout: '', stderr: '', exitCode: null, error: 'spawn npx ENOENT' };
     await expect(
-      codebaseTargetedTestTool.execute({ testFiles: ['a.test.ts'] }, sb.ctx),
+      codebaseTargetedTestTool.execute({ testFiles: ['a.test.ts'] }, sb.ctx, opts()),
     ).rejects.toThrow(/could not start: spawn npx ENOENT/);
   });
 
   it('still reports a red run as failed data', async () => {
     spawnMocks.next = { stdout: ' Tests  1 failed | 2 passed (3)', stderr: '', exitCode: 1 };
-    const out = await codebaseTargetedTestTool.execute({ testFiles: ['a.test.ts'] }, sb.ctx);
+    const out = await codebaseTargetedTestTool.execute(
+      { testFiles: ['a.test.ts'] },
+      sb.ctx,
+      opts(),
+    );
     expect(out).toMatchObject({ status: 'failed', failed: 1, passed: 2 });
   });
 });

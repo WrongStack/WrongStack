@@ -24,6 +24,8 @@ describe('SddWizardWebSocketHandler dispose race (F2716)', () => {
             startCalls += 1;
           },
         }) as never,
+      runInterviewTurn: async () => '',
+      startRun: async () => ({ runId: 'r' }),
     });
 
     const msgPromise = handler.handleMessage({
@@ -58,6 +60,8 @@ describe('SddWizardWebSocketHandler dispose race (F2716)', () => {
           },
         } as never;
       },
+      runInterviewTurn: async () => '',
+      startRun: async () => ({ runId: 'r' }),
     });
 
     await new Promise((r) => setTimeout(r, 10));

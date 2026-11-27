@@ -63,7 +63,11 @@ describe('the registered contract rides only on shape errors', () => {
       meta: {},
       session: { id: 's', append: async () => {}, recordFileChange: () => {} },
     };
-    const result = await executor.executeBatch([{ ...use, input: { path: 'x' } }], ctx as never);
+    const result = await executor.executeBatch(
+      [{ ...use, input: { path: 'x' } }],
+      ctx as never,
+      'sequential',
+    );
     const output = result.outputs[0];
     if (!output) throw new Error('executor returned no output');
     return (output.result as ToolResultBlock).content as string;

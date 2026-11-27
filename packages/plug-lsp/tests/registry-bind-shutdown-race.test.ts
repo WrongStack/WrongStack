@@ -52,7 +52,7 @@ describe('LSPRegistry bind/shutdown race (F2703)', () => {
       await bindP;
       expect(startCallsAfterShutdown).toBe(0);
 
-      // Overlapping bind('eager') followed by bind('manual')
+      // Overlapping bind('eager') followed by bind('never')
       let manualStartCalls = 0;
       LSPServer.prototype.start = async () => {
         manualStartCalls += 1;
@@ -62,7 +62,7 @@ describe('LSPRegistry bind/shutdown race (F2703)', () => {
         log: silentLog,
         events: fakeEvents,
       });
-      await Promise.all([reg2.bind(tmpDir, 'eager'), reg2.bind(tmpDir, 'manual')]);
+      await Promise.all([reg2.bind(tmpDir, 'eager'), reg2.bind(tmpDir, 'never')]);
       expect(manualStartCalls).toBe(0);
       await reg2.shutdown();
 

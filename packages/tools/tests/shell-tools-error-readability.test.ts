@@ -6,6 +6,8 @@ import { execTool } from '../src/exec.js';
 import { pwshTool } from '../src/pwsh.js';
 import { mkSandbox, type Sandbox } from './fixtures.js';
 
+const opts = () => ({ signal: new AbortController().signal });
+
 /** Captured from `pwsh -NonInteractive -EncodedCommand` (7.x) on Windows. */
 const PWSH7_ERROR =
   '#< CLIXML\r\n<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">' +
@@ -48,7 +50,7 @@ describe('shell tools name a bad working directory', () => {
 
   it('exec refuses a missing cwd instead of reporting the binary as missing', async () => {
     const err = await execTool
-      .execute({ command: 'node', args: ['-v'], cwd: 'no-such-dir' }, sb.ctx)
+      .execute({ command: 'node', args: ['-v'], cwd: 'no-such-dir' }, sb.ctx, opts())
       .then(
         () => undefined,
         (e: Error) => e,
@@ -61,6 +63,7 @@ describe('shell tools name a bad working directory', () => {
       for await (const _ of pwshTool.executeStream!(
         { command: 'Get-Location', workdir: 'no-such-dir' },
         sb.ctx,
+        opts(),
       )) {
         // drain
       }
@@ -72,6 +75,7 @@ describe('shell tools name a bad working directory', () => {
     const out = await pwshTool.execute(
       { command: 'Write-Output hi; Write-Error "bad thing"' },
       sb.ctx,
+      opts(),
     );
     const text = JSON.stringify(out);
     expect(text).toContain('bad thing');

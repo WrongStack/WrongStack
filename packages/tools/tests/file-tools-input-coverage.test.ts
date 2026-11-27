@@ -9,6 +9,8 @@ import { readTool } from '../src/read.js';
 import { replaceTool } from '../src/replace.js';
 import { mkSandbox, type Sandbox } from './fixtures.js';
 
+const opts = () => ({ signal: new AbortController().signal });
+
 /**
  * Inputs the file tools' own descriptions promise but the implementations
  * refused or mis-rendered, found by driving each tool against real files
@@ -34,6 +36,7 @@ describe('json reads the formats it advertises', () => {
     const out = await jsonTool.execute(
       { file: 'tsconfig.json', query: 'compilerOptions.strict' },
       sb.ctx,
+      opts(),
     );
     expect(out.query_result).toBe(true);
     expect(out.source_format).toBe('jsonc');
@@ -44,13 +47,14 @@ describe('json reads the formats it advertises', () => {
     const out = await jsonTool.execute(
       { file: 'ci.yaml', action: 'query', query: 'jobs.test.steps[1]' },
       sb.ctx,
+      opts(),
     );
     expect(out.query_result).toBe('build');
   });
 
   it('shows the model which syntax was read', async () => {
     await put('tsconfig.json', '{ "a": 1, // note\n}\n');
-    const out = await jsonTool.execute({ file: 'tsconfig.json' }, sb.ctx);
+    const out = await jsonTool.execute({ file: 'tsconfig.json' }, sb.ctx, opts());
     const rendered = createToolOutputSerializer().serialize(out, {
       toolName: 'json',
       input: { file: 'tsconfig.json' },
@@ -59,22 +63,27 @@ describe('json reads the formats it advertises', () => {
   });
 
   it('keeps the syntax check strict: JSONC is not valid JSON', async () => {
-    const jsonc = await jsonTool.execute({ data: '{a: 1,}', validate: true }, sb.ctx);
+    const jsonc = await jsonTool.execute({ data: '{a: 1,}', validate: true }, sb.ctx, opts());
     expect(jsonc.valid).toBe(false);
     expect(jsonc.formatted).toContain('valid as JSONC');
-    const strict = await jsonTool.execute({ data: '{"a": 1}', validate: true }, sb.ctx);
+    const strict = await jsonTool.execute({ data: '{"a": 1}', validate: true }, sb.ctx, opts());
     expect(strict.valid).toBe(true);
   });
 
   it('still refuses broken JSON instead of reading it as a YAML flow mapping', async () => {
-    await expect(jsonTool.execute({ data: '{invalid}' }, sb.ctx)).rejects.toThrow(/parse failed/);
-    await expect(jsonTool.execute({ data: '{"a": 1,,}' }, sb.ctx)).rejects.toThrow(/parse failed/);
+    await expect(jsonTool.execute({ data: '{invalid}' }, sb.ctx, opts())).rejects.toThrow(
+      /parse failed/,
+    );
+    await expect(jsonTool.execute({ data: '{"a": 1,,}' }, sb.ctx, opts())).rejects.toThrow(
+      /parse failed/,
+    );
   });
 
   it('renders a query that selects nothing as null, not as the input document', async () => {
     const out = await jsonTool.execute(
       { data: '{"a":{"secret":"input"}}', action: 'query', query: 'missing' },
       sb.ctx,
+      opts(),
     );
     expect(out.formatted).toBe('null');
   });
@@ -87,6 +96,7 @@ describe('json reads the formats it advertises', () => {
         schema: { type: 'object', properties: { port: { type: 'number' } } },
       },
       sb.ctx,
+      opts(),
     );
     expect(out.valid).toBe(false);
     expect(out.formatted.startsWith('invalid\n- ')).toBe(true);
@@ -109,7 +119,7 @@ describe('read decodes BOM-declared UTF-16 text', () => {
     ],
   ] as const)('%s', async (encoding, bytes) => {
     await put('out.txt', bytes);
-    const out = await readTool.execute({ path: 'out.txt' }, sb.ctx);
+    const out = await readTool.execute({ path: 'out.txt' }, sb.ctx, opts());
     expect(out.encoding).toBe(encoding);
     expect(out.text).toBe('1→alpha\n2→beta');
   });
@@ -120,18 +130,20 @@ describe('read decodes BOM-declared UTF-16 text', () => {
       Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('alpha\r\n', 'utf16le')]),
     );
     const err = await editTool
-      .execute({ path: 'ps.txt', old_string: 'alpha', new_string: 'ALPHA' }, sb.ctx)
+      .execute({ path: 'ps.txt', old_string: 'alpha', new_string: 'ALPHA' }, sb.ctx, opts())
       .then(
         () => undefined,
         (e: Error) => e,
       );
-    expect(err?.message).toMatch(/is UTF-16 text, not editable text here: edit and write only rewrite UTF-8/);
+    expect(err?.message).toMatch(
+      /is UTF-16 text, not editable text here: edit and write only rewrite UTF-8/,
+    );
     expect(err?.message).toContain('Set-Content -Encoding utf8');
   });
 
   it('still refuses a NUL-bearing binary without a BOM', async () => {
     await put('blob.bin', Buffer.from([0x00, 0x01, 0x02, 0x00, 0x41]));
-    await expect(readTool.execute({ path: 'blob.bin' }, sb.ctx)).rejects.toThrow(/binary/);
+    await expect(readTool.execute({ path: 'blob.bin' }, sb.ctx, opts())).rejects.toThrow(/binary/);
   });
 });
 
@@ -142,6 +154,7 @@ describe('replace reports project-relative paths', () => {
     const out = await replaceTool.execute(
       { pattern: 'old', replacement: 'new', files: 'src/a.txt' },
       sb.ctx,
+      opts(),
     );
     expect(out.results[0]?.path).toBe('src/a.txt');
     expect(out.results[0]?.diff).toContain('--- src/a.txt');
@@ -155,7 +168,7 @@ describe('path escapes name the real cause', () => {
     // symlink for every escape.
     const diff = ['--- /dev/null', '+++ b/../escape.txt', '@@ -0,0 +1 @@', '+x', ''].join('NL');
     const err = await patchTool
-      .execute({ patch: diff.replaceAll('NL', String.fromCharCode(10)) }, sb.ctx)
+      .execute({ patch: diff.replaceAll('NL', String.fromCharCode(10)) }, sb.ctx, opts())
       .then(
         () => undefined,
         (e: Error) => e,
