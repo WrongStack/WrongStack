@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-27T14:37:56.440Z
+**Generated:** 2026-11-27T15:14:14.768Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6624 |
-| Production source lines | 1359736 |
+| Production source lines | 1359738 |
 | Test files | 6560 |
 | Workspace dependency edges | 267 |
 | Relative module edges | 19437 |

@@ -12,7 +12,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { findTestFile } from '../src/test-runner-gate/test-runner.js';
+import { findTestFile, resolveTestFiles } from '../src/test-runner-gate/test-runner.js';
 
 const DEFAULT_PATTERNS = [
   '{dir}/{name}.test.ts',
@@ -65,5 +65,17 @@ describe('test-runner-gate test discovery', () => {
     await touch('packages/b/tests/util.test.ts');
     const found = await findTestFile(join(root, 'packages/b/src/util.ts'), DEFAULT_PATTERNS);
     expect(norm(found)).toBe(norm(join(root, 'packages/b/tests/util.test.ts')));
+  });
+
+  it('anchors {dir} patterns to a POSIX absolute source path', () => {
+    // A substituted candidate starting with "/" was dropped as an absolute
+    // pattern, so on Linux and macOS no co-located test was ever found.
+    const candidates = resolveTestFiles('/repo/packages/a/src/cart/total.ts', DEFAULT_PATTERNS);
+    expect(candidates.map(norm)).toContain('/repo/packages/a/src/cart/total.test.ts');
+  });
+
+  it('still ignores a pattern that is itself absolute', () => {
+    const candidates = resolveTestFiles('/repo/src/total.ts', ['/etc/{name}.test.ts']);
+    expect(candidates).toEqual([]);
   });
 });

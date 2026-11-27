@@ -144,7 +144,9 @@ export function resolveTestFiles(sourcePath: string, patterns: string[]): string
         .replace(/\{name\}/g, () => testName)
         .replace(/\{path\}/g, () => pathNoExt)
         .replace(/\{dir\}/g, () => dir);
-      if (candidate.startsWith('/') || candidate.includes('{')) continue;
+      // Reject an absolute pattern, not an absolute result: {dir}/{path}
+      // substitute the absolute source path, which starts with "/" on POSIX.
+      if (pattern.startsWith('/') || isAbsolute(pattern) || candidate.includes('{')) continue;
       if (pattern.includes('{dir}') || pattern.includes('{path}')) {
         // Already anchored to the source file.
         add(candidate);
