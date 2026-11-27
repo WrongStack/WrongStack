@@ -312,7 +312,14 @@ const plugin: Plugin = {
       );
       if (issues === null) {
         state.linterErrorCount += 1;
-        return; // linter process failed — don't block the write
+        // Don't block the write, but say so once: a gate whose linter keeps
+        // failing reads exactly like a gate that keeps passing.
+        if (state.linterErrorCount === 1) {
+          api.log.warn(
+            `lint-gate: ${linter.name} failed to lint ${filePath}; writes are not being linted (see lint_gate_status linterErrors)`,
+          );
+        }
+        return;
       }
 
       const filtered = filterBySeverity(issues, cfg.severity);

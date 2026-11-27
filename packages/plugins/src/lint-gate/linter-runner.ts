@@ -34,6 +34,23 @@ interface ResolvedLinter {
   name: 'biome' | 'eslint';
 }
 
+/**
+ * The would-be content is linted from a temp file outside the project. With
+ * `vcs.useIgnoreFile: true` (what `biome init` writes in a git repository)
+ * Biome panics on such a path — "path is expected to be under the root",
+ * exit 101 — so every lint call failed and the gate let every write through.
+ * Ignore files cannot apply to a path outside the project anyway.
+ */
+const BIOME_TEMP_FILE_FLAGS = ['--vcs-use-ignore-file=false'];
+
+function hasBiomeTempFlags(args: readonly string[]): boolean {
+  return BIOME_TEMP_FILE_FLAGS.some((flag) => args.includes(flag));
+}
+
+function withoutBiomeTempFlags(args: readonly string[]): string[] {
+  return args.filter((arg) => !BIOME_TEMP_FILE_FLAGS.includes(arg));
+}
+
 const LINTER_PACKAGES = {
   biome: '@biomejs/biome',
   eslint: 'eslint',
@@ -82,7 +99,7 @@ export function resolveLocalLinter(name: 'biome' | 'eslint', cwd: string): Resol
       cmd: process.execPath,
       args:
         name === 'biome'
-          ? scriptSpawnArgs(entry, ['check', '--reporter=json'])
+          ? scriptSpawnArgs(entry, ['check', '--reporter=json', ...BIOME_TEMP_FILE_FLAGS])
           : scriptSpawnArgs(entry, ['--format=json']),
       name,
     };
@@ -232,7 +249,18 @@ export async function lintContent(
     const tmpFile = join(tmpDir, `input${ext}`);
     await writeFile(tmpFile, content, 'utf-8');
     const fullArgs = [...linter.args, tmpFile];
-    const result = await runCommand(linter.cmd, fullArgs, timeoutMs, cwd, signal);
+    let result = await runCommand(linter.cmd, fullArgs, timeoutMs, cwd, signal);
+    // A Biome too old for the VCS flag rejects it as a usage error; retry once
+    // without it rather than turn a working gate into one that always fails.
+    if (result.error && !result.stdout && !signal.aborted && hasBiomeTempFlags(fullArgs)) {
+      result = await runCommand(
+        linter.cmd,
+        withoutBiomeTempFlags(fullArgs),
+        timeoutMs,
+        cwd,
+        signal,
+      );
+    }
     if (signal.aborted) throw signal.reason;
     // Linters commonly exit non-zero when findings exist; JSON remains stdout.
     if (result.error && !result.stdout) return null;
@@ -273,9 +301,20 @@ export async function lintAndFix(
     // Build the fix command: biome uses `check --write`, eslint uses `--fix`.
     const fixArgs =
       linter.name === 'biome'
-        ? [linter.args[0]!, 'check', '--write', tmpFile]
+        ? [linter.args[0]!, 'check', '--write', ...BIOME_TEMP_FILE_FLAGS, tmpFile]
         : [linter.args[0]!, '--fix', tmpFile];
-    await runCommand(linter.cmd, fixArgs, timeoutMs, cwd, signal);
+    const fixRun = await runCommand(linter.cmd, fixArgs, timeoutMs, cwd, signal);
+    // Same old-Biome fallback as lintContent. A non-zero exit can also mean
+    // "unfixable findings remain", so retry only when nothing was rewritten;
+    // a second fix pass is idempotent either way.
+    if (
+      fixRun.error &&
+      !signal.aborted &&
+      hasBiomeTempFlags(fixArgs) &&
+      (await readFile(tmpFile, 'utf-8')) === content
+    ) {
+      await runCommand(linter.cmd, withoutBiomeTempFlags(fixArgs), timeoutMs, cwd, signal);
+    }
     if (signal.aborted) throw signal.reason;
     // Linters may exit non-zero after partial fixes; read the temp file anyway.
     return await readFile(tmpFile, 'utf-8');

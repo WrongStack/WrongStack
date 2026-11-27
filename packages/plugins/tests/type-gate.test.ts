@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const cp = vi.hoisted(() => ({ execFile: vi.fn(), result: vi.fn() }));
 vi.mock('node:child_process', () => ({ execFile: cp.execFile }));
@@ -45,7 +48,20 @@ function getHook(api: MockApi): (input: unknown) => Promise<HookResult> {
   return (call as unknown[])[2] as (input: unknown) => HookResult;
 }
 
+// The gate resolves the tsconfig nearest to the edited file. These tests used
+// to run against the repository root, whose tsconfig is solution-style (it
+// type-checks nothing); give them a plain project root of their own.
+let projectRoot = '';
+beforeAll(async () => {
+  projectRoot = await mkdtemp(join(tmpdir(), 'type-gate-'));
+  await writeFile(join(projectRoot, 'tsconfig.json'), '{ "include": ["src"] }\n');
+});
+afterAll(async () => {
+  await rm(projectRoot, { recursive: true, force: true });
+});
+
 beforeEach(() => {
+  vi.spyOn(process, 'cwd').mockReturnValue(projectRoot);
   vi.clearAllMocks();
   execFileSync.mockReset();
   execFileSync.mockReturnValue('');

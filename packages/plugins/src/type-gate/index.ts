@@ -30,8 +30,10 @@
  * @public
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Plugin } from '@wrongstack/contracts/types';
+import { parse as parseJsonc } from 'jsonc-parser';
 import {
   type LanguageRuntime,
   releaseHandle,
@@ -60,7 +62,10 @@ interface TypeGateState {
     errorCount: number;
     durationMs: number;
     when: string;
+    tsconfig?: string;
   } | null;
+  /** Why the last edit was not type-checked (missing tsconfig, rejected command, …). */
+  lastSkipReason: string | null;
   hookUnregister: null | (() => void);
 }
 
@@ -72,6 +77,7 @@ const state: TypeGateState = {
   errorCount: 0,
   skippedCount: 0,
   lastResult: null,
+  lastSkipReason: null,
   hookUnregister: null,
 };
 
@@ -185,22 +191,103 @@ interface TypeCheckResult {
   errorCount: number;
   errors: string[];
   durationMs: number;
+  tsconfig: string;
 }
 
-async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null> {
+interface TypeCheckSkip {
+  skipped: string;
+}
+
+/**
+ * A solution-style tsconfig (`"files": []` plus `references`, no `include`)
+ * only stitches project references together: `tsc --noEmit -p` on it checks
+ * no file and exits 0. It is the standard root of a TypeScript monorepo.
+ */
+export function isSolutionTsconfig(text: string): boolean {
+  const parsed = parseJsonc(text) as Record<string, unknown> | undefined;
+  if (!parsed || typeof parsed !== 'object') return false;
+  const files = parsed['files'];
+  return (
+    Array.isArray(files) &&
+    files.length === 0 &&
+    parsed['include'] === undefined &&
+    Array.isArray(parsed['references'])
+  );
+}
+
+/**
+ * The tsconfig that type-checks `sourcePath`: the nearest `tsconfig.json`
+ * from the file's directory up to the project root, skipping solution-style
+ * ones. Returns a project-relative path, or a skip reason.
+ */
+function tsconfigForFile(sourcePath: string, projectRoot: string): string | TypeCheckSkip {
+  const absolute = isAbsolute(sourcePath) ? sourcePath : resolve(projectRoot, sourcePath);
+  // Package tsconfig.json files commonly exclude tests; a sibling
+  // tsconfig.test.json is the project that actually covers a test file.
+  const isTest =
+    /(?:^|[\\/])(?:tests?|__tests__)[\\/]/.test(sourcePath) ||
+    /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(sourcePath);
+  let dir = dirname(absolute);
+  let sawSolution = false;
+  for (;;) {
+    const testConfig = join(dir, 'tsconfig.test.json');
+    if (isTest && existsSync(testConfig)) {
+      return relative(projectRoot, testConfig).split(sep).join('/');
+    }
+    const candidate = join(dir, 'tsconfig.json');
+    if (existsSync(candidate)) {
+      let text = '';
+      try {
+        text = readFileSync(candidate, 'utf8');
+      } catch {
+        // Unreadable: let tsc report it below.
+      }
+      if (!isSolutionTsconfig(text)) {
+        return relative(projectRoot, candidate).split(sep).join('/') || 'tsconfig.json';
+      }
+      sawSolution = true;
+    }
+    const rel = relative(projectRoot, dir);
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) break;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return {
+    skipped: sawSolution
+      ? `no package tsconfig covers ${sourcePath}; the root tsconfig.json is solution-style (files: [] + references) and type-checks nothing. Set extensions.type-gate.tsConfigPath or command.`
+      : `no tsconfig.json found between ${sourcePath} and the project root`,
+  };
+}
+
+async function runTypeCheck(
+  cfg: TypeGateConfig,
+  sourcePath: string,
+): Promise<TypeCheckResult | TypeCheckSkip> {
   const start = Date.now();
   const rawTsConfig = cfg.tsConfigPath;
-  const validTsConfig =
-    rawTsConfig && rawTsConfig !== 'tsconfig.json' ? validateTsConfigPath(rawTsConfig) : null;
-  if (rawTsConfig && rawTsConfig !== 'tsconfig.json' && !validTsConfig) {
-    return null;
+  const explicitTsConfig = rawTsConfig && rawTsConfig !== 'tsconfig.json';
+  const validTsConfig = explicitTsConfig ? validateTsConfigPath(rawTsConfig) : null;
+  if (explicitTsConfig && !validTsConfig) {
+    return {
+      skipped: `tsConfigPath ${JSON.stringify(rawTsConfig)} was rejected (outside the project or unsafe)`,
+    };
   }
-  const tsConfig = validTsConfig ?? (rawTsConfig || 'tsconfig.json');
+  let tsConfig = validTsConfig ?? 'tsconfig.json';
+  if (!cfg.command && !explicitTsConfig) {
+    const nearest = tsconfigForFile(sourcePath, process.cwd());
+    if (typeof nearest !== 'string') return nearest;
+    tsConfig = nearest;
+  }
 
   let argv: readonly string[];
   if (cfg.command) {
     const resolved = resolveRunnerCommand(TSC_RUNTIME, cfg.command);
-    if (!resolved) return null;
+    if (!resolved) {
+      return {
+        skipped: `custom command ${JSON.stringify(cfg.command)} was rejected; use "tsc …" or "pnpm exec tsc …" with allowed flags`,
+      };
+    }
     argv = [resolved.cmd, ...resolved.args];
   } else {
     // Default argv: enable `--incremental` so tsc reuses the project's
@@ -222,8 +309,8 @@ async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null
   }
 
   // Verify the tsconfig exists unless the custom command is fully explicit.
-  if (!cfg.command && tsConfig && !existsSync(tsConfig)) {
-    return null;
+  if (!cfg.command && tsConfig && !existsSync(resolve(process.cwd(), tsConfig))) {
+    return { skipped: `${tsConfig} does not exist` };
   }
 
   // Async runner: yields the event loop so other hooks / messages / tool
@@ -234,13 +321,15 @@ async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null
     cwd: process.cwd(),
     timeoutMs: cfg.timeoutMs,
   });
-  if (result.timedOut) return null;
+  if (result.timedOut) return { skipped: `type check timed out after ${cfg.timeoutMs} ms` };
   // spawnError == true means the runtime helper itself failed to start the
   // binary (ENOENT, EPERM, EACCES, cwd-rejected). The helper's diagnostic
   // stderr is "runtime helper: …" prose that does not match the tsc error
   // pattern; without this short-circuit we'd silently report `passed: true`
   // and never re-attempt when the user installs tsc.
-  if (result.spawnError) return null;
+  if (result.spawnError) {
+    return { skipped: `could not start ${argv[0]} (install typescript in the project)` };
+  }
 
   const stdout = result.stdout;
   const stderr = result.stderr;
@@ -272,7 +361,7 @@ async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null
   }
 
   const passed = errors.length === 0 && !/\bfound\b.*\berrors?\b/i.test(combined);
-  return { passed, errorCount: errors.length, errors, durationMs };
+  return { passed, errorCount: errors.length, errors, durationMs, tsconfig: tsConfig };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,7 +378,7 @@ const plugin: Plugin = {
     defaultCommand: 'pnpm exec tsc --noEmit',
   },
   description:
-    'PostToolUse hook that runs TypeScript type-checking after every write or edit to a source file',
+    'PostToolUse hook that type-checks the package of the edited file (nearest tsconfig.json, solution-style roots skipped) after every write or edit to a source file',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -350,7 +439,11 @@ const plugin: Plugin = {
     state.errorCount = 0;
     state.skippedCount = 0;
     state.lastResult = null;
+    state.lastSkipReason = null;
     state.hookUnregister = releaseHandle(state.hookUnregister);
+    // One warning per distinct reason: a gate that silently stops checking
+    // reads exactly like a gate that keeps passing.
+    const warnedReasons = new Set<string>();
 
     const cfg = readConfig(api.config.extensions?.['type-gate']);
 
@@ -386,11 +479,18 @@ const plugin: Plugin = {
       }
 
       state.invocationCount += 1;
-      const result = await runTypeCheck(cfg);
-      if (!result) {
+      const result = await runTypeCheck(cfg, sourcePath);
+      if ('skipped' in result) {
         state.errorCount += 1;
+        state.lastSkipReason = result.skipped;
+        const kind = result.skipped.split(' ').slice(0, 3).join(' ');
+        if (!warnedReasons.has(kind)) {
+          warnedReasons.add(kind);
+          api.log.warn(`type-gate: not type-checking: ${result.skipped}`);
+        }
         return;
       }
+      state.lastSkipReason = null;
 
       state.runCount += 1;
       state.lastResult = {
@@ -398,6 +498,7 @@ const plugin: Plugin = {
         errorCount: result.errorCount,
         durationMs: result.durationMs,
         when: new Date().toISOString(),
+        tsconfig: result.tsconfig,
       };
 
       if (result.passed) {
@@ -408,7 +509,7 @@ const plugin: Plugin = {
       state.failCount += 1;
       const errorList = result.errors.map((e) => `  ❌ ${e}`).join('\n');
       const message =
-        `\n❌ type-gate: Type check failed after editing ${sourcePath} (${result.durationMs}ms).` +
+        `\n❌ type-gate: Type check (${result.tsconfig}) failed after editing ${sourcePath} (${result.durationMs}ms).` +
         `\n${errorList}` +
         (result.errorCount >= cfg.maxErrors
           ? `\n  … and possibly more errors (showing first ${cfg.maxErrors})`
@@ -442,7 +543,11 @@ const plugin: Plugin = {
         return {
           ok: true,
           enabled: cfg.enabled,
-          command: cfg.command || `npx tsc --noEmit -p ${cfg.tsConfigPath}`,
+          command:
+            cfg.command ||
+            (cfg.tsConfigPath !== 'tsconfig.json'
+              ? `tsc --noEmit -p ${cfg.tsConfigPath}`
+              : 'tsc --noEmit -p <nearest tsconfig.json to the edited file>'),
           tsConfigPath: cfg.tsConfigPath,
           failSeverity: cfg.failSeverity,
           maxErrors: cfg.maxErrors,
@@ -456,6 +561,7 @@ const plugin: Plugin = {
             skipped: state.skippedCount,
           },
           lastResult: state.lastResult,
+          lastSkipReason: state.lastSkipReason,
         };
       },
     });
@@ -492,6 +598,7 @@ const plugin: Plugin = {
     state.errorCount = 0;
     state.skippedCount = 0;
     state.lastResult = null;
+    state.lastSkipReason = null;
     api.log.info('type-gate: teardown complete', { final });
   },
 

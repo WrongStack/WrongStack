@@ -27,8 +27,8 @@ import {
  *   "command": "npx vitest run",       // base test command
  *   "timeoutMs": 30000,                // test process timeout
  *   "testFilePatterns": [              // how to derive test path from source
- *     "src/{path}.test.ts",            // co-located: src/foo.ts → src/foo.test.ts
- *     "tests/{name}.test.ts",          // mirror dir: src/foo.ts → tests/foo.test.ts
+ *     "{dir}/{name}.test.ts",          // co-located: src/foo.ts → src/foo.test.ts
+ *     "tests/{name}.test.ts",          // nearest ancestor tests/: pkg/src/foo.ts → pkg/tests/foo.test.ts
  *     "tests/{name}-exec.test.ts"      // exec variant
  *   ],
  *   "injectOnPass": false              // inject context when tests pass too?
@@ -111,7 +111,13 @@ const DEFAULTS: TestGateConfig = {
   runner: 'auto',
   command: '',
   timeoutMs: 30_000,
-  testFilePatterns: ['src/{name}.test.ts', 'tests/{name}.test.ts', 'tests/{name}-exec.test.ts'],
+  // Sibling first, then src/ and tests/ in every ancestor up to the root.
+  testFilePatterns: [
+    '{dir}/{name}.test.ts',
+    'src/{name}.test.ts',
+    'tests/{name}.test.ts',
+    'tests/{name}-exec.test.ts',
+  ],
   injectOnPass: false,
   enableContentHashCache: true,
   enableExtensionFilter: true,
@@ -208,9 +214,14 @@ const plugin: Plugin = {
       testFilePatterns: {
         type: 'array',
         items: { type: 'string' },
-        default: ['src/{name}.test.ts', 'tests/{name}.test.ts', 'tests/{name}-exec.test.ts'],
+        default: [
+          '{dir}/{name}.test.ts',
+          'src/{name}.test.ts',
+          'tests/{name}.test.ts',
+          'tests/{name}-exec.test.ts',
+        ],
         description:
-          'Patterns to derive test file from source. {name}=basename, {path}=path-no-ext, {dir}=dirname.',
+          'Patterns to derive test file from source. {name}=basename (an index file also tries its directory name), {path}=path-no-ext, {dir}=dirname. Patterns without {dir}/{path} are tried in every ancestor directory, nearest first.',
       },
       injectOnPass: {
         type: 'boolean',

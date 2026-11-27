@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { access, readFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, dirname, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from '@wrongstack/tools/win32';
 import { withinProject } from '../runtime/index.js';
 
@@ -116,26 +116,41 @@ export function resolveTestFiles(sourcePath: string, patterns: string[]): string
   const name = basename(sourcePath).replace(/\.[^.]+$/, '');
   const pathNoExt = sourcePath.replace(/\.[^.]+$/, '');
   const dir = dirname(sourcePath);
+  // `src/type-gate/index.ts` is usually tested as `tests/type-gate.test.ts`.
+  const names = name === 'index' && basename(dir) ? [name, basename(dir)] : [name];
+  // Root-relative patterns ("tests/{name}.test.ts") are tried in the source's
+  // directory and every ancestor up to the project root, nearest first, so a
+  // monorepo package's own tests/ wins over a same-named file elsewhere.
+  // Before, only the source directory and the project root were tried, and
+  // packages/x/src/foo.ts never found packages/x/tests/foo.test.ts.
+  const ancestors: string[] = [];
+  const projectRoot = process.cwd();
+  for (let current = dir, depth = 0; depth < 8; depth++) {
+    const rel = relative(projectRoot, current);
+    if (rel === '' || current === '.' || current === '') break;
+    ancestors.push(current);
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
 
   const candidates: string[] = [];
-  for (const pattern of patterns) {
-    const candidate = pattern
-      .replace(/\{name\}/g, () => name)
-      .replace(/\{path\}/g, () => pathNoExt)
-      .replace(/\{dir\}/g, () => dir);
-    // If the pattern starts with a relative prefix (not absolute),
-    // resolve relative to the source file's directory so co-located
-    // patterns like "tests/{name}.test.ts" work from the package root.
-    if (!candidate.startsWith('/') && !candidate.includes('{')) {
-      // For patterns that don't contain {dir}, resolve relative to
-      // the project root (cwd). For patterns with {dir}, they're
-      // already absolute relative to the source.
-      if (pattern.includes('{dir}')) {
-        candidates.push(candidate);
+  const add = (value: string) => {
+    if (!candidates.includes(value)) candidates.push(value);
+  };
+  for (const testName of names) {
+    for (const pattern of patterns) {
+      const candidate = pattern
+        .replace(/\{name\}/g, () => testName)
+        .replace(/\{path\}/g, () => pathNoExt)
+        .replace(/\{dir\}/g, () => dir);
+      if (candidate.startsWith('/') || candidate.includes('{')) continue;
+      if (pattern.includes('{dir}') || pattern.includes('{path}')) {
+        // Already anchored to the source file.
+        add(candidate);
       } else {
-        // Try both: as-is (project root) and relative to source dir.
-        candidates.push(candidate);
-        candidates.push(join(dir, candidate));
+        for (const ancestor of ancestors) add(join(ancestor, candidate));
+        add(candidate);
       }
     }
   }

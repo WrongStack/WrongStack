@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:05:49.380Z",
+  "generatedAt": "2026-11-27T12:08:45.983Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6597,
-    "testFiles": 6534,
-    "sourceLines": 1354273,
+    "testFiles": 6537,
+    "sourceLines": 1354452,
     "workspaceEdges": 267,
     "moduleEdges": 19359,
     "nonCommandSlashImports": 0,
@@ -741,7 +741,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 157,
-      "testFiles": 168,
+      "testFiles": 171,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -759,7 +759,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 168
+          "testFiles": 171
         }
       ]
     },
@@ -22248,6 +22248,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/lint-gate-biome-vcs.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/lint-gate-coverage.test.ts",
         "projects": [
           "root-node"
@@ -22686,6 +22692,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/test-runner-gate-monorepo.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/test-runner-gate.test.ts",
         "projects": [
           "root-node"
@@ -22723,6 +22735,12 @@
       },
       {
         "file": "packages/plugins/tests/transcript-tail-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/type-gate-solution-tsconfig.test.ts",
         "projects": [
           "root-node"
         ]
