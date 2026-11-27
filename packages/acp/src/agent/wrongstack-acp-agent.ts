@@ -195,15 +195,17 @@ export class WrongStackACPServer {
     let httpChain: Promise<void> = Promise.resolve();
 
     const httpServer = createServer(async (req, res) => {
+      const urlHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
+      const addr = httpServer.address();
+      const boundPort = typeof addr === 'object' && addr ? addr.port : port;
       // ── Authentication ──────────────────────────────────────────────
       // When an authToken is configured, require it on every request.
       // Accept `Authorization: Bearer <token>` header or `?token=<token>`
       // query parameter (the latter for browser clients).
       if (authToken) {
-        const urlHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
         let url: URL;
         try {
-          url = new URL(requestPath(req.url), `http://${urlHost}:${port}`);
+          url = new URL(requestPath(req.url), `http://${urlHost}:${boundPort}`);
         } catch {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: { code: -32600, message: 'Invalid Request URL' } }));
@@ -242,7 +244,7 @@ export class WrongStackACPServer {
       // browser making a cross-origin request DOES send `Origin`; reject it so a
       // malicious web page the user visits cannot reach this agent and
       // drive it (a real `runTurn` executes tools/commands — i.e. RCE).
-      const selfOrigin = `http://${host}:${port}`;
+      const selfOrigin = `http://${urlHost}:${boundPort}`;
       const reqOrigin = headerValue(req.headers.origin);
       if (reqOrigin && reqOrigin !== selfOrigin) {
         res.writeHead(403);

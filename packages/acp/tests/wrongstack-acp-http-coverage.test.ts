@@ -42,11 +42,11 @@ describe('WrongStackACPServer HTTP transport coverage', () => {
       method: 'OPTIONS',
       headers: {
         Authorization: 'Bearer secret',
-        Origin: 'http://127.0.0.1:0',
+        Origin: base,
       },
     });
     expect(preflight.status).toBe(204);
-    expect(preflight.headers.get('access-control-allow-origin')).toBe('http://127.0.0.1:0');
+    expect(preflight.headers.get('access-control-allow-origin')).toBe(base);
 
     const method = await fetch(base, {
       method: 'GET',

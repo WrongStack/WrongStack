@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T14:27:35.905Z",
+  "generatedAt": "2026-11-27T14:33:49.928Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6623,
-    "testFiles": 6557,
-    "sourceLines": 1359514,
+    "testFiles": 6559,
+    "sourceLines": 1359526,
     "workspaceEdges": 267,
     "moduleEdges": 19436,
     "nonCommandSlashImports": 0,
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 69,
-      "testFiles": 98,
+      "testFiles": 99,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 98
+          "testFiles": 99
         }
       ]
     },
@@ -232,7 +232,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 654,
-      "testFiles": 752,
+      "testFiles": 753,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 752
+          "testFiles": 753
         }
       ]
     },
@@ -4476,6 +4476,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/wrongstack-acp-server-ipv6-origin.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/ws-bridge-close-during-dispatch.test.ts",
         "projects": [
           "root-node"
@@ -5935,6 +5941,12 @@
       },
       {
         "file": "packages/cli/tests/acp-agent-list.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-connection-gate-ipv6.test.ts",
         "projects": [
           "root-node"
         ]

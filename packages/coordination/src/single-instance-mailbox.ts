@@ -145,11 +145,13 @@ export async function acquireOrJoin(opts: AcquireOptions): Promise<AcquireResult
   // listen() resolves. Using pid is safe — even if our pid dies
   // between write and finalize, the next acquire will detect a stale
   // lock via the PID check.
+  const urlHost =
+    opts.host.includes(':') && !opts.host.startsWith('[') ? `[${opts.host}]` : opts.host;
   const tentative: MailboxBridgeLock = {
     pid: process.pid,
     host: opts.host,
     port: opts.requestedPort ?? 0,
-    url: opts.requestedPort !== null ? `http://${opts.host}:${opts.requestedPort}` : '', // finalized in finalize() once we know the OS-assigned port
+    url: opts.requestedPort !== null ? `http://${urlHost}:${opts.requestedPort}` : '', // finalized in finalize() once we know the OS-assigned port
     token,
     generation,
     spawnedAt: new Date().toISOString(),
@@ -186,10 +188,14 @@ export async function finalize(
   ) {
     throw new Error('Mailbox bridge lock was superseded before finalize');
   }
+  const urlHost =
+    tentative.host.includes(':') && !tentative.host.startsWith('[')
+      ? `[${tentative.host}]`
+      : tentative.host;
   const finalized: MailboxBridgeLock = {
     ...tentative,
     port: boundPort,
-    url: `http://${tentative.host}:${boundPort}`,
+    url: `http://${urlHost}:${boundPort}`,
   };
   await atomicWriteJson(lockPath, finalized);
   // Token file: 0600 on POSIX, best-effort on Windows. Same content
