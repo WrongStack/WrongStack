@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { coreAliases } from '../../scripts/vitest-core-aliases.mjs';
 import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 // Dedicated config to run the carved-out hq-dashboard.test.ts (jsdom env),
@@ -10,12 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      '@wrongstack/agent-catalog': path.resolve(
-        __dirname,
-        '../../packages/agent-catalog/src/index.ts',
-      ),
-      '@wrongstack/core/agent': path.resolve(__dirname, '../../packages/core/src/core/index.ts'),
-      '@wrongstack/core': path.resolve(__dirname, '../../packages/core/src'),
+      ...coreAliases(path.resolve(__dirname, '../core')),
       '@wrongstack/tools': path.resolve(__dirname, '../../packages/tools/src'),
     },
   },
