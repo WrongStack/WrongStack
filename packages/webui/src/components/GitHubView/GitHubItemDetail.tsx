@@ -1,11 +1,15 @@
-import type { GitHubItemDetail as Detail, GitHubPullFile } from '@wrongstack/webui-protocol';
+import type {
+  GitHubItemDetail as Detail,
+  GitHubLineComment,
+  GitHubPullFile,
+} from '@wrongstack/webui-protocol';
 import { ArrowLeft, ArrowUpRight, Bot, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { navigateToView } from '@/lib/view-navigation';
+import { useActiveSessionId } from '@/stores';
 import { useUIStore } from '@/stores/ui-store';
-import { ToolDiffView } from '../DiffView';
 import { Button } from '../ui/button';
 import { GitHubItemActions } from './GitHubItemActions';
 import {
@@ -17,7 +21,8 @@ import {
   relativeGitHubTime,
   safeGitHubUrl,
 } from './github-view-model';
-import { useGitHubItem } from './use-github-item';
+import { PatchView } from './PatchView';
+import { runGitHubAction, useGitHubItem } from './use-github-item';
 
 const TONE_CLASS = {
   pass: 'bg-success',
@@ -37,8 +42,23 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function PullFile({ file }: { file: GitHubPullFile }) {
+function PullFile({
+  file,
+  number,
+  headSha,
+  comments,
+  canComment,
+  onCommented,
+}: {
+  file: GitHubPullFile;
+  number: number;
+  headSha: string;
+  comments: GitHubLineComment[];
+  canComment: boolean;
+  onCommented: () => void;
+}) {
   const { t } = useAppTranslation();
+  const sessionId = useActiveSessionId();
   const [open, setOpen] = useState(false);
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
@@ -51,6 +71,11 @@ function PullFile({ file }: { file: GitHubPullFile }) {
       >
         <Chevron className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="min-w-0 flex-1 break-all">{file.path}</span>
+        {comments.length > 0 && (
+          <span className="shrink-0 font-sans text-muted-foreground">
+            {t('activity:github.lineComment.count', { count: comments.length })}
+          </span>
+        )}
         <span className="shrink-0 text-success">+{file.additions}</span>
         <span className="shrink-0 text-destructive">−{file.deletions}</span>
       </button>
@@ -59,7 +84,25 @@ function PullFile({ file }: { file: GitHubPullFile }) {
           {file.patch === null ? (
             <p className="px-1 text-xs text-muted-foreground">{t('activity:github.noPatch')}</p>
           ) : (
-            <ToolDiffView diff={{ mode: 'unified', patchText: file.patch, caption: file.path }} />
+            <PatchView
+              file={{ ...file, patch: file.patch }}
+              comments={comments}
+              canComment={canComment}
+              onComment={async (anchor, body) => {
+                const result = await runGitHubAction(sessionId, {
+                  kind: 'pull',
+                  number,
+                  action: 'line-comment',
+                  expectedHeadSha: headSha,
+                  path: file.path,
+                  line: anchor.line,
+                  side: anchor.side,
+                  body,
+                });
+                if (result.ok) onCommented();
+                return result;
+              }}
+            />
           )}
           {file.patchTruncated && (
             <p className="px-1 text-xs text-muted-foreground">
@@ -72,7 +115,19 @@ function PullFile({ file }: { file: GitHubPullFile }) {
   );
 }
 
-function PullParts({ pull, locale }: { pull: NonNullable<Detail['pull']>; locale: string }) {
+function PullParts({
+  pull,
+  locale,
+  number,
+  canComment,
+  onCommented,
+}: {
+  pull: NonNullable<Detail['pull']>;
+  locale: string;
+  number: number;
+  canComment: boolean;
+  onCommented: () => void;
+}) {
   const { t } = useAppTranslation();
   const unavailable = (
     <p className="text-xs text-muted-foreground">{t('activity:github.partUnavailable')}</p>
@@ -151,7 +206,15 @@ function PullParts({ pull, locale }: { pull: NonNullable<Detail['pull']>; locale
         ) : (
           <ul className="space-y-1">
             {pull.files.map((file) => (
-              <PullFile key={file.path} file={file} />
+              <PullFile
+                key={file.path}
+                file={file}
+                number={number}
+                headSha={pull.headSha}
+                comments={pull.lineComments?.filter((comment) => comment.path === file.path) ?? []}
+                canComment={canComment}
+                onCommented={onCommented}
+              />
             ))}
           </ul>
         )}
@@ -295,7 +358,15 @@ export function GitHubItemDetail({
               <p className="text-xs text-muted-foreground">{t('activity:github.noDescription')}</p>
             )}
           </Section>
-          {pull && <PullParts pull={pull} locale={i18n.language} />}
+          {pull && (
+            <PullParts
+              pull={pull}
+              locale={i18n.language}
+              number={item.number}
+              canComment={canWrite && item.state === 'open' && !pull.merged}
+              onCommented={state.reload}
+            />
+          )}
           <GitHubItemActions
             item={item}
             repository={view.repository ?? ''}

@@ -3,7 +3,7 @@ import {
   detectGitHubMention,
   insertGitHubMention,
   matchGitHubMentions,
-} from '../../../src/components/ChatInput/github-mention';
+} from '../src/github-mention.js';
 
 const items = [
   {

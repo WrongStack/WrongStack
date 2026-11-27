@@ -144,6 +144,26 @@ function detail(overrides: { fromFork?: boolean } = {}): GitHubItemDetailView {
           },
         ],
         checks: [{ name: 'unit', status: 'completed', conclusion: 'failure', url: null }],
+        lineComments: [
+          {
+            path: 'src/view.tsx',
+            line: 1,
+            side: 'LEFT',
+            author: 'maintainer',
+            body: 'Why one?',
+            createdAt: '2026-11-26T11:00:00Z',
+            url: null,
+          },
+          {
+            path: 'src/view.tsx',
+            line: null,
+            side: 'RIGHT',
+            author: 'maintainer',
+            body: 'Earlier remark',
+            createdAt: '2026-11-25T11:00:00Z',
+            url: null,
+          },
+        ],
         reviews: [
           {
             author: 'maintainer',
@@ -208,6 +228,33 @@ describe('GitHubView pull request detail', () => {
     expect(screen.getByText('const before = 1;')).toBeTruthy();
   });
 
+  it('comments on a diff line, pinned to the head it showed', async () => {
+    const fetcher = routed(detail());
+    await openPull(fetcher);
+    fireEvent.click(screen.getByRole('button', { name: /src\/view\.tsx/ }));
+    expect(screen.getByText('Why one?')).toBeTruthy();
+    expect(screen.getByText('Outdated comments')).toBeTruthy();
+    expect(screen.getByText('Earlier remark')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on line 1' }));
+    const box = screen.getByRole('textbox', { name: 'Comment on line 1' });
+    fireEvent.change(box, { target: { value: 'Prefer a const' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add line comment' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: 'Comment on line 1' })).toBeNull(),
+    );
+    const post = fetcher.mock.calls.find(([url]) => String(url).startsWith('/api/github/action'));
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+      kind: 'pull',
+      number: 12,
+      action: 'line-comment',
+      expectedHeadSha: SHA,
+      path: 'src/view.tsx',
+      line: 1,
+      side: 'RIGHT',
+      body: 'Prefer a const',
+    });
+  });
+
   it('hands the pull request to the agent by number only', async () => {
     useUIStore.setState({ promptInsertRequest: null, currentView: 'github' });
     await openPull(routed(detail()));
@@ -222,11 +269,13 @@ describe('GitHubView pull request detail', () => {
 
   it('offers fixing checks and review feedback only for a branch of this repository', async () => {
     await openPull(routed(detail()));
+    expect(screen.getByRole('button', { name: 'Check out locally with agent' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fix failing checks with agent' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Address review with agent' })).toBeTruthy();
     cleanup();
     await openPull(routed(detail({ fromFork: true })));
     expect(screen.getByRole('button', { name: 'Review with agent' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Check out locally with agent' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Fix failing checks with agent' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Address review with agent' })).toBeNull();
   });

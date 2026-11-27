@@ -137,6 +137,13 @@ export { decodeProtocolFrame, decodeProtocolMessage } from './decoder.js';
 export * from './environment-profile.js';
 export type { WrongStackErrorKind, WrongStackErrorModel } from './error-model.js';
 export { FrameResume } from './frame-resume.js';
+export {
+  detectGitHubMention,
+  type GitHubMention,
+  type GitHubMentionCandidate,
+  insertGitHubMention,
+  matchGitHubMentions,
+} from './github-mention.js';
 export type {
   GitHubAction,
   GitHubActionRequest,
@@ -148,6 +155,7 @@ export type {
   GitHubItemDetailView,
   GitHubItemKind,
   GitHubLabel,
+  GitHubLineComment,
   GitHubMergeMethod,
   GitHubPullFile,
   GitHubPullSummary,

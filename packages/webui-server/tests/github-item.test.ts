@@ -222,6 +222,57 @@ describe('GET /api/github/item', () => {
     expect(got.at(-1)).toMatchObject({ patch: null, patchTruncated: true });
   });
 
+  it('reads line comments, keeping outdated ones without a line', async () => {
+    const { body } = await call(
+      '/api/github/item?kind=pull&number=5',
+      seams(
+        pullRoutes({
+          'pulls/5/comments': () =>
+            json([
+              {
+                path: 'src/boot.ts',
+                line: 2,
+                side: 'RIGHT',
+                user: { login: 'maintainer' },
+                body: 'Rename this',
+                created_at: '2026-11-21T02:00:00Z',
+                html_url: 'https://github.com/octo/repo/pull/5#discussion_r1',
+              },
+              {
+                path: 'src/boot.ts',
+                line: null,
+                side: 'LEFT',
+                user: null,
+                body: 'Old remark',
+                created_at: '2026-11-20T02:00:00Z',
+                html_url: 'https://evil.example/x',
+              },
+            ]),
+        }),
+      ),
+    );
+    expect((body as GitHubItemDetailView).item?.pull?.lineComments).toEqual([
+      {
+        path: 'src/boot.ts',
+        line: 2,
+        side: 'RIGHT',
+        author: 'maintainer',
+        body: 'Rename this',
+        createdAt: '2026-11-21T02:00:00Z',
+        url: 'https://github.com/octo/repo/pull/5#discussion_r1',
+      },
+      {
+        path: 'src/boot.ts',
+        line: null,
+        side: 'LEFT',
+        author: null,
+        body: 'Old remark',
+        createdAt: '2026-11-20T02:00:00Z',
+        url: null,
+      },
+    ]);
+  });
+
   it('keeps the rest of the pane when one part fails', async () => {
     const { body } = await call(
       '/api/github/item?kind=pull&number=5',
@@ -264,6 +315,17 @@ describe('GET /api/github/item', () => {
     },
   );
 });
+
+const lineComment = {
+  kind: 'pull',
+  number: 5,
+  action: 'line-comment',
+  body: 'Rename this',
+  expectedHeadSha: SHA,
+  path: 'src/boot.ts',
+  line: 12,
+  side: 'RIGHT',
+};
 
 describe('POST /api/github/action', () => {
   const merge = {
@@ -322,6 +384,21 @@ describe('POST /api/github/action', () => {
       { event: 'REQUEST_CHANGES', commit_id: SHA, body: 'Add a test' },
     ],
     [{ kind: 'pull', number: 5, action: 'close' }, 'PATCH', 'pulls/5', { state: 'closed' }],
+    [
+      {
+        kind: 'pull',
+        number: 5,
+        action: 'line-comment',
+        body: 'Rename this',
+        expectedHeadSha: SHA,
+        path: 'src/boot.ts',
+        line: 12,
+        side: 'LEFT',
+      },
+      'POST',
+      'pulls/5/comments',
+      { body: 'Rename this', commit_id: SHA, path: 'src/boot.ts', line: 12, side: 'LEFT' },
+    ],
     [{ kind: 'issue', number: 9, action: 'reopen' }, 'PATCH', 'issues/9', { state: 'open' }],
   ])('sends %j as one GitHub call', async (request, method, path, payload) => {
     const github = seams(() => json({}));
@@ -468,6 +545,15 @@ describe('POST /api/github/action', () => {
     { kind: 'pull', number: 5, action: 'delete-branch' },
     { kind: 'pull', number: -1, action: 'close' },
     { kind: 'pull', number: 5, action: 'rerun-failed' },
+    { ...lineComment, path: '' },
+    { ...lineComment, path: '/etc/passwd' },
+    { ...lineComment, path: 'a\u0000b' },
+    { ...lineComment, line: 0 },
+    { ...lineComment, line: 1.5 },
+    { ...lineComment, side: 'MIDDLE' },
+    { ...lineComment, body: '  ' },
+    { ...lineComment, expectedHeadSha: undefined },
+    { ...lineComment, kind: 'issue' },
     { kind: 'issue', number: 5, action: 'rerun-failed', expectedHeadSha: SHA },
   ])('rejects %j before calling GitHub', async (request) => {
     const github = seams(() => json({}));

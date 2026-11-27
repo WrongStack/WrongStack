@@ -6,6 +6,7 @@ import type {
   GitHubItemDetail,
   GitHubItemDetailView,
   GitHubItemKind,
+  GitHubLineComment,
   GitHubMergeMethod,
   GitHubPullFile,
   GitHubReview,
@@ -46,6 +47,7 @@ const ACTIONS: readonly GitHubAction[] = [
   'close',
   'reopen',
   'rerun-failed',
+  'line-comment',
 ];
 const MERGE_METHODS: readonly GitHubMergeMethod[] = ['merge', 'squash', 'rebase'];
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -122,7 +124,7 @@ async function readPullParts(
   const repoName = (value: unknown) =>
     (value as { full_name?: unknown } | null | undefined)?.full_name;
   let patchBudget = PATCH_BUDGET;
-  const [files, checks, reviews] = await Promise.all([
+  const [files, checks, reviews, lineComments] = await Promise.all([
     settle(async () =>
       list(
         (await githubApi(seams, token, `repos/${repository}/pulls/${number}/files?per_page=100`))
@@ -165,6 +167,25 @@ async function readPullParts(
         .filter((review) => review.state && review.state !== 'PENDING')
         .slice(-30),
     ),
+    settle(async () =>
+      list(
+        (await githubApi(seams, token, `repos/${repository}/pulls/${number}/comments?per_page=100`))
+          .data,
+      ).map((comment): GitHubLineComment => {
+        const record = (comment ?? {}) as Record<string, unknown>;
+        const line = record['line'];
+        return {
+          path: text(record['path'], 500),
+          // GitHub sends `line: null` once the commented line left the diff.
+          line: typeof line === 'number' && Number.isSafeInteger(line) && line > 0 ? line : null,
+          side: record['side'] === 'LEFT' ? 'LEFT' : 'RIGHT',
+          author: login(record['user']),
+          body: text(record['body'], 4000),
+          createdAt: text(record['created_at'], 40),
+          url: githubPage(record['html_url']),
+        };
+      }),
+    ),
   ]);
   return {
     draft: raw['draft'] === true,
@@ -182,6 +203,7 @@ async function readPullParts(
     files,
     checks,
     reviews,
+    lineComments,
   };
 }
 
@@ -264,6 +286,9 @@ interface ValidAction {
   body: string;
   mergeMethod: GitHubMergeMethod;
   expectedHeadSha: string;
+  path: string;
+  line: number;
+  side: 'LEFT' | 'RIGHT';
 }
 
 function parseActionRequest(input: Record<string, unknown>): ValidAction | string {
@@ -273,18 +298,30 @@ function parseActionRequest(input: Record<string, unknown>): ValidAction | strin
   if (!kind || !number || !action) return 'kind, number and a known action are required';
   const body = typeof input['body'] === 'string' ? input['body'].trim() : '';
   if (body.length > ACTION_BODY_CAP) return 'The text is too long';
-  if ((action === 'comment' || action === 'request-changes') && !body)
+  if ((action === 'comment' || action === 'request-changes' || action === 'line-comment') && !body)
     return 'This action needs a text';
   const needsHead =
     action === 'approve' ||
     action === 'request-changes' ||
     action === 'merge' ||
-    action === 'rerun-failed';
+    action === 'rerun-failed' ||
+    action === 'line-comment';
   if (needsHead && kind !== 'pull')
     return 'Reviews, merges and re-runs apply to pull requests only';
   const expectedHeadSha =
     typeof input['expectedHeadSha'] === 'string' ? input['expectedHeadSha'] : '';
   if (needsHead && !SHA.test(expectedHeadSha)) return 'expectedHeadSha is required';
+  const path = typeof input['path'] === 'string' ? input['path'] : '';
+  const line = input['line'];
+  const side = input['side'] === 'LEFT' ? 'LEFT' : 'RIGHT';
+  if (action === 'line-comment') {
+    // A path inside the repository: no control characters, never absolute.
+    if (!path || path.length > 500 || /[\u0000-\u001f]/.test(path) || path.startsWith('/'))
+      return 'A file path is required';
+    if (typeof line !== 'number' || !Number.isSafeInteger(line) || line < 1 || line > 10_000_000)
+      return 'A positive line number is required';
+    if (input['side'] !== 'LEFT' && input['side'] !== 'RIGHT') return 'side must be LEFT or RIGHT';
+  }
   const mergeMethod = input['mergeMethod'] ?? 'merge';
   if (!MERGE_METHODS.includes(mergeMethod as GitHubMergeMethod)) return 'Unknown merge method';
   return {
@@ -294,6 +331,9 @@ function parseActionRequest(input: Record<string, unknown>): ValidAction | strin
     body,
     mergeMethod: mergeMethod as GitHubMergeMethod,
     expectedHeadSha,
+    path,
+    line: typeof line === 'number' ? line : 0,
+    side,
   };
 }
 
@@ -360,6 +400,20 @@ function actionCall(repository: string, input: ValidAction) {
         method: 'PUT' as const,
         path: `${item}/merge`,
         body: { merge_method: input.mergeMethod, sha: input.expectedHeadSha },
+      };
+    case 'line-comment':
+      // `commit_id` pins the comment to the head the user read; GitHub refuses
+      // a line that is not part of that diff (422).
+      return {
+        method: 'POST' as const,
+        path: `${item}/comments`,
+        body: {
+          body: input.body,
+          commit_id: input.expectedHeadSha,
+          path: input.path,
+          line: input.line,
+          side: input.side,
+        },
       };
     case 'rerun-failed':
       throw new Error('rerun-failed is not a single call');

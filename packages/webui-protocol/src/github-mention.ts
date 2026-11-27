@@ -1,6 +1,6 @@
 /**
- * `#` mentions of the project's GitHub pull requests and issues in the
- * composer. A pick inserts the item's github.com URL: it names the repository,
+ * `#` mentions of the project's GitHub pull requests and issues, shared by
+ * the WebUI and VibeUI composers. A pick inserts the item's github.com URL: it names the repository,
  * the kind and the number unambiguously, `gh pr view <url>` / `gh issue view
  * <url>` accept it as is, and nothing a third party wrote enters the prompt.
  */

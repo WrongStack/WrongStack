@@ -5971,7 +5971,8 @@
       "review": "Review with agent",
       "fix-checks": "Fix failing checks with agent",
       "address-review": "Address review with agent",
-      "issue": "Work on it with agent"
+      "issue": "Work on it with agent",
+      "checkout": "Check out locally with agent"
     },
     "action": {
       "comment": "Comment",
@@ -6000,7 +6001,8 @@
       "merge": "Merged #{{number}}.",
       "close": "Closed #{{number}}.",
       "reopen": "Reopened #{{number}}.",
-      "rerun-failed": "Re-ran the failed checks of #{{number}}."
+      "rerun-failed": "Re-ran the failed checks of #{{number}}.",
+      "line-comment": "Commented on #{{number}}."
     },
     "result": {
       "needs-auth": "GitHub refused the token for this action.",
@@ -6018,6 +6020,15 @@
     "mentionPull": "Pull request",
     "mentionIssue": "Issue",
     "noPatch": "No text diff for this file (binary or too large). Open it on GitHub.",
-    "patchTruncated": "This diff is cut short. Open the pull request on GitHub for the rest."
+    "patchTruncated": "This diff is cut short. Open the pull request on GitHub for the rest.",
+    "lineComment": {
+      "add": "Comment on line {{line}}",
+      "placeholder": "Leave a review comment on this line",
+      "send": "Add line comment",
+      "outdated": "Outdated comments",
+      "count_one": "{{count}} comment",
+      "count_other": "{{count}} comments",
+      "addRemoved": "Comment on removed line {{line}}"
+    }
   }
 }

@@ -17,6 +17,7 @@ import { canRestoreDraft, readSavedDraft } from '../lib/component-guards';
 import { clientId } from '../lib/ids';
 import { composeMessage, draftKey } from '../lib/session';
 import { useFileMentions } from '../lib/use-file-mentions';
+import { useGitHubPicker } from '../lib/use-github-picker';
 import { usePanelRequests } from '../lib/use-panel-requests';
 import type { Attachment, SessionController } from '../lib/use-session';
 import { useSkillPicker } from '../lib/use-skill-picker';
@@ -72,6 +73,7 @@ export function Composer({
     };
   }, []);
   const skills = useSkillPicker(draft, setDraft, textarea, controller);
+  const github = useGitHubPicker(draft, setDraft, textarea, controller);
   const imageInput = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
   const appliedDraft = useRef('');
@@ -94,7 +96,11 @@ export function Composer({
   const activeFile = Math.min(selectedFile, Math.max(0, fileMatches.length - 1));
 
   const filesOpen =
-    query !== undefined && enabled && !skills.open && dismissedFiles !== fileMentionKey;
+    query !== undefined &&
+    enabled &&
+    !skills.open &&
+    !github.open &&
+    dismissedFiles !== fileMentionKey;
   useEffect(() => setSelectedFile(0), [query]);
   useEffect(() => {
     if (filesOpen)
@@ -357,6 +363,41 @@ export function Composer({
             </footer>
           </section>
         )}
+        {github.open && enabled && !skills.open && (
+          <section
+            className="file-picker skill-picker"
+            aria-label="Matching pull requests and issues"
+          >
+            <header className="skill-picker-heading">
+              <strong>Pull requests and issues</strong>
+              <span>{github.matches.length} matching</span>
+            </header>
+            <div id={github.listId} role="listbox" aria-label="Pull requests and issues">
+              {github.matches.map((item, index) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={index === github.selected}
+                  id={`${github.listId}-${index}`}
+                  key={`${item.kind}:${item.number}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => github.pick(item.url)}
+                >
+                  <strong>
+                    #{item.number} {item.title}
+                  </strong>
+                  <small>
+                    {item.kind === 'pull' ? 'Pull request' : 'Issue'}
+                    {item.author ? ` · ${item.author}` : ''}
+                  </small>
+                </button>
+              ))}
+            </div>
+            <footer className="skill-picker-footer">
+              ↑ ↓ browse · Enter / Tab insert link · Esc close
+            </footer>
+          </section>
+        )}
         {filesOpen && (
           <section className="file-picker" aria-label="Matching project files">
             <div id={fileListId} role="listbox" aria-label="Project files">
@@ -386,23 +427,38 @@ export function Composer({
           ref={textarea}
           aria-label="Message"
           value={draft}
-          aria-controls={skills.open ? skills.listId : filesOpen ? fileListId : undefined}
+          aria-controls={
+            skills.open
+              ? skills.listId
+              : github.open
+                ? github.listId
+                : filesOpen
+                  ? fileListId
+                  : undefined
+          }
           aria-activedescendant={
             skills.open && skills.matches.length
               ? `${skills.listId}-${skills.selected}`
-              : filesOpen && fileMatches.length
-                ? `${fileListId}-${activeFile}`
-                : undefined
+              : github.open
+                ? `${github.listId}-${github.selected}`
+                : filesOpen && fileMatches.length
+                  ? `${fileListId}-${activeFile}`
+                  : undefined
           }
           rows={3}
           placeholder="Describe what you want to build…"
           onChange={(event) => {
             setDraft(event.target.value);
             skills.trackCursor();
+            github.trackCursor();
           }}
-          onSelect={skills.trackCursor}
+          onSelect={() => {
+            skills.trackCursor();
+            github.trackCursor();
+          }}
           onKeyDown={(event) => {
-            if (skills.onKeyDown(event) || event.nativeEvent.isComposing) return;
+            if (skills.onKeyDown(event) || github.onKeyDown(event) || event.nativeEvent.isComposing)
+              return;
             if (filesOpen) {
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault();

@@ -1,13 +1,14 @@
-import type { GitHubItemDetailView, GitHubRepositoryView } from '@wrongstack/webui-protocol';
+import {
+  detectGitHubMention,
+  type GitHubItemDetailView,
+  type GitHubMentionCandidate,
+  type GitHubRepositoryView,
+  insertGitHubMention,
+  matchGitHubMentions,
+} from '@wrongstack/webui-protocol';
 import { CircleDot, GitPullRequest, GitPullRequestDraft } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
-import {
-  detectGitHubMention,
-  type GitHubMentionCandidate,
-  insertGitHubMention,
-  matchGitHubMentions,
-} from './github-mention';
 
 const FRESH_MS = 30_000;
 

@@ -5971,7 +5971,8 @@
       "review": "Ajanla incele",
       "fix-checks": "Başarısız kontrolleri ajanla düzelt",
       "address-review": "İnceleme notlarını ajanla ele al",
-      "issue": "Ajanla üzerinde çalış"
+      "issue": "Ajanla üzerinde çalış",
+      "checkout": "Ajanla yerelde checkout et"
     },
     "action": {
       "comment": "Yorum yap",
@@ -6000,7 +6001,8 @@
       "merge": "#{{number}} birleştirildi.",
       "close": "#{{number}} kapatıldı.",
       "reopen": "#{{number}} yeniden açıldı.",
-      "rerun-failed": "#{{number}} için başarısız kontroller yeniden başlatıldı."
+      "rerun-failed": "#{{number}} için başarısız kontroller yeniden başlatıldı.",
+      "line-comment": "#{{number}} için yorum gönderildi."
     },
     "result": {
       "needs-auth": "GitHub bu işlem için token'ı reddetti.",
@@ -6018,6 +6020,15 @@
     "mentionPull": "Pull request",
     "mentionIssue": "Issue",
     "noPatch": "Bu dosya için metin diff'i yok (ikili ya da çok büyük). GitHub'da aç.",
-    "patchTruncated": "Bu diff kısaltıldı. Kalanı için pull request'i GitHub'da aç."
+    "patchTruncated": "Bu diff kısaltıldı. Kalanı için pull request'i GitHub'da aç.",
+    "lineComment": {
+      "add": "{{line}}. satıra yorum yap",
+      "placeholder": "Bu satıra inceleme yorumu bırak",
+      "send": "Satır yorumu ekle",
+      "outdated": "Güncelliğini yitirmiş yorumlar",
+      "count_one": "{{count}} yorum",
+      "count_other": "{{count}} yorum",
+      "addRemoved": "Silinen {{line}}. satıra yorum yap"
+    }
   }
 }

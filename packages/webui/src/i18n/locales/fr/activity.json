@@ -5971,7 +5971,8 @@
       "review": "Relire avec l'agent",
       "fix-checks": "Corriger les vérifications avec l'agent",
       "address-review": "Traiter la revue avec l'agent",
-      "issue": "Y travailler avec l'agent"
+      "issue": "Y travailler avec l'agent",
+      "checkout": "Récupérer localement avec l'agent"
     },
     "action": {
       "comment": "Commenter",
@@ -6000,7 +6001,8 @@
       "merge": "#{{number}} fusionnée.",
       "close": "#{{number}} fermée.",
       "reopen": "#{{number}} rouverte.",
-      "rerun-failed": "Vérifications échouées de #{{number}} relancées."
+      "rerun-failed": "Vérifications échouées de #{{number}} relancées.",
+      "line-comment": "Commentaire publié sur #{{number}}."
     },
     "result": {
       "needs-auth": "GitHub a refusé le jeton pour cette action.",
@@ -6018,6 +6020,15 @@
     "mentionPull": "Pull request",
     "mentionIssue": "Issue",
     "noPatch": "Pas de diff texte pour ce fichier (binaire ou trop volumineux). Ouvrez-le sur GitHub.",
-    "patchTruncated": "Ce diff est tronqué. Ouvrez la pull request sur GitHub pour le reste."
+    "patchTruncated": "Ce diff est tronqué. Ouvrez la pull request sur GitHub pour le reste.",
+    "lineComment": {
+      "add": "Commenter la ligne {{line}}",
+      "placeholder": "Laissez un commentaire de revue sur cette ligne",
+      "send": "Ajouter un commentaire de ligne",
+      "outdated": "Commentaires obsolètes",
+      "count_one": "{{count}} commentaire",
+      "count_other": "{{count}} commentaires",
+      "addRemoved": "Commenter la ligne supprimée {{line}}"
+    }
   }
 }

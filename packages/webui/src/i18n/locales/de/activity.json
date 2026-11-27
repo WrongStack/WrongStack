@@ -5971,7 +5971,8 @@
       "review": "Mit Agent prüfen",
       "fix-checks": "Fehlgeschlagene Checks mit Agent beheben",
       "address-review": "Review-Anmerkungen mit Agent umsetzen",
-      "issue": "Mit Agent bearbeiten"
+      "issue": "Mit Agent bearbeiten",
+      "checkout": "Mit Agent lokal auschecken"
     },
     "action": {
       "comment": "Kommentieren",
@@ -6000,7 +6001,8 @@
       "merge": "#{{number}} gemergt.",
       "close": "#{{number}} geschlossen.",
       "reopen": "#{{number}} wieder geöffnet.",
-      "rerun-failed": "Fehlgeschlagene Checks von #{{number}} neu gestartet."
+      "rerun-failed": "Fehlgeschlagene Checks von #{{number}} neu gestartet.",
+      "line-comment": "#{{number}} kommentiert."
     },
     "result": {
       "needs-auth": "GitHub hat das Token für diese Aktion abgelehnt.",
@@ -6018,6 +6020,15 @@
     "mentionPull": "Pull Request",
     "mentionIssue": "Issue",
     "noPatch": "Kein Text-Diff für diese Datei (binär oder zu groß). Öffne sie auf GitHub.",
-    "patchTruncated": "Dieser Diff ist gekürzt. Öffne den Pull Request auf GitHub für den Rest."
+    "patchTruncated": "Dieser Diff ist gekürzt. Öffne den Pull Request auf GitHub für den Rest.",
+    "lineComment": {
+      "add": "Zeile {{line}} kommentieren",
+      "placeholder": "Review-Kommentar zu dieser Zeile schreiben",
+      "send": "Zeilenkommentar hinzufügen",
+      "outdated": "Veraltete Kommentare",
+      "count_one": "{{count}} Kommentar",
+      "count_other": "{{count}} Kommentare",
+      "addRemoved": "Gelöschte Zeile {{line}} kommentieren"
+    }
   }
 }

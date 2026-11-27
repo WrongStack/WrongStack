@@ -5971,7 +5971,8 @@
       "review": "Revisar com o agente",
       "fix-checks": "Corrigir verificações com o agente",
       "address-review": "Tratar a revisão com o agente",
-      "issue": "Trabalhar nisso com o agente"
+      "issue": "Trabalhar nisso com o agente",
+      "checkout": "Fazer checkout local com o agente"
     },
     "action": {
       "comment": "Comentar",
@@ -6000,7 +6001,8 @@
       "merge": "#{{number}} mesclado.",
       "close": "#{{number}} fechado.",
       "reopen": "#{{number}} reaberto.",
-      "rerun-failed": "Verificações com falha de #{{number}} reexecutadas."
+      "rerun-failed": "Verificações com falha de #{{number}} reexecutadas.",
+      "line-comment": "Comentário publicado em #{{number}}."
     },
     "result": {
       "needs-auth": "O GitHub recusou o token para esta ação.",
@@ -6018,6 +6020,15 @@
     "mentionPull": "Pull request",
     "mentionIssue": "Issue",
     "noPatch": "Sem diff de texto para este arquivo (binário ou grande demais). Abra no GitHub.",
-    "patchTruncated": "Este diff foi cortado. Abra o pull request no GitHub para ver o restante."
+    "patchTruncated": "Este diff foi cortado. Abra o pull request no GitHub para ver o restante.",
+    "lineComment": {
+      "add": "Comentar a linha {{line}}",
+      "placeholder": "Deixe um comentário de revisão nesta linha",
+      "send": "Adicionar comentário na linha",
+      "outdated": "Comentários desatualizados",
+      "count_one": "{{count}} comentário",
+      "count_other": "{{count}} comentários",
+      "addRemoved": "Comentar a linha removida {{line}}"
+    }
   }
 }

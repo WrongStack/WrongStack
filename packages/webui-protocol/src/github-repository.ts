@@ -92,6 +92,19 @@ export interface GitHubPullFile {
   patchTruncated: boolean;
 }
 
+/** A review comment on one line of a pull request's diff. */
+export interface GitHubLineComment {
+  path: string;
+  /** The line on `side` in the current diff; null when the comment is outdated. */
+  line: number | null;
+  /** RIGHT = the new file, LEFT = the old one. */
+  side: 'LEFT' | 'RIGHT';
+  author: string | null;
+  body: string;
+  createdAt: string;
+  url: string | null;
+}
+
 export interface GitHubItemDetail extends GitHubItemBase {
   kind: GitHubItemKind;
   state: 'open' | 'closed';
@@ -117,6 +130,7 @@ export interface GitHubItemDetail extends GitHubItemBase {
     files: GitHubPullFile[] | null;
     checks: GitHubCheck[] | null;
     reviews: GitHubReview[] | null;
+    lineComments: GitHubLineComment[] | null;
   } | null;
 }
 
@@ -135,7 +149,9 @@ export type GitHubAction =
   | 'close'
   | 'reopen'
   /** Re-run the failed GitHub Actions jobs on the pull request's head. */
-  | 'rerun-failed';
+  | 'rerun-failed'
+  /** A review comment on one diff line (`path`, `line`, `side`, `body`). */
+  | 'line-comment';
 export type GitHubMergeMethod = 'merge' | 'squash' | 'rebase';
 
 /** Body of `POST /api/github/action?sessionId=…`. */
@@ -145,8 +161,12 @@ export interface GitHubActionRequest {
   action: GitHubAction;
   body?: string;
   mergeMethod?: GitHubMergeMethod;
-  /** Required for approve, request-changes, merge and rerun-failed. */
+  /** Required for approve, request-changes, merge, rerun-failed and line-comment. */
   expectedHeadSha?: string;
+  /** line-comment only. */
+  path?: string;
+  line?: number;
+  side?: 'LEFT' | 'RIGHT';
 }
 
 export interface GitHubActionResult {
