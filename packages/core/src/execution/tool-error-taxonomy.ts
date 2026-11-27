@@ -1,6 +1,7 @@
 import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
 import type { ToolErrorCategory, ToolErrorInfo } from '@wrongstack/contracts/types/tool';
 import { ToolErrorCategory as Cat } from '@wrongstack/contracts/types/tool';
+import { scrubErrorText } from '../security/error-sanitize.js';
 import { classifyToolError } from './tool-executor-support.js';
 
 /**
@@ -36,7 +37,20 @@ export function toolErrorResult(
   // Format the content string with the category prefix so the LLM
   // can pattern-match on the error kind.
   const prefix = formatErrorPrefix(category, retryable);
-  const detailSuffix = detail ? ` [${detail}]` : '';
+  // For an unclassified error the classifier's `detail` IS the message
+  // (scrubbed, cut at 100 chars) — useful in the durable log, pure repetition
+  // in the model's view ("Error: tree: cannot list X [tree: cannot list X…]").
+  // Worse, that copy was scrubbed only by the built-in patterns, not by the
+  // session scrubber applied to `userMessage`, so a session-registered secret
+  // survived in the bracket. Keep the suffix only when it adds information
+  // (an errno code, `HTTP 404`, `CODE [subsystem]`), and scrub it too.
+  const shownDetail =
+    detail && !restatesMessage(detail, rawMessage)
+      ? opts.scrubber
+        ? opts.scrubber(detail)
+        : detail
+      : undefined;
+  const detailSuffix = shownDetail ? ` [${shownDetail}]` : '';
 
   return {
     type: 'tool_result',
@@ -47,6 +61,14 @@ export function toolErrorResult(
     // audit log, observability).
     _toolErrorInfo: info,
   };
+}
+
+/** True when `detail` is (a cut of) the message, or the message with a field prefix. */
+function restatesMessage(detail: string, message: string): boolean {
+  const core = detail.replace(/…$/, '').trim();
+  if (!core) return true;
+  const scrubbed = scrubErrorText(message).trim();
+  return scrubbed.startsWith(core) || core.endsWith(scrubbed) || message.trim().startsWith(core);
 }
 
 /**

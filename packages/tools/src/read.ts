@@ -11,7 +11,7 @@ import {
   MAX_INCOMING_IMAGE_BYTES,
   toErrorMessage,
 } from '@wrongstack/core/utils';
-import { isBinaryBuffer, safeResolveReal, sha256hex } from './_util.js';
+import { decodeReadableText, safeResolveReal, sha256hex } from './_util.js';
 import { getIndexState, searchCodebaseIndex } from './codebase-index/background-indexer.js';
 import type { SymbolKind } from './codebase-index/schema.js';
 import { codebaseIndexDirOverride } from './codebase-index/writer-helpers.js';
@@ -199,7 +199,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     required: ['text', 'total_lines', 'encoding', 'truncated'],
   },
   programmaticOutput(output, input) {
-    if (output.encoding !== 'utf8' || input.mode === 'summary' || output.cached) return output;
+    if (!/^utf/.test(output.encoding) || input.mode === 'summary' || output.cached) return output;
     const lines = output.text.split('\n');
     if (output.text !== '' && !lines.every((line) => /^\s*\d+→/.test(line))) return output;
     return {
@@ -418,7 +418,8 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     if (isPdf(absPath, buf)) return readPdf(input, absPath, buf, stat.mtimeMs, ctx);
     const imageMediaType = detectImageMediaType(buf);
     if (imageMediaType) return readImage(input, absPath, buf, imageMediaType, stat.mtimeMs, ctx);
-    if (isBinaryBuffer(buf)) {
+    const decoded = decodeReadableText(buf);
+    if (!decoded) {
       throw new FsError({
         message: `read: "${input.path}" appears to be binary`,
         code: 'FS_READ_FAILED',
@@ -426,8 +427,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
         context: { reason: 'binary' },
       });
     }
-
-    const text = buf.toString('utf8');
+    const { text, encoding } = decoded;
     // Content hash recorded alongside the mtime: `edit` uses it as the
     // authoritative staleness check (mtime alone has a 2 s tolerance window
     // on Windows). The full file is read even for offset/limit slices, so
@@ -449,7 +449,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       return {
         text: '',
         total_lines: 0,
-        encoding: 'utf8',
+        encoding,
         truncated: false,
         ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
         ...(symResult?.note ? { note: symResult.note } : {}),
@@ -468,7 +468,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       return {
         text: summary.text,
         total_lines: total,
-        encoding: 'utf8',
+        encoding,
         truncated: summary.truncated,
         note: mergeSymbolNote(
           'Summary mode returned compact structure instead of full file content.',
@@ -486,7 +486,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       return {
         text: '',
         total_lines: total,
-        encoding: 'utf8',
+        encoding,
         truncated: total > 0,
         ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
         ...(symResult?.note ? { note: symResult.note } : {}),
@@ -505,7 +505,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       return {
         text: `[offset ${offset} is past end of file "${input.path}" — file has ${total} line(s). Do not retry this offset.]`,
         total_lines: total,
-        encoding: 'utf8',
+        encoding,
         truncated: false,
         ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
         ...(symResult?.note ? { note: symResult.note } : {}),
@@ -550,7 +550,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     return {
       text: numbered,
       total_lines: total,
-      encoding: 'utf8',
+      encoding,
       truncated,
       ...(symResult?.symbols ? { symbols: symResult.symbols } : {}),
       ...(symResult?.note ? { note: symResult.note } : {}),

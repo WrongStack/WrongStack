@@ -85,6 +85,24 @@ export function toolInputCorrection(
   );
 }
 
+/**
+ * Whether a validation failure is about the call's SHAPE, where the registered
+ * contract helps, or about the world — a path that does not exist, text that
+ * is not in the file, a regex the engine rejects. For the latter the ~1.5k-char
+ * usage/schema block fixes nothing and buried the one line that mattered on the
+ * most frequent failures there are (`edit` no-match, `grep`/`glob` bad path).
+ * A throw site opts out with `context: { contract: false }`.
+ */
+export function errorWantsContract(err: unknown): boolean {
+  const context =
+    err && typeof err === 'object' ? (err as { context?: unknown }).context : undefined;
+  return !(
+    context &&
+    typeof context === 'object' &&
+    (context as Record<string, unknown>)['contract'] === false
+  );
+}
+
 export function unknownToolResult(use: ToolUseBlock, listFns: () => string[]): ToolResultBlock {
   return {
     type: 'tool_result',

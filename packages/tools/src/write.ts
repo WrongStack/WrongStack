@@ -196,7 +196,7 @@ async function prepareWrite(
             'single-byte encoding). Overwriting it could not be undone by a session rewind — ' +
             'remove or rename the file first if replacing it is intended.',
           field: 'path',
-          context: { reason: 'not_utf8' },
+          context: { reason: 'not_utf8', contract: false },
         });
       }
       prev = buf.toString('utf8');

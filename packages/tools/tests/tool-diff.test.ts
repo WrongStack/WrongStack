@@ -107,10 +107,41 @@ describe('parseUnifiedDiff', () => {
       { kind: 'ctx', text: 'end' },
     ]);
   });
+
+  it('keeps an adjacent --- / +++ pair inside a hunk as changes, not as a header', () => {
+    const rows = parseUnifiedDiff(ADJACENT_CONTENT_PAIR);
+    expect(rows.filter((r) => r.kind !== 'meta')).toEqual([
+      { kind: 'del', text: '-- drop table t;' },
+      { kind: 'add', text: '++ create index i on t (id);' },
+      { kind: 'ctx', text: 'create table t (id int);' },
+    ]);
+  });
+
+  it('still treats a real file-header pair as a header', () => {
+    const rows = parseUnifiedDiff('--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b');
+    expect(rows[0]).toEqual({ kind: 'meta', text: '--- a/x' });
+    expect(rows[1]).toEqual({ kind: 'meta', text: '+++ b/x' });
+  });
 });
 
 const BODY_LOOKS_LIKE_HEADER =
   '--- a/x\n+++ b/x\n@@ -1,3 +1,2 @@\n--- drop table t;\n----\n+++i;\n end\n';
+
+/**
+ * A hunk body whose removed line (`-- drop table t;`) and added line
+ * (`++ create index i on t (id);`) sit next to each other. Byte-for-byte that
+ * is the shape of a file-header pair, but it is CONTENT: the hunk still owes
+ * a line on each side, so the declared counts tell the two apart.
+ */
+const ADJACENT_CONTENT_PAIR = [
+  '--- a/q.sql',
+  '+++ b/q.sql',
+  '@@ -1,2 +1,2 @@',
+  '--- drop table t;',
+  '+++ create index i on t (id);',
+  ' create table t (id int);',
+  '',
+].join('\n');
 
 // ---------------------------------------------------------------------------
 // Parity: the HQ browser transcription must match the TS implementation.
@@ -183,6 +214,12 @@ describe('tool-diff parity (TS vs embedded browser source)', () => {
     const lone = '+++ src/new.ts\n+ (new file)';
     expect(parseUnifiedDiff(lone)[0]).toEqual({ kind: 'meta', text: '+++ src/new.ts' });
     expect(bs.parseUnifiedDiff(lone)).toEqual(parseUnifiedDiff(lone));
+    // An adjacent in-hunk `--- `/`+++ ` pair is CONTENT, not a file header.
+    // The browser transcription has to reach the same verdict from the same
+    // hunk counts, so this shape belongs in the parity table.
+    expect(bs.parseUnifiedDiff(ADJACENT_CONTENT_PAIR)).toEqual(
+      parseUnifiedDiff(ADJACENT_CONTENT_PAIR),
+    );
   });
 });
 

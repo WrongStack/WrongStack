@@ -9,6 +9,7 @@
  *   - INV-002: Mandatory / Non-Default Parameter Addition
  *   - INV-003: Mandatory Interface / Trait / Model Property Addition
  *   - INV-004: Incompatible Return Type Alteration
+ *   - INV-005: Positional Parameter Removal (callers still pass it)
  *
  * Any other language has no contract extractor: the result says so through
  * `supported: false` instead of reporting an empty diff as "compatible".
@@ -24,7 +25,7 @@ import type { SymbolLang } from './schema.js';
 
 export type { ModuleContract } from './ast-invariant-contracts.js';
 
-export type InvariantRuleId = 'INV-001' | 'INV-002' | 'INV-003' | 'INV-004';
+export type InvariantRuleId = 'INV-001' | 'INV-002' | 'INV-003' | 'INV-004' | 'INV-005';
 
 export interface InvariantViolation {
   ruleId: InvariantRuleId;
@@ -35,6 +36,7 @@ export interface InvariantViolation {
   details?:
     | {
         addedParameter?: string | undefined;
+        removedParameter?: string | undefined;
         addedProperty?: string | undefined;
         expectedModifier?: string | undefined;
         originalSignature?: string | undefined;
@@ -58,6 +60,54 @@ export interface InvariantEvaluationResult {
     modifiedSymbols: number;
     durationMs: number;
   };
+}
+
+/**
+ * True when every alternative of `modified` already appears in `original`'s
+ * union — the function now returns a subset of what callers handle. Anything
+ * else (`number` → `string`, a new `| undefined`) can reach a caller that does
+ * not expect it. Only Promise/Result removal used to count, so `number` →
+ * `string` passed as "compatible".
+ */
+function returnTypeNarrows(original: string, modified: string): boolean {
+  const compactOriginal = original.replace(/\s+/g, '');
+  const compactModified = modified.replace(/\s+/g, '');
+  // Callers of a `void` function ignore the result, so any new type is safe.
+  if (compactOriginal === 'void') return true;
+  // `Promise<A | B>` → `Promise<A>` narrows the resolved value; compare inside.
+  const promised = (t: string) => /^Promise<(.+)>$/.exec(t)?.[1];
+  const innerOriginal = promised(compactOriginal);
+  const innerModified = promised(compactModified);
+  if (innerOriginal !== undefined && innerModified !== undefined) {
+    return returnTypeNarrows(innerOriginal, innerModified);
+  }
+  const members = (t: string) =>
+    new Set(
+      splitTopLevelUnion(t.replace(/\s+/g, ''))
+        .map((m) => m.replace(/^Array<(.+)>$/, '$1[]'))
+        .filter(Boolean),
+    );
+  const before = members(original);
+  for (const m of members(modified)) if (!before.has(m)) return false;
+  return true;
+}
+
+function splitTopLevelUnion(type: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of type) {
+    if ('<([{'.includes(ch)) depth++;
+    else if ('>)]}'.includes(ch)) depth--;
+    if (ch === '|' && depth === 0) {
+      out.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out;
 }
 
 /**
@@ -140,6 +190,31 @@ export class PolyglotInvariantEngine {
         });
       }
 
+      // RULE 5: INV-005 (Positional parameter removal). A caller that passes
+      // the dropped argument stops compiling (TS: "Expected 1 arguments, but
+      // got 2"; Go/Rust/Java/C#) or raises (Python TypeError). Plain JS ignores
+      // extra arguments, so it is exempt. A rest parameter still accepts them.
+      // Exported API only: a private helper's callers are in this file, where
+      // the type checker reports them, and ast-replace refuses on violations.
+      const removed = origFunc.params.slice(modFunc.params.length);
+      if (
+        origFunc.isExported &&
+        lang !== 'js' &&
+        lang !== 'jsx' &&
+        removed.length > 0 &&
+        !removed.every((p) => p.isRest) &&
+        !modFunc.params.some((p) => p.isRest)
+      ) {
+        violations.push({
+          ruleId: 'INV-005',
+          symbolName: name,
+          lang,
+          severity: 'CRITICAL',
+          message: `Function '${name}' dropped parameter(s) ${removed.map((p) => `'${p.name}'`).join(', ')}. Callers that still pass them will fail; keep the parameter (unused, or optional) or update every call site.`,
+          details: { removedParameter: removed.map((p) => p.name).join(', ') },
+        });
+      }
+
       // RULE 4: INV-004 (Return Type Alteration / Breaking change)
       if (origFunc.returnType && modFunc.returnType && origFunc.returnType !== modFunc.returnType) {
         // Breaking if Promise<T> changed to non-promise or Result<T> altered
@@ -148,7 +223,11 @@ export class PolyglotInvariantEngine {
         const isBreakingResult =
           origFunc.returnType.includes('Result<') && !modFunc.returnType.includes('Result<');
 
-        if (isBreakingAsync || isBreakingResult) {
+        if (
+          isBreakingAsync ||
+          isBreakingResult ||
+          (origFunc.isExported && !returnTypeNarrows(origFunc.returnType, modFunc.returnType))
+        ) {
           violations.push({
             ruleId: 'INV-004',
             symbolName: name,

@@ -24,7 +24,8 @@ describe('JSON Schema URI format applies to every present string', () => {
     async (value) => {
       const result = await validate(value, { type: 'string', format: 'uri' });
       expect(result.valid).toBe(false);
-      expect(result.formatted).toBe('invalid');
+      // The rendered verdict carries the reason, not a bare "invalid".
+      expect(result.formatted).toBe('invalid\n- $: not a valid URI');
       expect(result.errors).toEqual(['$: not a valid URI']);
     },
   );

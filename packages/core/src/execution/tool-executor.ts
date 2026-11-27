@@ -55,7 +55,12 @@ import {
 import { toolErrorResult } from './tool-error-taxonomy.js';
 import { ToolExecutorCore } from './tool-executor-core.js';
 import { validateToolInputAndHooks } from './tool-executor-guard.js';
-import { deniedResult, toolInputCorrection, unknownToolResult } from './tool-executor-results.js';
+import {
+  deniedResult,
+  errorWantsContract,
+  toolInputCorrection,
+  unknownToolResult,
+} from './tool-executor-results.js';
 import { classifyToolError } from './tool-executor-support.js';
 
 export { classifyToolError } from './tool-executor-support.js';
@@ -370,7 +375,8 @@ export class ToolExecutor extends ToolExecutorCore {
         const result = toolErrorResult(use, err, {
           scrubber: (s) => this.opts.secretScrubber.scrub(s),
         });
-        if (category === 'validation') result.content += toolInputCorrection(tool, ctx.messages);
+        if (category === 'validation' && errorWantsContract(err))
+          result.content += toolInputCorrection(tool, ctx.messages);
         // Error results are iteration output too: cap them with the same byte
         // budget the success path enforces, or a single failing tool whose
         // Error message is huge can defeat perIterationOutputCapBytes
@@ -413,7 +419,7 @@ export class ToolExecutor extends ToolExecutorCore {
         if (isStructured) {
           result.content = scrubbed;
         }
-        if (tool && classifyToolError(err).category === 'validation') {
+        if (tool && classifyToolError(err).category === 'validation' && errorWantsContract(err)) {
           result.content += toolInputCorrection(tool, ctx.messages);
         }
         // Same cap discipline as the plain-Error catch above — structured

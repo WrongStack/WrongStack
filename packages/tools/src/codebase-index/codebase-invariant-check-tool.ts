@@ -39,7 +39,7 @@ const codebaseInvariantCheckToolBase: Tool<
   capabilities: ['fs.read'],
   description:
     'Deterministically check AST backward-compatibility invariants between original code and a candidate mutation for TypeScript/JavaScript, Python, Go and Rust. ' +
-    'Detects removed exports (INV-001), mandatory parameter additions (INV-002), interface breaking expansions (INV-003), and incompatible return type changes (INV-004). ' +
+    'Detects removed exports (INV-001), mandatory parameter additions (INV-002), interface breaking expansions (INV-003), incompatible return type changes (INV-004), and dropped positional parameters (INV-005). ' +
     'Other languages return `verified: false`.',
   usageHint:
     'PRE-FLIGHT AST INVARIANT AUDIT:\n\n' +

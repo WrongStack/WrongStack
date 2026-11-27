@@ -47,9 +47,10 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
   name: 'diff',
   category: 'Filesystem',
   description:
-    'Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.',
+    'Show git diffs (working tree by default, staged, or between commits/branches) or dump files with line numbers. A safer and more structured alternative to raw `git diff` via shell.',
   usageHint:
     'USE FOR CODE REVIEW AND CHANGE INSPECTION:\n\n' +
+    '- no `files`/`a`/`b` → `git diff` of the working tree (unstaged changes), optionally limited by `path`.\n' +
     '- `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes). Result `mode` is "dump".\n' +
     '- `a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).\n' +
     '- `staged: true` → only show staged changes.\n' +
@@ -135,13 +136,26 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
         field: 'context',
       });
     }
-    if (input.staged || input.a !== undefined || input.b !== undefined) {
+    // No files and no refs: the question is "what changed?", which is the
+    // working-tree diff. Refusing it made the single most common review call
+    // (`diff {}` / `diff {mode:"stat"}`) fail with "no files specified".
+    if (
+      input.staged ||
+      input.a !== undefined ||
+      input.b !== undefined ||
+      !hasFileSelection(input.files)
+    ) {
       return await gitDiff(input, ctx, signal);
     }
 
     return await fileDiff(input, ctx, signal);
   },
 };
+
+function hasFileSelection(files: DiffInput['files']): boolean {
+  const raw = Array.isArray(files) ? files : typeof files === 'string' ? files.split(',') : [];
+  return raw.some((f) => typeof f === 'string' && f.trim() !== '');
+}
 
 async function gitDiff(
   input: DiffInput,
@@ -277,12 +291,22 @@ async function gitDiff(
   // The whole diff. A large result reaches the model through the tool
   // executor's lossless spool (file + preview); a fixed clip here dropped the
   // tail of the change with no way to get it back.
+  const emptyNote =
+    result.stdout.trim() === ''
+      ? `no differences${
+          input.staged
+            ? ' in the staged changes'
+            : input.a || input.b
+              ? ' between the given refs'
+              : ' in the working tree (use staged:true for staged changes)'
+        }`
+      : undefined;
   return {
     diff: result.stdout,
     files: effectiveFiles,
     truncated: false,
     mode: effectiveMode,
-    note: sideBySideNote,
+    note: [sideBySideNote, emptyNote].filter(Boolean).join(' ') || undefined,
   };
 }
 

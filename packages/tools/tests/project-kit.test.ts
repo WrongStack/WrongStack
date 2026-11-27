@@ -102,6 +102,16 @@ async function runAfterChildOutput(
   }
 }
 
+describe('Project Kit lookup of a missing kit', () => {
+  it('names the kit instead of surfacing a raw lstat ENOENT', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-kit-'));
+    roots.push(root);
+    await expect(loadKit(root, 'nope')).rejects.toThrow(
+      'No Project Kit tool named "nope" (project_kit action=list shows the kits).',
+    );
+  });
+});
+
 describe('Project Kit lifecycle', () => {
   it('discovers without executing, verifies, applies defaults and runs from a source snapshot', async () => {
     const f = await fixture();

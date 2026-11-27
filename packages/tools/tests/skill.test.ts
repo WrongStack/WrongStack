@@ -171,6 +171,23 @@ describe('makeSkillTool', () => {
     await expect(tool.execute({ name: 'ghost' }, NO_CTX, RUN_OPTS)).rejects.toThrow(/not found/);
   });
 
+  it('names similar installed skills instead of a slash command the model cannot run', async () => {
+    const tool = makeSkillTool(
+      loader(
+        [
+          { name: 'bug-hunter', description: 'd' },
+          { name: 'debugging', description: 'd' },
+        ] as SkillManifest[],
+        {},
+      ),
+    );
+    const err = await tool.execute({ name: 'bughunt' }, NO_CTX, RUN_OPTS).then(
+      () => undefined,
+      (e: Error) => e,
+    );
+    expect(err?.message).toBe('skill "bughunt" not found. Similar installed skills: bug-hunter.');
+  });
+
   it('refuses to load a skill whose required runtime capability is absent', async () => {
     const dir = path.join(tmp, 'browser-skill');
     await fs.mkdir(dir, { recursive: true });

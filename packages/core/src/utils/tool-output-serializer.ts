@@ -50,7 +50,13 @@ export function createToolOutputSerializer(opts: ToolOutputSerializerOptions = {
     if (typeof value === 'string') return value;
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') {
-      if (Array.isArray(value)) return value.map((item) => serializeValue(item)).join('\n');
+      // An empty list used to serialize to "" — a blank tool result the model
+      // could not tell apart from a dropped one (ADR `list` with no records).
+      if (Array.isArray(value)) {
+        return value.length === 0
+          ? '(no items)'
+          : value.map((item) => serializeValue(item)).join('\n');
+      }
       // P3 #21 (before-release.md): prefer the tool's own serialize() method
       // when it defines one — lets tools own their output formatting without
       // adding a branch to the central renderToolObject() god function.

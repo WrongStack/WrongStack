@@ -238,3 +238,24 @@ export async function bunTypecheckInvocation(
   if (!hasProject) normalized.push(path.resolve(cwd));
   return { cmd, args: ['check', '--pretty=false', '--threads=4', ...normalized], cwd: checkCwd };
 }
+
+/**
+ * Bun's checker runs from a private cache cwd (above), so every diagnostic
+ * path it prints is relative to THAT directory —
+ * `../../../../../proj/src/a.ts(1,14): error TS2322` — a path the model can
+ * neither read nor edit. Rebase each `file(line,col): error|warning TSnnnn`
+ * path onto `projectDir`; paths outside it become absolute.
+ */
+export function rebaseCheckerPaths(output: string, checkerCwd: string, projectDir: string): string {
+  if (!output || path.resolve(checkerCwd) === path.resolve(projectDir)) return output;
+  return output.replace(
+    /^([^\s(][^\n(]*?)(\(\d+,\d+\): (?:error|warning|message) TS\d+)/gm,
+    (_match, file: string, rest: string) => {
+      const abs = path.resolve(checkerCwd, file);
+      const rel = path.relative(projectDir, abs);
+      const outside =
+        !rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
+      return `${(outside ? abs : rel).split(path.sep).join('/')}${rest}`;
+    },
+  );
+}

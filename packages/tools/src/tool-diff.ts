@@ -134,14 +134,37 @@ export function computeLineDiff(oldText: string, newText: string): DiffRow[] | n
 }
 
 /**
+ * `@@ -a,b +c,d @@` — the hunk header, carrying the declared body lengths.
+ *
+ * `b`/`d` default to 1 when the header omits them (the unified-diff
+ * convention); a header that declares no counts at all does not match.
+ */
+const HUNK_HEADER_RE = /^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@/;
+
+/** The old/new body lengths a hunk header declares, or null when it declares none. */
+function hunkLineCounts(header: string): { old: number; new: number } | null {
+  const match = HUNK_HEADER_RE.exec(header);
+  if (!match) return null;
+  return {
+    old: match[2] === undefined ? 1 : Number.parseInt(match[2], 10),
+    new: match[4] === undefined ? 1 : Number.parseInt(match[4], 10),
+  };
+}
+
+/**
  * A `--- ` line immediately followed by a `+++ ` line: the file-header pair.
  *
  * Inside a hunk, testing either prefix on its own also caught BODY lines — a
  * removed `-- SQL comment` is `--- SQL comment`, a removed markdown `---` rule
  * is `----`, an added `++i;` is `+++i;` — which were then shown as headers (or
- * dropped, shifting every later line number) instead of as the change. Before
- * a file section's first `@@` no body line can occur, so a lone header there
- * (the write tool's new-file diff is just `+++ <path>`) still counts.
+ * dropped, shifting every later line number) instead of as the change.
+ *
+ * The PAIR itself is ambiguous: a removed `-- comment` source line and an
+ * added `++ comment` source line that git emits adjacently are byte-for-byte
+ * the shape of a file header. The callers therefore combine this predicate
+ * with the hunk's DECLARED line counts — the pair is a header only once the
+ * hunk body it could belong to is exhausted. Same rule core's
+ * `countUnifiedDiffLines` and the TUI's `countUnifiedDiffChanges` apply.
  */
 function isFileHeaderPair(lines: readonly string[], index: number): boolean {
   return (lines[index] ?? '').startsWith('--- ') && (lines[index + 1] ?? '').startsWith('+++ ');
@@ -157,16 +180,30 @@ export function parseUnifiedDiff(patchText: string): DiffRow[] {
   const rows: DiffRow[] = [];
   const lines = patchText.split('\n').map((r) => r.replace(/\r$/, ''));
   let sawHunk = false;
+  // Lines the CURRENT hunk still owes on each side. A `--- `/`+++ ` pair is
+  // the file header only once the hunk body it could belong to is exhausted.
+  let oldRemaining = 0;
+  let newRemaining = 0;
   for (let k = 0; k < lines.length; k++) {
     const raw = lines[k] ?? '';
-    if (isFileHeaderPair(lines, k)) {
+    if (raw.startsWith('@@')) {
+      sawHunk = true;
+      const counts = hunkLineCounts(raw);
+      oldRemaining = counts?.old ?? 0;
+      newRemaining = counts?.new ?? 0;
+    } else if (raw.startsWith('diff ')) {
+      sawHunk = false;
+      oldRemaining = 0;
+      newRemaining = 0;
+    }
+    if (isFileHeaderPair(lines, k) && oldRemaining <= 0 && newRemaining <= 0) {
       rows.push({ kind: 'meta', text: raw }, { kind: 'meta', text: lines[k + 1] ?? '' });
       k++;
       sawHunk = false;
+      oldRemaining = 0;
+      newRemaining = 0;
       continue;
     }
-    if (raw.startsWith('@@')) sawHunk = true;
-    else if (raw.startsWith('diff ')) sawHunk = false;
     if (
       (!sawHunk && (raw.startsWith('--- ') || raw.startsWith('+++ '))) ||
       raw.startsWith('@@') ||
@@ -177,11 +214,15 @@ export function parseUnifiedDiff(patchText: string): DiffRow[] {
       rows.push({ kind: 'meta', text: raw });
     } else if (raw.startsWith('+')) {
       rows.push({ kind: 'add', text: raw.slice(1) });
+      newRemaining -= 1;
     } else if (raw.startsWith('-')) {
       rows.push({ kind: 'del', text: raw.slice(1) });
+      oldRemaining -= 1;
     } else {
       // context line (leading space) or a bare line
       rows.push({ kind: 'ctx', text: raw.startsWith(' ') ? raw.slice(1) : raw });
+      oldRemaining -= 1;
+      newRemaining -= 1;
     }
   }
   // Drop a trailing empty row that a final newline in patchText introduces.
@@ -284,37 +325,52 @@ export function parseUnifiedDiffPreview(
   let newLn = 0;
   const lines = diff.split('\n').map((raw) => raw.replace(/\r$/, ''));
   let sawHunk = false;
+  // Lines the CURRENT hunk still owes on each side. A `--- `/`+++ ` pair is
+  // the file header only once the hunk body it could belong to is exhausted.
+  let oldRemaining = 0;
+  let newRemaining = 0;
   for (let k = 0; k < lines.length; k++) {
     const line = lines[k] ?? '';
-    if (isFileHeaderPair(lines, k)) {
-      k++;
-      sawHunk = false;
-      continue;
-    }
-    if (!sawHunk && (line.startsWith('+++') || line.startsWith('---'))) continue;
-    if (line.startsWith('diff --git')) {
-      sawHunk = false;
-      continue;
-    }
-    if (line.startsWith('index ')) continue;
     if (line.startsWith('@@')) {
       sawHunk = true;
-      const m = line.match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
+      const m = HUNK_HEADER_RE.exec(line);
       if (m) {
         oldLn = Number.parseInt(m[1] ?? '0', 10) || 0;
-        newLn = Number.parseInt(m[2] ?? '0', 10) || 0;
+        newLn = Number.parseInt(m[3] ?? '0', 10) || 0;
+        oldRemaining = Number.parseInt(m[2] ?? '1', 10);
+        newRemaining = Number.parseInt(m[4] ?? '1', 10);
+      } else {
+        oldRemaining = 0;
+        newRemaining = 0;
       }
       all.push({ kind: 'hunk', text: truncMid(line, 60) });
       continue;
     }
+    if (line.startsWith('diff --git')) {
+      sawHunk = false;
+      oldRemaining = 0;
+      newRemaining = 0;
+      continue;
+    }
+    if (isFileHeaderPair(lines, k) && oldRemaining <= 0 && newRemaining <= 0) {
+      k++;
+      sawHunk = false;
+      oldRemaining = 0;
+      newRemaining = 0;
+      continue;
+    }
+    if (!sawHunk && (line.startsWith('+++') || line.startsWith('---'))) continue;
+    if (line.startsWith('index ')) continue;
     if (line.startsWith('+')) {
       all.push({ kind: 'add', text: truncMid(line, lineCap), newLine: newLn });
       newLn++;
+      newRemaining -= 1;
       continue;
     }
     if (line.startsWith('-')) {
       all.push({ kind: 'del', text: truncMid(line, lineCap), oldLine: oldLn });
       oldLn++;
+      oldRemaining -= 1;
       continue;
     }
     if (line.startsWith('\\ No newline')) {
@@ -325,6 +381,8 @@ export function parseUnifiedDiffPreview(
     all.push({ kind: 'ctx', text: truncMid(line, lineCap), oldLine: oldLn, newLine: newLn });
     oldLn++;
     newLn++;
+    oldRemaining -= 1;
+    newRemaining -= 1;
   }
   const added = all.filter((row) => row.kind === 'add').length;
   const removed = all.filter((row) => row.kind === 'del').length;
@@ -403,15 +461,17 @@ export const TOOL_DIFF_BROWSER_SRC: string = [
   '  while(j<mm){ rows.push({kind:"add",text:b[j]}); j++; }',
   '  return rows;',
   '}',
+  'function __hunkCounts(header){ var m=/^@@\\s+-(\\d+)(?:,(\\d+))?\\s+\\+(\\d+)(?:,(\\d+))?\\s+@@/.exec(header); if(!m){ return null; } return {old: m[2]===undefined?1:parseInt(m[2],10), neu: m[4]===undefined?1:parseInt(m[4],10)}; }',
   'function parseUnifiedDiff(patchText){',
-  '  var rows=[], lines=patchText.split("\\n").map(function(l){return l.replace(/\\r$/,"");}), k, raw, sawHunk=false;',
+  '  var rows=[], lines=patchText.split("\\n").map(function(l){return l.replace(/\\r$/,"");}), k, raw, sawHunk=false, oldRem=0, newRem=0, c;',
   '  for(k=0;k<lines.length;k++){ raw=lines[k];',
-  '    if(raw.indexOf("--- ")===0&&k+1<lines.length&&lines[k+1].indexOf("+++ ")===0){ rows.push({kind:"meta",text:raw}); rows.push({kind:"meta",text:lines[k+1]}); k++; sawHunk=false; continue; }',
-  '    if(raw.indexOf("@@")===0){ sawHunk=true; } else if(raw.indexOf("diff ")===0){ sawHunk=false; }',
+  '    if(raw.indexOf("@@")===0){ sawHunk=true; c=__hunkCounts(raw); oldRem=c?c.old:0; newRem=c?c.neu:0; }',
+  '    else if(raw.indexOf("diff ")===0){ sawHunk=false; oldRem=0; newRem=0; }',
+  '    if(raw.indexOf("--- ")===0&&k+1<lines.length&&lines[k+1].indexOf("+++ ")===0&&oldRem<=0&&newRem<=0){ rows.push({kind:"meta",text:raw}); rows.push({kind:"meta",text:lines[k+1]}); k++; sawHunk=false; oldRem=0; newRem=0; continue; }',
   '    if((!sawHunk&&(raw.indexOf("--- ")===0||raw.indexOf("+++ ")===0))||raw.indexOf("@@")===0||raw.indexOf("diff ")===0||raw.indexOf("index ")===0||raw.indexOf("\\\\ ")===0){ rows.push({kind:"meta",text:raw}); }',
-  '    else if(raw.charAt(0)==="+"){ rows.push({kind:"add",text:raw.slice(1)}); }',
-  '    else if(raw.charAt(0)==="-"){ rows.push({kind:"del",text:raw.slice(1)}); }',
-  '    else { rows.push({kind:"ctx",text: raw.charAt(0)===" " ? raw.slice(1) : raw}); }',
+  '    else if(raw.charAt(0)==="+"){ rows.push({kind:"add",text:raw.slice(1)}); newRem--; }',
+  '    else if(raw.charAt(0)==="-"){ rows.push({kind:"del",text:raw.slice(1)}); oldRem--; }',
+  '    else { rows.push({kind:"ctx",text: raw.charAt(0)===" " ? raw.slice(1) : raw}); oldRem--; newRem--; }',
   '  }',
   '  if(rows.length>0 && rows[rows.length-1].kind==="ctx" && rows[rows.length-1].text===""){ rows.pop(); }',
   '  return rows;',

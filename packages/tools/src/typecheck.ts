@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
 import { ToolValidationError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import { bunTypecheckInvocation } from './_bun-typechecker.js';
+import { bunTypecheckInvocation, rebaseCheckerPaths } from './_bun-typechecker.js';
 import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
@@ -139,7 +139,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
       if (tsconfig) checkArgs.push('--project', tsconfig);
     } else {
       const tsconfig = input.project
-        ? await safeResolveReal(input.project.trim(), ctx)
+        ? await resolveExplicitProject(input.project, ctx)
         : await findTsConfig(cwd);
       if (tsconfig) checkArgs.push('--project', tsconfig);
       project = tsconfig ?? 'default';
@@ -195,12 +195,38 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
         exit_code: result.exitCode,
         errors,
         warnings,
-        output: normalizeCommandOutput(rawOutput),
+        output: normalizeCommandOutput(rebaseCheckerPaths(rawOutput, invocation.cwd, cwd)),
         truncated: result.truncated,
       },
     };
   },
 };
+
+/**
+ * A named tsconfig that does not exist is a wrong argument, not a type error:
+ * the checker's TS5058 used to come back as `errors=1`, a failed CHECK the
+ * model then tried to fix in source.
+ */
+async function resolveExplicitProject(
+  project: string,
+  ctx: Parameters<typeof safeResolveReal>[1],
+): Promise<string> {
+  const resolved = await safeResolveReal(project.trim(), ctx);
+  const { stat } = await import('node:fs/promises');
+  if (
+    !(await stat(resolved).then(
+      (s) => s.isFile(),
+      () => false,
+    ))
+  ) {
+    throw new ToolValidationError({
+      message: `typecheck: project "${project}" does not exist`,
+      field: 'project',
+      context: { contract: false },
+    });
+  }
+  return resolved;
+}
 
 async function findTsConfig(cwd: string): Promise<string | null> {
   const { stat } = await import('node:fs/promises');

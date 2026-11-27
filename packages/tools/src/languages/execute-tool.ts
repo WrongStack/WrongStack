@@ -134,7 +134,10 @@ export const languageTool: Tool<LanguageToolInput, LanguageToolOutput> = {
       errors.push('formatCheck is only valid when action=format');
     if (input.action !== 'debug' && input.debug)
       errors.push('debug is only valid when action=debug');
-    if (input.coverage) errors.push('coverage collection is not implemented in Phase 2');
+    if (input.coverage)
+      errors.push(
+        'coverage is not supported by the language tool; for JS/TS use the test tool with coverage: true',
+      );
     if (input.noRun && input.action !== 'test') errors.push('noRun is only valid when action=test');
     if (
       input.filter &&

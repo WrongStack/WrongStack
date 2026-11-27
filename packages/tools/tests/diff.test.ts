@@ -56,9 +56,26 @@ describe('diffTool', () => {
     expect(diffTool.mutating).toBe(false);
   });
 
-  it('rejects when no files specified for file diff', async () => {
-    const ctx = makeCtx();
-    await expect(diffTool.execute({}, ctx, makeOpts())).rejects.toThrow(/no files specified/);
+  it('treats a call with no files and no refs as a working-tree git diff', async () => {
+    // Outside a repository that is a failed call, not a silent empty diff.
+    await expect(diffTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
+      /not a git repository/,
+    );
+    const target = path.join(sharedGitDir, 'a.txt');
+    const original = await fs.readFile(target, 'utf8');
+    try {
+      await fs.writeFile(target, 'line-1\nline-2 edited in the working tree\n');
+      const changed = await diffTool.execute({}, sharedGitCtx, makeOpts());
+      expect(changed.mode).toBe('unified');
+      expect(changed.diff).toContain('+line-2 edited in the working tree');
+      const stat = await diffTool.execute({ mode: 'stat' }, sharedGitCtx, makeOpts());
+      expect(stat.diff).toMatch(/a\.txt\s+\|/);
+    } finally {
+      await fs.writeFile(target, original);
+    }
+    const clean = await diffTool.execute({}, sharedGitCtx, makeOpts());
+    expect(clean.diff).toBe('');
+    expect(clean.note).toMatch(/no differences in the working tree/);
   });
 
   it('resolves files relative to input.path when provided', async () => {

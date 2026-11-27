@@ -59,7 +59,7 @@ describe('languageTool', () => {
       'contain no shell/control characters',
     );
     expect(languageTool.validate?.({ action: 'test', coverage: true })).toContain(
-      'coverage collection is not implemented in Phase 2',
+      'coverage is not supported by the language tool; for JS/TS use the test tool with coverage: true',
     );
   });
 

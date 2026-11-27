@@ -8,6 +8,7 @@ import {
   emitProcessStarted,
 } from '@wrongstack/core/observability';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
+import { assertWorkingDirectory } from './_cwd-check.js';
 import { type DangerAssessment, detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, finishCommandOutput } from './_output-spool.js';
@@ -285,10 +286,11 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
     // so `set_working_dir` silently had no effect on exec.
     const defaultCwd = ctx.workingDir ?? ctx.cwd;
     const resolveCwd = async (): Promise<string> => {
+      let resolved: string;
       try {
         // Resolve cwd inside the project root and verify realpath containment so
         // an in-project symlink cannot redirect allowlisted commands outside.
-        return input.cwd
+        resolved = input.cwd
           ? await safeResolveReal(input.cwd, ctx)
           : await safeResolveReal(defaultCwd, ctx);
       } catch (err) {
@@ -296,6 +298,8 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
           cause: err,
         });
       }
+      await assertWorkingDirectory('exec', 'cwd', input.cwd ?? defaultCwd, resolved);
+      return resolved;
     };
     let cwd: string | undefined;
     let validatedGitArgumentIndexes: ReadonlySet<number> | undefined;

@@ -202,13 +202,29 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
       // temp diff before the engine reads it (best-effort).
       await restrictFilePermissions(patchFile, { label: 'patch-diff' });
 
-      const args = [`-p${strip}`, '--merge', ...(dryRun ? ['--dry-run'] : []), '-i', patchFile];
+      // `--no-backup-if-mismatch`: GNU patch otherwise writes `<file>.orig` on
+      // any imperfect hunk — overwriting a user's own `.orig` file.
+      const args = [
+        `-p${strip}`,
+        '--merge',
+        '--no-backup-if-mismatch',
+        ...(dryRun ? ['--dry-run'] : []),
+        '-i',
+        patchFile,
+      ];
 
+      const leftoverBefore = dryRun ? new Set<string>() : await existingLeftovers(resolvedTargets);
       const result = await runPatch(args, dir, signal, {
         patchFile,
         strip,
         dryRun,
       });
+      // Backstop for engines that ignore the flag above: a conflicted
+      // `--merge` left `a.ts.orig` next to the conflict-marked file — litter
+      // the model then found in grep results and could commit. The usage text
+      // promises no .orig/.rej files: remove the ones this run created, never
+      // ones that were already there.
+      if (!dryRun) await removeNewLeftovers(resolvedTargets, leftoverBefore);
       if (result.unavailable) {
         throw new Error(
           `patch: no patch engine could be started (GNU patch and git both unavailable): ${result.stderr}`,
@@ -528,6 +544,39 @@ function stripPathComponents(p: string, strip: number): string | undefined {
     if (!hadSlash) return undefined; // fewer slash-runs than strip
   }
   return s.slice(idx) || undefined;
+}
+
+const LEFTOVER_SUFFIXES = ['.orig', '.rej'] as const;
+
+function leftoverPaths(targets: readonly DiffTarget[]): string[] {
+  const out = new Set<string>();
+  for (const t of targets) for (const s of LEFTOVER_SUFFIXES) if (t.abs) out.add(`${t.abs}${s}`);
+  return [...out];
+}
+
+async function existingLeftovers(targets: readonly DiffTarget[]): Promise<Set<string>> {
+  const found = new Set<string>();
+  for (const p of leftoverPaths(targets)) {
+    if (
+      await fs.lstat(p).then(
+        () => true,
+        () => false,
+      )
+    )
+      found.add(p);
+  }
+  return found;
+}
+
+async function removeNewLeftovers(
+  targets: readonly DiffTarget[],
+  before: ReadonlySet<string>,
+): Promise<void> {
+  for (const p of leftoverPaths(targets)) {
+    if (before.has(p)) continue;
+    const stat = await fs.lstat(p).catch(() => null);
+    if (stat?.isFile()) await fs.unlink(p).catch(() => {});
+  }
 }
 
 function runPatch(

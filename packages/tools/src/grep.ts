@@ -8,6 +8,7 @@ import { buildChildEnv, expectDefined } from '@wrongstack/core/utils';
 import { compileUserRegex } from './_regex.js';
 import { makeRootRelativizer, safeResolveReal } from './_util.js';
 import { runNative } from './grep-native.js';
+import { expandGrepPath } from './grep-paths.js';
 import type { GrepInput, GrepOutput } from './grep-types.js';
 import { DEFAULT_IGNORE } from './grep-types.js';
 
@@ -80,7 +81,8 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
       },
       path: {
         type: 'string',
-        description: 'Limit search to this directory or file (relative to project root).',
+        description:
+          'Limit search to this directory or file (relative to project root). Shell-style braces and single-segment wildcards expand to several roots (e.g. "packages/{cli,tui}/src", "packages/*/src"); use `glob` for recursive `**` filters.',
       },
       glob: {
         type: 'string',
@@ -123,6 +125,15 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
         field: 'pattern',
       });
     }
+    // Shell-style scopes (`packages/{cli,tui}/src`, `packages/*/src`) expand to
+    // concrete roots, each searched with the full single-root pipeline below.
+    if (input.path) {
+      const roots = await expandGrepPath(input.path, ctx);
+      if (roots) {
+        yield* searchExpandedRoots(input, roots, ctx, opts);
+        return;
+      }
+    }
     // `safeResolveReal`, not `safeResolve`: the syntactic check passes a
     // junction/symlink that lands inside the project as a STRING while
     // resolving outside it, and both search paths then read through it —
@@ -138,6 +149,7 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
       throw new ToolValidationError({
         message: `grep: path "${input.path}" does not exist`,
         field: 'path',
+        context: { contract: false },
       });
     }
     const ignoreRoot = await fs
@@ -153,6 +165,7 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
       throw new ToolValidationError({
         message: `grep: ${validation.reason}`,
         field: 'pattern',
+        context: { contract: false },
       });
     }
 
@@ -193,6 +206,53 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
     yield { type: 'final', output: out };
   },
 };
+
+type GrepStreamArgs = Parameters<NonNullable<typeof grepTool.executeStream>>;
+
+/**
+ * Run the single-root search once per expanded root and merge the results.
+ * The `limit` budget is shared across roots so the merged result honors the
+ * caller's cap exactly as a single-root search would.
+ */
+async function* searchExpandedRoots(
+  input: GrepInput,
+  roots: string[],
+  ctx: GrepStreamArgs[1],
+  opts: GrepStreamArgs[2],
+): AsyncGenerator<ToolStreamEvent<GrepOutput>> {
+  const executeStream = expectDefined(grepTool.executeStream);
+  const rawLimit =
+    typeof input.limit === 'number' && Number.isFinite(input.limit) ? input.limit : 200;
+  const limit = Math.max(1, Math.min(Math.floor(rawLimit), 2000));
+  const merged: GrepOutput = { matches: [], count: 0, truncated: false, used: 'rg' };
+  let engine: GrepOutput['used'] | undefined;
+  // Budget in the unit each root's `limit` counts: match lines (context lines
+  // ride along in `matches` but never count) or, in count mode, file rows.
+  let consumed = 0;
+  for (const root of roots) {
+    const remaining = limit - consumed;
+    if (remaining <= 0) {
+      merged.truncated = true;
+      break;
+    }
+    for await (const ev of executeStream({ ...input, path: root, limit: remaining }, ctx, opts)) {
+      if (ev.type !== 'final') {
+        yield ev;
+        continue;
+      }
+      engine ??= ev.output.used;
+      consumed +=
+        input.output_mode === 'count'
+          ? ev.output.matches.length
+          : Math.min(ev.output.count, remaining);
+      merged.matches.push(...ev.output.matches);
+      merged.count += ev.output.count;
+      merged.truncated ||= ev.output.truncated;
+    }
+  }
+  merged.used = engine ?? 'native';
+  yield { type: 'final', output: merged };
+}
 
 /**
  * Memoized rg availability probe. The binary does not appear or vanish

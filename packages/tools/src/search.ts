@@ -344,6 +344,8 @@ async function duckduckgoSearch(query: string, signal: AbortSignal): Promise<Eng
   try {
     const response = await fetchWithTimeout(url, signal, TIMEOUT_MS);
     const html = await response.text();
+    const refusal = duckDuckGoRefusal(response.status, html);
+    if (refusal) return { results: [], error: refusal };
     return { results: parseDuckDuckGo(html, MAX_RESULTS) };
   } catch (err) {
     console.log(
@@ -353,6 +355,25 @@ async function duckduckgoSearch(query: string, signal: AbortSignal): Promise<Eng
     // entry — callers see `error` on the output and an empty results array.
     return { results: [], error: `duckduckgo unreachable: ${toErrorMessage(err)}` };
   }
+}
+
+/**
+ * DuckDuckGo answers automated traffic it distrusts with HTTP 202 and an image
+ * CAPTCHA (`anomaly-modal`, posted to `anomaly.js`) instead of results. That
+ * page has no `result-link` markup, so it parsed as zero hits and the tool
+ * reported "no results" — an outage indistinguishable from an empty search,
+ * which a model reads as "nothing exists on the web about this". Name the
+ * refusal so the call fails and the model switches to `fetch` on a known URL.
+ * (The challenge is never answered or worked around.)
+ */
+function duckDuckGoRefusal(status: number, html: string): string | undefined {
+  const challenged = /anomaly-modal|anomaly\.js/i.test(html);
+  if (status === 200 && !challenged) return undefined;
+  return (
+    `duckduckgo answered with ${challenged ? 'a bot challenge (CAPTCHA)' : 'no result page'} ` +
+    `(HTTP ${status}) instead of results, so web search is unavailable from this network right ` +
+    'now. Fetch a known URL instead (official docs, the package registry, GitHub).'
+  );
 }
 
 function takeFrom<T>(iter: Iterable<T>, max: number): T[] {

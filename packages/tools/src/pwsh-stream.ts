@@ -9,11 +9,12 @@ import {
   emitProcessStarted,
 } from '@wrongstack/core/observability';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { resolveWorkingDirectory } from './_cwd-check.js';
 import { detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { diagnoseBashism, shellArgs } from './_shell-pick.js';
-import { commandOutputPreviewBytes, normalizeCommandOutput, safeResolveReal } from './_util.js';
+import { commandOutputPreviewBytes, normalizeCommandOutput } from './_util.js';
 import { resolvePowerShell } from './_win32-resolve.js';
 import {
   BACKGROUND_EXIT_NOTICE_HINT,
@@ -111,12 +112,7 @@ export async function* executePwshStream(
   const encodedCommand = Buffer.from(wrapPwshCommand(input.command), 'utf16le').toString('base64');
   const args = [...shellArgs('pwsh'), encodedCommand];
 
-  let targetCwd: string;
-  try {
-    targetCwd = await safeResolveReal(input.workdir ?? ctx.workingDir ?? ctx.projectRoot, ctx);
-  } catch (err) {
-    throw new Error(`pwsh: ${(err as Error).message}`, { cause: err });
-  }
+  const targetCwd = await resolveWorkingDirectory('pwsh', 'workdir', input.workdir, ctx);
 
   const isBackground = !!(input.run_in_background || input.background);
   const registry = getProcessRegistry();

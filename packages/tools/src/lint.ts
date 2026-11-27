@@ -16,7 +16,8 @@ export interface LintInput {
 
 export interface LintOutput {
   linter: string;
-  files_checked: number;
+  /** Files the linter reported checking; undefined when it did not say. */
+  files_checked: number | undefined;
   errors: number;
   warnings: number;
   output: string;
@@ -263,7 +264,9 @@ export const lintTool: Tool<LintInput, LintOutput> = {
       type: 'final',
       output: {
         linter: detected,
-        files_checked: files.length,
+        // The linter's own count: with no `files` argument it lints the whole
+        // project, and `files.length` (0) reported that as "files_checked=0".
+        files_checked: lintedFileCount(combined) ?? (files.length > 0 ? files.length : undefined),
         errors,
         warnings,
         output: normalizeCommandOutput(rawOutput),
@@ -303,4 +306,10 @@ async function detectLinter(cwd: string): Promise<string | null> {
     }
   }
   return 'biome';
+}
+
+/** Biome's "Checked N files" summary; ESLint prints no file count. */
+function lintedFileCount(output: string): number | undefined {
+  const m = /\bChecked\s+(\d+)\s+files?\b/i.exec(output);
+  return m?.[1] !== undefined ? Number(m[1]) : undefined;
 }

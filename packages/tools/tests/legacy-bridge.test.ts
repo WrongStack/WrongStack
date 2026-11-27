@@ -26,7 +26,8 @@ vi.mock('node:child_process', async (original) => {
   spawnMocks.childSpawn.mockImplementation(actual.spawn);
   return { ...actual, spawn: spawnMocks.childSpawn };
 });
-vi.mock('../src/_bun-typechecker.js', () => ({
+vi.mock('../src/_bun-typechecker.js', async (orig) => ({
+  ...((await orig()) as Record<string, unknown>),
   bunTypecheckInvocation: async (cwd: string, args: string[]) => ({
     cmd: 'bun',
     args: ['check', ...args],

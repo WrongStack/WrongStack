@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { ToolProgressEvent } from '@wrongstack/contracts/types';
-import { bunTypecheckInvocation } from '../_bun-typechecker.js';
+import { bunTypecheckInvocation, rebaseCheckerPaths } from '../_bun-typechecker.js';
 import { type SpawnStreamResult, spawnStream } from '../_spawn-stream.js';
 import { normalizeCommandOutput } from '../_util.js';
 import {
@@ -142,7 +142,11 @@ export async function* executeLanguagePlan(
         : spawned.exitCode === 0
           ? 'passed'
           : 'failed';
-  const raw = [spawned.stdout, spawned.stderr, spawned.error].filter(Boolean).join('\n');
+  const raw = rebaseCheckerPaths(
+    [spawned.stdout, spawned.stderr, spawned.error].filter(Boolean).join('\n'),
+    diagnosticCwd,
+    workspace.root,
+  );
   return {
     status,
     language: plan.profileId,

@@ -717,6 +717,11 @@ describe('createToolOutputSerializer (extended)', () => {
     expect(out).toContain('serializer omitted 1 item');
   });
 
+  it('renders an empty top-level list as a placeholder, never a blank result', () => {
+    expect(serializer.serialize([], { toolName: 'architecture_decisions' })).toBe('(no items)');
+    expect(serializer.serialize([{ id: 'ADR-1' }], { toolName: 'custom' })).toContain('ADR-1');
+  });
+
   it('renders an empty glob result with the empty placeholder', () => {
     const out = serializer.serialize(
       { files: [] },

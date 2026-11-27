@@ -4,7 +4,8 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const spawnStreamMocks = vi.hoisted(() => ({ spawnStream: vi.fn() }));
-vi.mock('../src/_bun-typechecker.js', () => ({
+vi.mock('../src/_bun-typechecker.js', async (orig) => ({
+  ...((await orig()) as Record<string, unknown>),
   bunTypecheckInvocation: async (cwd: string, args: string[]) => ({
     cmd: 'bun',
     args: ['check', ...args],
@@ -84,9 +85,17 @@ describe('typecheckTool', () => {
   });
 
   it('uses an explicit project path', async () => {
-    const result = await typecheckTool.execute({ project: 'tsconfig.json' }, makeCtx(), makeOpts());
-    expect(result).toHaveProperty('project');
-    expect(capturedArgs).toContain('--project');
+    // The named tsconfig must exist: a missing one is refused before the checker.
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'typecheck-project-'));
+    try {
+      await fs.writeFile(path.join(dir, 'tsconfig.json'), '{}');
+      const ctx = { cwd: dir, tools: [], projectRoot: dir } as any;
+      const result = await typecheckTool.execute({ project: 'tsconfig.json' }, ctx, makeOpts());
+      expect(result).toHaveProperty('project');
+      expect(capturedArgs).toContain('--project');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('auto-discovers tsconfig.json in cwd (findTsConfig returns a file)', async () => {

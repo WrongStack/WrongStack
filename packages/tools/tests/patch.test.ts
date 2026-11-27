@@ -289,6 +289,23 @@ describe('patchTool — bookkeeping on every outcome', () => {
       expect(changes.length).toBeGreaterThan(0);
       expect(error?.message).toContain('conflict.txt');
     }
+    // GNU patch's backup-if-mismatch default left `conflict.txt.orig` behind
+    // while the usage text promised no .orig/.rej files.
+    expect((await fs.readdir(tmpDir)).sort()).toEqual(['conflict.txt']);
+  });
+
+  it('keeps a .orig file that existed before the patch ran', async () => {
+    const file = path.join(tmpDir, 'kept.txt');
+    await fs.writeFile(file, 'line1\nDIVERGED\nline3\n');
+    await fs.writeFile(`${file}.orig`, 'the user’s own backup\n');
+    await patchTool
+      .execute(
+        { patch: '--- a/kept.txt\n+++ b/kept.txt\n@@ -1,3 +1,3 @@\n line1\n-line2\n+X\n line3\n' },
+        makeTrackingCtx().ctx,
+        makeOpts(),
+      )
+      .catch(() => undefined);
+    expect(await fs.readFile(`${file}.orig`, 'utf8')).toBe('the user’s own backup\n');
   });
 
   it('safely executes without opts and falls back to ctx.signal or default signal', async () => {

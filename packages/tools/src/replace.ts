@@ -131,6 +131,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       throw new ToolValidationError({
         message: `replace: ${compiled.reason}`,
         field: 'pattern',
+        context: { contract: false },
       });
     }
     const re = compiled.regex;
@@ -246,8 +247,8 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
             ? isIdentical
               ? '(no-op: replacement produced identical content)'
               : unifiedDiff(content, toStyle(newContentLf, style), {
-                  fromFile: absPath,
-                  toFile: absPath,
+                  fromFile: displayPath(absPath, ctx),
+                  toFile: displayPath(absPath, ctx),
                 })
             : undefined;
 
@@ -287,7 +288,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       }
 
       results.push({
-        path: item.path,
+        path: displayPath(item.path, ctx),
         replacements: item.replacements,
         diff,
       });
@@ -297,7 +298,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       try {
         enqueueReindex({
           projectRoot: ctx.projectRoot,
-          files: results.map((r) => r.path),
+          files: fileResults.flatMap((r) => (r ? [r.path] : [])),
         });
       } catch {
         // Non-fatal background reindex
@@ -377,4 +378,16 @@ function expandReplacement(template: string, match: RegExpMatchArray): string {
     }
   }
   return out;
+}
+
+/**
+ * Project-relative form for output. Absolute temp/user paths in every
+ * `file:`, `---` and `+++` line cost tokens and disagreed with read/edit/grep,
+ * which all report project-relative paths. Paths outside the root (allowed
+ * roots such as ~/.wrongstack) stay absolute.
+ */
+function displayPath(absPath: string, ctx: Context): string {
+  const rel = path.relative(ctx.projectRoot ?? ctx.cwd, absPath);
+  const outside = !rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
+  return outside ? absPath : rel.split(path.sep).join('/');
 }

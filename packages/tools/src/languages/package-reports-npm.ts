@@ -77,7 +77,12 @@ export function parseNpmAudit(text: string): ParsedPackageReports {
       }
     }
   }
-  for (const [id, value] of Object.entries(advisoriesRecord)) {
+  for (const [id, value] of Object.entries(
+    advisoriesRecord && typeof advisoriesRecord === 'object' && !Array.isArray(advisoriesRecord)
+      ? advisoriesRecord
+      : {},
+  )) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
     const advisory = value as {
       module_name?: string;
       package_name?: string;
@@ -114,7 +119,10 @@ export function parseNpmOutdated(text: string): ParsedPackageReports {
   const outdated: LanguagePackageMutation[] = [];
   let payload: Record<string, unknown> = {};
   try {
-    payload = JSON.parse(text);
+    const parsed: unknown = JSON.parse(text);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      payload = parsed as Record<string, unknown>;
+    }
   } catch {
     // `bun outdated` ignores --json and prints a box table:
     // `| minimist        | 0.0.8   | 0.0.8  | 1.2.8  |`, `| is-number (dev) | …`.

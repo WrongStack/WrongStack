@@ -103,6 +103,7 @@ export function parseCargoAudit(text: string): ParsedPackageReports {
   } catch {
     return { diagnostics, vulnerabilities, outdated: [] };
   }
+  if (!root || typeof root !== 'object') return { diagnostics, vulnerabilities, outdated: [] };
   // Real `cargo audit --json` (rustsec `Report`) carries `vulnerabilities:
   // {found: boolean, count, list: [{advisory: {id, package, title, url}, versions:
   // {patched}, package: {name}}]}`. Reading only `found` as the array parsed
@@ -115,6 +116,7 @@ export function parseCargoAudit(text: string): ParsedPackageReports {
       : undefined;
   if (!findings) return { diagnostics, vulnerabilities, outdated: [] };
   for (const finding of findings) {
+    if (!finding || typeof finding !== 'object') continue;
     const item = finding as {
       id?: string;
       package?: string | { name?: string };
@@ -277,10 +279,12 @@ export function parseDotnetPackage(text: string): ParsedPackageReports {
   } catch {
     return { diagnostics, vulnerabilities, outdated };
   }
+  if (!root || typeof root !== 'object') return { diagnostics, vulnerabilities, outdated };
   const projects = (root as { projects?: Array<{ frameworks?: unknown; packages?: unknown }> })
     .projects;
   if (!Array.isArray(projects)) return { diagnostics, vulnerabilities, outdated };
   for (const project of projects) {
+    if (!project || typeof project !== 'object') continue;
     // The SDK's report nests packages per target framework
     // (`frameworks[].topLevelPackages[]` / `transitivePackages[]`, keyed `id`);
     // reading only a flat `packages[]` found nothing in a real report.
@@ -295,6 +299,7 @@ export function parseDotnetPackage(text: string): ParsedPackageReports {
       ]),
     ];
     for (const pkg of packages as Array<Record<string, unknown>>) {
+      if (!pkg || typeof pkg !== 'object') continue;
       const name =
         typeof pkg.id === 'string' ? pkg.id : typeof pkg.name === 'string' ? pkg.name : 'unknown';
       const requested = typeof pkg.requestedVersion === 'string' ? pkg.requestedVersion : undefined;

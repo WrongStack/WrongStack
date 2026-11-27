@@ -109,12 +109,14 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
         throw new ToolValidationError({
           message: `glob: path "${input.path}" does not exist`,
           field: 'path',
+          context: { contract: false },
         });
       }
       if (!baseStat.isDirectory()) {
         throw new ToolValidationError({
           message: `glob: path "${input.path}" is not a directory`,
           field: 'path',
+          context: { contract: false },
         });
       }
     }

@@ -190,6 +190,10 @@
       "lines": 703,
       "relativeImports": 6
     },
+    "packages/tools/src/codebase-index/codebase-diff-impact-tool.ts": {
+      "lines": 705,
+      "relativeImports": 10
+    },
     "packages/tools/src/design-reference.ts": {
       "lines": 853,
       "relativeImports": 1

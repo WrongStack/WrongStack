@@ -34,6 +34,12 @@ export interface TodoOutput {
   kanban_synced?: number | undefined;
   kanban_warnings?: string[] | undefined;
   kanban_bindings?: TodoKanbanBinding[] | undefined;
+  /**
+   * What the tool changed relative to the request: rows kept although
+   * omitted, rows dropped, a second `in_progress` demoted. Without it the
+   * model's picture of the list silently diverged from the stored one.
+   */
+  notes?: string[] | undefined;
 }
 
 function activeBoardId(items: readonly TodoItem[], ctx: Context): string {
@@ -154,6 +160,11 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       }
     }
 
+    const notes: string[] = [];
+    const dropped = input.todos.filter((t) => !t.content).map((t) => t.id);
+    if (dropped.length > 0) {
+      notes.push(`Dropped ${dropped.length} row(s) with empty content: ${dropped.join(', ')}.`);
+    }
     const previousById = new Map((ctx.todos ?? []).map((item) => [item.id, item]));
     const items = input.todos
       .filter((t): t is TodoItem => Boolean(t?.id && t.content))
@@ -186,6 +197,7 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
             ? `plan:${item.promotedFromPlan}:${item.id}`
             : `todo:${item.id}`;
     const requestedIdentities = new Set(items.map(todoIdentity));
+    const retained: string[] = [];
     for (const previous of ctx.todos ?? []) {
       const identity = todoIdentity(previous);
       if (previous.status === 'completed' || requestedIdentities.has(identity)) {
@@ -195,18 +207,29 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       // is not a cancellation mechanism. Retain unfinished rows so a shorter
       // model-generated list cannot make work disappear.
       items.push({ ...previous });
+      retained.push(previous.id);
       requestedIdentities.add(identity);
+    }
+    if (retained.length > 0) {
+      notes.push(
+        `Kept ${retained.length} unfinished row(s) you omitted: ${retained.join(', ')}. Omitting a row does not remove it — send it with status "completed".`,
+      );
     }
     const inProgress = items.filter((t) => t.status === 'in_progress');
     if (inProgress.length > 1) {
       // Keep only the first as in_progress, mark rest pending
       let seenInProgress = false;
+      const demoted: string[] = [];
       for (const item of items) {
         if (item.status === 'in_progress') {
-          if (seenInProgress) item.status = 'pending';
+          if (seenInProgress) {
+            item.status = 'pending';
+            demoted.push(item.id);
+          }
           seenInProgress = true;
         }
       }
+      notes.push(`Only one row may be in_progress; set back to pending: ${demoted.join(', ')}.`);
     }
     const boardId = activeBoardId(items, ctx);
     let board = boardId ? await getBoard(ctx.projectRoot, boardId) : null;
@@ -359,6 +382,7 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       in_progress: (ctx.todos ?? boundItems).filter((t) => t.status === 'in_progress').length,
       ...(kanbanSync.synced > 0 ? { kanban_synced: kanbanSync.synced } : {}),
       ...(kanbanSync.warnings.length > 0 ? { kanban_warnings: kanbanSync.warnings } : {}),
+      ...(notes.length > 0 ? { notes } : {}),
       ...(projectedBoard?.lifecycle?.mode === 'managed'
         ? {
             kanban_bindings: boundItems.flatMap((item) => {

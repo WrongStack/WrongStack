@@ -8,6 +8,7 @@ import { safeResolveReal } from './_util.js';
 import { formatOutput } from './json-format.js';
 import { jmespathSearch, simpleQuery } from './json-query.js';
 import { validateJsonSchema } from './json-schema.js';
+import { type JsonSourceFormat, parseJsonSource } from './json-source.js';
 
 /**
  * Files larger than this are rejected before read+parse. `JSON.parse`
@@ -116,13 +117,15 @@ export interface JsonOutput {
   valid?: boolean | undefined;
   errors?: string[] | undefined;
   steps?: Array<{ transform: string; result: unknown }> | undefined;
+  /** Syntax the source was read as, when it was not strict JSON. */
+  source_format?: JsonSourceFormat | undefined;
 }
 
 export const jsonTool: Tool<JsonInput, JsonOutput> = {
   name: 'json',
   category: 'Data',
   description:
-    'Parse, pretty-print, query, validate, transform, and merge JSON (read-only — does not write files). Input must be strict JSON; results can be rendered as JSON, JSON5-style, or YAML via `format`. Use `action` to select the operation: parse (default), query, validate, transform, or merge.',
+    'Parse, pretty-print, query, validate, transform, and merge JSON (read-only — does not write files). Reads JSON, JSON with comments/trailing commas (tsconfig-style) and YAML (.yaml/.yml); results can be rendered as JSON, JSON5-style, or YAML via `format`. Use `action` to select the operation: parse (default), query, validate, transform, or merge.',
   usageHint:
     'VERY USEFUL FOR DATA INSPECTION:\n\n' +
     '- `action: "parse"` (default): read/pretty-print JSON from `file` or `data` (output as JSON, JSON5-style, or YAML via `format`).\n' +
@@ -146,10 +149,15 @@ export const jsonTool: Tool<JsonInput, JsonOutput> = {
         description:
           'Operation (default: parse). parse=read/pretty-print, query=JMESPath, validate=schema, transform=chained queries, merge=deep merge.',
       },
-      file: { type: 'string', description: 'Path to a JSON file (parse/query/validate/transform)' },
+      file: {
+        type: 'string',
+        description:
+          'Path to a JSON, JSONC (comments/trailing commas) or YAML (.yaml/.yml) file (parse/query/validate/transform)',
+      },
       data: {
         type: 'string',
-        description: 'JSON string (parse/query/validate/transform, alternative to file)',
+        description:
+          'Inline JSON, JSONC or YAML text (parse/query/validate/transform, alternative to file)',
       },
       format: {
         type: 'string',
@@ -244,15 +252,41 @@ async function readSource(input: JsonInput, ctx: Context, action: JsonAction): P
   });
 }
 
-/** Parse source text as JSON; a syntax error is an input error for `data`, an I/O-side error for `file`. */
-function parseSource(raw: string, input: JsonInput): unknown {
+/**
+ * Parse source text as JSON, JSONC or YAML; a syntax error is an input error
+ * for `data`, an I/O-side error for `file`.
+ */
+function parseSourceWithFormat(
+  raw: string,
+  input: JsonInput,
+): { value: unknown; format: JsonSourceFormat } {
   try {
-    return JSON.parse(raw);
+    return parseJsonSource(raw, input.file);
   } catch (error) {
     const message = `json: parse failed${input.file ? ` for "${input.file}"` : ''}: ${toErrorMessage(error)}`;
     if (input.file) throw new Error(message, { cause: error });
     throw new ToolValidationError({ message, field: 'data', cause: error });
   }
+}
+
+/** The parsed value alone, for actions that do not report the source syntax. */
+function parseSource(raw: string, input: JsonInput): unknown {
+  return parseSourceWithFormat(raw, input).value;
+}
+
+/** Only non-JSON sources are worth a field: strict JSON is the default reading. */
+function sourceFormatField(format: JsonSourceFormat): JsonSourceFormat | undefined {
+  return format === 'json' ? undefined : format;
+}
+
+/**
+ * JSON has no `undefined`: `JSON.stringify(undefined)` is not a string, so a
+ * query that selected nothing produced no `formatted` text and the renderer
+ * fell back to dumping the INPUT document as if it were the answer. Render the
+ * miss as `null`; `query_result` keeps reporting `undefined`.
+ */
+function asJsonValue(value: unknown): unknown {
+  return value === undefined ? null : value;
 }
 
 async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput> {
@@ -264,8 +298,9 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
     // Syntax-check mode: "is this valid JSON?" is the question being asked, so
     // a syntax error is the answer (valid: false), not a tool failure.
     let checked: unknown;
+    let checkedFormat: JsonSourceFormat;
     try {
-      checked = JSON.parse(raw);
+      ({ value: checked, format: checkedFormat } = parseJsonSource(raw, input.file));
     } catch (error) {
       return {
         data: null,
@@ -276,12 +311,28 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
         errors: [`Parse failed: ${toErrorMessage(error)}`],
       };
     }
+    // The question is "is this valid JSON?": a file that only parses after the
+    // JSONC repair (comments, trailing commas, bare keys) is NOT, even though
+    // the other actions read it. YAML files are checked as YAML.
+    if (checkedFormat === 'jsonc') {
+      const reason = 'valid as JSONC (comments, trailing commas or bare keys), not as strict JSON';
+      return {
+        data: checked,
+        formatted: `invalid\n- ${reason}`,
+        type: Array.isArray(checked) ? 'array' : typeof checked,
+        action: 'parse',
+        valid: false,
+        source_format: 'jsonc',
+        errors: [reason],
+      };
+    }
     return {
       data: checked,
       formatted: 'valid',
       type: Array.isArray(checked) ? 'array' : typeof checked,
       action: 'parse',
       valid: true,
+      source_format: sourceFormatField(checkedFormat),
       keys:
         typeof checked === 'object' && checked !== null
           ? Object.keys(checked as object)
@@ -289,13 +340,13 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
     };
   }
 
-  const parsed = parseSource(raw, input);
+  const { value: parsed, format: sourceFormat } = parseSourceWithFormat(raw, input);
 
   // Backward compat: if `query` is provided without an explicit action,
   // use the original simple path-based query (supports `a.b[0].c` notation).
   if (input.query) {
     const queryResult = simpleQuery(parsed, input.query);
-    const formatted = formatOutput(queryResult, format);
+    const formatted = formatOutput(asJsonValue(queryResult), format);
     return {
       data: parsed,
       formatted,
@@ -304,6 +355,7 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
       keys:
         typeof parsed === 'object' && parsed !== null ? Object.keys(parsed as object) : undefined,
       query_result: queryResult,
+      source_format: sourceFormatField(sourceFormat),
     };
   }
 
@@ -315,6 +367,7 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
     type: Array.isArray(parsed) ? 'array' : typeof parsed,
     action: 'parse',
     keys: typeof parsed === 'object' && parsed !== null ? Object.keys(parsed as object) : undefined,
+    source_format: sourceFormatField(sourceFormat),
   };
 }
 
@@ -341,7 +394,7 @@ async function executeQuery(input: JsonInput, ctx: Context): Promise<JsonOutput>
   const format = input.format ?? 'json';
   return {
     data: parsed,
-    formatted: formatOutput(result, format),
+    formatted: formatOutput(asJsonValue(result), format),
     type: result === null ? 'null' : Array.isArray(result) ? 'array' : typeof result,
     action: 'query',
     query_result: result,
@@ -374,7 +427,11 @@ async function executeValidate(input: JsonInput, ctx: Context): Promise<JsonOutp
   }
   return {
     data: parsed,
-    formatted: outcome.valid ? 'valid' : 'invalid',
+    // The renderer shows `formatted` only, so the reasons have to live in it:
+    // a bare "invalid" told the model the data failed but not where or why.
+    formatted: outcome.valid
+      ? 'valid'
+      : ['invalid', ...outcome.errors.map((e) => `- ${e}`)].join('\n'),
     type: Array.isArray(parsed) ? 'array' : typeof parsed,
     action: 'validate',
     valid: outcome.valid,
@@ -410,7 +467,7 @@ async function executeTransform(input: JsonInput, ctx: Context): Promise<JsonOut
   const format = input.format ?? 'json';
   return {
     data: parsed,
-    formatted: formatOutput(current, format),
+    formatted: formatOutput(asJsonValue(current), format),
     type: current === null ? 'null' : Array.isArray(current) ? 'array' : typeof current,
     action: 'transform',
     result: current,

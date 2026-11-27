@@ -153,10 +153,9 @@ export const readUrlContentTool: Tool<ReadUrlContentInput, ReadUrlContentOutput>
         field: 'url',
       });
     }
-    const { text: rawBody, truncated: readTruncated } = await readBounded(
-      res,
-      maxBytes === undefined ? MAX_READ_URL_BYTES : Math.min(maxBytes * 4, MAX_READ_URL_BYTES),
-    );
+    const readLimit =
+      maxBytes === undefined ? MAX_READ_URL_BYTES : Math.min(maxBytes * 4, MAX_READ_URL_BYTES);
+    const { text: rawBody, truncated: readTruncated } = await readBounded(res, readLimit);
 
     let content: string;
     if (normalizedType.includes('text/html') || normalizedType.includes('application/xhtml+xml')) {
@@ -175,9 +174,13 @@ export const readUrlContentTool: Tool<ReadUrlContentInput, ReadUrlContentOutput>
     if (maxBytes !== undefined && Buffer.byteLength(content, 'utf8') > maxBytes) {
       content = capBytesWithNotice(content, maxBytes, `[Content truncated at ${maxBytes} bytes]`);
     } else if (readTruncated) {
-      content = `${content}
-
-[Content truncated: response body exceeded the memory guard]`;
+      // Name the cap that actually cut: a small `maxBytes` stops the read at
+      // 4x its size, and calling that "the memory guard" sent the model to
+      // look for a size problem that did not exist.
+      content +=
+        readLimit < MAX_READ_URL_BYTES
+          ? `\n\n[Content truncated: maxBytes=${maxBytes} read only the first ${readLimit} bytes of the response]`
+          : '\n\n[Content truncated: response body exceeded the memory guard]';
     }
 
     return {

@@ -18,6 +18,7 @@ import {
   TIER_LABEL,
 } from './_edit-match.js';
 import { checkSyntax } from './_syntax-check.js';
+import { decodeUtf16Text } from './_utf16.js';
 import {
   isBinaryBuffer,
   isValidUtf8,
@@ -156,7 +157,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
           throw new ToolValidationError({
             message: `edit: file "${input.path}" does not exist. Use \`write\` instead.`,
             field: 'path',
-            context: { exists: false },
+            context: { exists: false, contract: false },
           });
         }
         throw err;
@@ -181,13 +182,19 @@ export const editTool: Tool<EditInput, EditOutput> = {
       // bytes happen to decode — `read` serves PDFs as pages, not as source text.
       const pdfTarget = isPdf(absPath, buf);
       if (pdfTarget || isBinaryBuffer(buf)) {
+        // `write` refuses non-UTF-8 targets too, so pointing at it sent the
+        // model back and forth between two refusals. Name a way out instead.
+        const utf16 = !pdfTarget && decodeUtf16Text(buf) !== null;
         throw new ToolValidationError({
-          message:
-            `edit: "${input.path}" is not editable text (${pdfTarget ? 'PDF' : 'binary content'}). ` +
-            'Rewriting it would corrupt the file byte-wise — use `write` to replace it, and ' +
-            '`read` with `pages` to inspect a PDF.',
+          message: utf16
+            ? `edit: "${input.path}" is UTF-16 text, not editable text here: edit and write only rewrite UTF-8. ` +
+              'Convert it first with a shell command (PowerShell: ' +
+              '`Get-Content <file> | Set-Content -Encoding utf8 <file>`), then edit it.'
+            : `edit: "${input.path}" is not editable text (${pdfTarget ? 'PDF' : 'binary content'}). ` +
+              'Rewriting it would corrupt the file byte-wise; `read` with `pages` inspects a PDF. ' +
+              'To replace it, remove or rename it, then `write` the new file.',
           field: 'path',
-          context: { reason: pdfTarget ? 'pdf' : 'binary' },
+          context: { reason: utf16 ? 'utf16' : pdfTarget ? 'pdf' : 'binary', contract: false },
         });
       }
       // No NUL, so not "binary" — but a legacy single-byte encoding (Latin-1,
@@ -452,5 +459,6 @@ function noMatchError(inputPath: string, fileLf: string, oldLf: string): ToolVal
         : ''
     }`,
     field: 'old_string',
+    context: { contract: false },
   });
 }

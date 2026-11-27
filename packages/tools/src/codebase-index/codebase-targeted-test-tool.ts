@@ -343,6 +343,24 @@ const codebaseTargetedTestToolBase: Tool<TargetedTestInput, TargetedTestOutput> 
 
       const durationMs = Date.now() - start;
       const rawOutput = `${streamRes.stdout}\n${streamRes.stderr}`.trim();
+      // A runner that never started is not a red test run. `npx --no` exits 1
+      // with "canceled due to missing packages" when vitest/jest is not
+      // installed, and a missing `go`/`pytest` binary is a spawn error; both
+      // used to come back as `failed: 1`, which sent the model hunting for a
+      // broken test.
+      const notStarted =
+        streamRes.error ??
+        (/npx canceled due to missing packages|could not determine executable to run/i.test(
+          rawOutput,
+        )
+          ? `${runnerArgs.find((a) => a !== '--no' && a !== '--') ?? runnerCmd} is not installed in this project (npx was not allowed to download it)`
+          : undefined);
+      if (notStarted) {
+        // The catch below prefixes "failed to execute" and appends the suites.
+        throw new Error(
+          `the test runner could not start: ${notStarted}. Install it, or run the suites with the test tool`,
+        );
+      }
       const combinedOutput = normalizeCommandOutput(rawOutput, { maxBytes: 4000 });
 
       const isPassed = streamRes.exitCode === 0;

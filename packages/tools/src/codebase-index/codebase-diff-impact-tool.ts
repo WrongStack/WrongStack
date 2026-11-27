@@ -161,36 +161,61 @@ function diffHeaderPath(raw: string): string {
 export function parseUnifiedDiff(diffText: string): ParsedDiffFile[] {
   const results: ParsedDiffFile[] = [];
   let current: ParsedDiffFile | null = null;
-  let oldPath = '';
+  // A `--- `/`+++ ` pair is the FILE HEADER only OUTSIDE a hunk body. Inside
+  // one, the same two lines are CONTENT: a removed `-- comment` source line is
+  // `--- comment` and an added `++ x` source line is `+++ x`, and git emits the
+  // two adjacently — byte-for-byte the shape of a header pair. The hunk's
+  // DECLARED line counts tell the two apart: the pair is a header only once
+  // the body it could belong to is exhausted. Same rule core's
+  // `countUnifiedDiffLines` and the TUI's `countUnifiedDiffChanges` apply.
+  // Reading the pair as a header invented a file that was never touched.
+  let hunkOldRemaining = 0;
+  let hunkNewRemaining = 0;
 
-  for (const rawLine of diffText.split('\n')) {
-    const line = rawLine.replace(/\r$/, '');
+  const lines = diffText.split('\n');
+  for (let index = 0; index < lines.length; index++) {
+    const line = (lines[index] ?? '').replace(/\r$/, '');
     if (line.startsWith('diff --git ')) {
       current = null;
-      oldPath = '';
+      hunkOldRemaining = 0;
+      hunkNewRemaining = 0;
       continue;
     }
     if (line.startsWith('--- ')) {
-      oldPath = diffHeaderPath(line.slice(4));
+      const next = (lines[index + 1] ?? '').replace(/\r$/, '');
+      if (next.startsWith('+++ ') && hunkOldRemaining <= 0 && hunkNewRemaining <= 0) {
+        const oldPath = diffHeaderPath(line.slice(4));
+        const newPath = diffHeaderPath(next.slice(4));
+        const isDeleted = newPath === '/dev/null';
+        const isAdded = oldPath === '/dev/null';
+        const relPath = (isDeleted ? oldPath : newPath).replace(/\\/g, '/');
+        // The `+++ ` half of the pair belongs to this header.
+        index += 1;
+        if (!relPath || relPath === '/dev/null') continue;
+        current = {
+          file: relPath,
+          status: isAdded ? 'added' : isDeleted ? 'deleted' : 'modified',
+          hunks: [],
+        };
+        results.push(current);
+        continue;
+      }
+      // Content: a removed line inside a hunk body.
+      hunkOldRemaining -= 1;
       continue;
     }
     if (line.startsWith('+++ ')) {
-      const newPath = diffHeaderPath(line.slice(4));
-      const isDeleted = newPath === '/dev/null';
-      const isAdded = oldPath === '/dev/null';
-      const relPath = (isDeleted ? oldPath : newPath).replace(/\\/g, '/');
-      if (!relPath || relPath === '/dev/null') continue;
-      current = {
-        file: relPath,
-        status: isAdded ? 'added' : isDeleted ? 'deleted' : 'modified',
-        hunks: [],
-      };
-      results.push(current);
+      // Content: an added line inside a hunk body. A header's `+++ ` half is
+      // consumed together with its `--- ` half above.
+      hunkNewRemaining -= 1;
       continue;
     }
-    if (current && line.startsWith('@@ ')) {
+    if (line.startsWith('@@ ')) {
       const match = HUNK_HEADER_RE.exec(line);
       if (!match) continue;
+      hunkOldRemaining = match[2] !== undefined ? Number.parseInt(match[2], 10) : 1;
+      hunkNewRemaining = match[4] !== undefined ? Number.parseInt(match[4], 10) : 1;
+      if (!current) continue;
       const oldStart = Number.parseInt(match[1] ?? '1', 10);
       const oldCount = match[2] !== undefined ? Number.parseInt(match[2], 10) : 1;
       const newStart = Number.parseInt(match[3] ?? '1', 10);
@@ -205,6 +230,12 @@ export function parseUnifiedDiff(diffText: string): ParsedDiffFile[] {
         const end = Math.max(start, newStart + Math.max(1, newCount) - 1);
         current.hunks.push({ startLine: start, endLine: end });
       }
+      continue;
+    }
+    // A context line inside a hunk body consumes one line on each side.
+    if (hunkOldRemaining > 0 || hunkNewRemaining > 0) {
+      hunkOldRemaining -= 1;
+      hunkNewRemaining -= 1;
     }
   }
 

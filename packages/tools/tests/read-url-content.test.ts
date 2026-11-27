@@ -123,4 +123,24 @@ describe('read_url_content tool', () => {
     // Returned content still honours the clamped byte budget.
     expect(output.content).toContain('[Content truncated at');
   });
+
+  it('blames maxBytes, not the memory guard, when a small maxBytes stopped the read', async () => {
+    // Markup-heavy HTML: 4x maxBytes of raw body converts to under maxBytes of
+    // markdown, so only the read-limit note can explain the cut.
+    const html = `<html><body><p>start</p>${'<div><span></span></div>'.repeat(200)}<p>end</p></body></html>`;
+    const encoder = new TextEncoder();
+    vi.spyOn(fetchGuard, 'guardedFetch').mockResolvedValue(
+      new Response(encoder.encode(html), {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+    const output = await readUrlContentTool.execute(
+      { url: 'https://docs.example.com/x', maxBytes: 100 },
+      {} as never,
+      makeOpts(),
+    );
+    expect(output.content).toContain('maxBytes=100 read only the first 400 bytes');
+    expect(output.content).not.toContain('memory guard');
+  });
 });

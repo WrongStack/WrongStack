@@ -28,6 +28,20 @@ describe('nextStepsTool', () => {
       message: expect.stringContaining('Do not call nextsteps again'),
     });
   });
+  it('warns that open todos will discard the suggestions at turn end', async () => {
+    const c = {
+      meta: {},
+      todos: [
+        { id: '1', content: 'done', status: 'completed' },
+        { id: '2', content: 'open', status: 'in_progress' },
+      ],
+    };
+    const result = await run({ steps: [{ text: 'Run the parser tests' }] }, c as never);
+    expect(result.message).toMatch(
+      /1 todo\(s\) are still pending\/in_progress: they will be discarded/,
+    );
+  });
+
   it('reports the accepted non-empty prompts and their actual auto flag', async () => {
     const c = ctx();
     const result = await run(

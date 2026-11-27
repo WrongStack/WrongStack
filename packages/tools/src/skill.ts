@@ -155,9 +155,33 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
         // edits hostage; the failed load releases it and the run reports it.
         markRequiredSkillUnavailable(ctx, name);
         markRecommendedSkillUnavailable(ctx, name);
+        // `/skill` is the user's slash command — the model cannot run it, so
+        // name the closest installed skills instead.
+        const known = await skillLoader
+          .list()
+          .then((all) => all.map((m) => m.name))
+          .catch(() => [] as string[]);
+        const needle = name.toLowerCase();
+        const near = known
+          .filter((n) => {
+            const lower = n.toLowerCase();
+            return (
+              lower.includes(needle) ||
+              needle.includes(lower) ||
+              lower.split(/[-_:]/).some((part) => part.length > 2 && needle.includes(part))
+            );
+          })
+          .slice(0, 5);
         throw new ToolValidationError({
-          message: `skill "${name}" not found — use /skill to list available skills`,
+          message:
+            `skill "${name}" not found.` +
+            (near.length > 0
+              ? ` Similar installed skills: ${near.join(', ')}.`
+              : known.length > 0
+                ? ` ${known.length} skill(s) are installed; check the name in your skill catalog.`
+                : ' No skills are installed in this session.'),
           field: 'name',
+          context: { contract: false },
         });
       }
       const availableToolNames = (ctx?.catalogTools ?? ctx?.tools ?? []).map((tool) => tool.name);

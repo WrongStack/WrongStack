@@ -11,7 +11,8 @@ import { typecheckTool } from '../src/typecheck.js';
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }));
 vi.mock('../src/_spawn-stream.js', () => ({ spawnStream: mocks.spawn }));
-vi.mock('../src/_bun-typechecker.js', () => ({
+vi.mock('../src/_bun-typechecker.js', async (orig) => ({
+  ...((await orig()) as Record<string, unknown>),
   bunTypecheckInvocation: async (cwd: string, args: string[]) => ({ cmd: 'bun', args, cwd }),
 }));
 

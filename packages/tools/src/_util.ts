@@ -5,6 +5,8 @@ import { activeLimits, positiveLimit, TOOL_MEMORY_GUARD_BYTES } from '@wrongstac
 import type { Context } from '@wrongstack/core/agent';
 import * as Core from '@wrongstack/core/utils';
 import { type DietResult, dietCommandOutput } from './_output-diet.js';
+import { decodePowerShellClixml } from './_pwsh-clixml.js';
+import { decodeUtf16Text } from './_utf16.js';
 
 /**
  * sha-256 hex of a UTF-8 string. Used by the file tools to record a content
@@ -204,8 +206,17 @@ export async function resolveRealInsideRoot(absPath: string, ctx: Context): Prom
     if (isInsideAny(candidate, realRoots)) {
       return candidate;
     }
+    // Name the real cause: a plain `../x` escape never touches a symlink, and
+    // telling the model "resolves through a symlink" sent it hunting for a
+    // link that does not exist.
+    const lexicallyInside = isInsideAny(
+      path.resolve(absPath),
+      allowedRoots(ctx).map((r) => path.resolve(r)),
+    );
     throw new Error(
-      `Path "${absPath}" resolves through a symlink outside project root "${realRoots[0]}"`,
+      lexicallyInside
+        ? `Path "${absPath}" resolves through a symlink outside project root "${realRoots[0]}"`
+        : `Path "${absPath}" is outside project root "${realRoots[0]}"`,
     );
   }
 }
@@ -542,7 +553,7 @@ export function normalizeCommandOutput(
 
 /** Every step of {@link normalizeCommandOutput} but the final cut. */
 function cleanCommandOutput(raw: string): string {
-  let text = Core.stripAnsi(raw);
+  let text = Core.stripAnsi(decodePowerShellClixml(raw));
   text = collapseCarriageReturns(text);
   text = text.replace(/[ \t]+$/gm, ''); // trailing whitespace per line
   text = collapseConsecutiveDuplicates(text);
@@ -652,4 +663,28 @@ export function makeRootRelativizer(root: string): (absPath: string) => string {
     const rest = absPath.slice(prefix.length);
     return rest.length > 0 ? rest : absPath;
   };
+}
+
+export type ReadableTextEncoding = 'utf8' | 'utf16le' | 'utf16be';
+
+/**
+ * Decode a file buffer as text for `read`, or return null when it is binary.
+ *
+ * UTF-16 text is full of NUL bytes, so the NUL heuristic in `isBinaryBuffer`
+ * called it binary and `read` refused it — yet Windows produces it routinely:
+ * Windows PowerShell 5 `>` / `Out-File`, `reg export`, many `.rc` and
+ * Visual Studio files. A byte-order mark is an unambiguous declaration, so a
+ * BOM-led buffer is decoded instead of refused. Without a BOM the heuristic
+ * stands: guessing UTF-16 from byte patterns misreads real binaries.
+ *
+ * `edit` keeps treating these files as binary (it rewrites UTF-8 only), so a
+ * UTF-16 file stays readable without becoming silently re-encodable.
+ */
+export function decodeReadableText(
+  buf: Buffer,
+): { text: string; encoding: ReadableTextEncoding } | null {
+  const utf16 = decodeUtf16Text(buf);
+  if (utf16) return utf16;
+  if (isBinaryBuffer(buf)) return null;
+  return { text: buf.toString('utf8'), encoding: 'utf8' };
 }

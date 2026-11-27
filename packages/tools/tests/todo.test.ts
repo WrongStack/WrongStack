@@ -91,6 +91,8 @@ describe('todo tool', () => {
 
     expect(out.count).toBe(2);
     expect(sb.ctx.todos?.map((item) => item.id).sort()).toEqual(['active', 'keep']);
+    // The model is told, instead of believing an empty list cleared the work.
+    expect(out.notes?.join(' ')).toMatch(/Kept 2 unfinished row\(s\) you omitted: keep, active/);
   });
 
   it('enforces single in_progress', async () => {
@@ -107,6 +109,7 @@ describe('todo tool', () => {
       { signal: newSignal() },
     );
     expect(out.in_progress).toBe(1);
+    expect(out.notes).toContain('Only one row may be in_progress; set back to pending: 2, 3.');
   });
 
   it('rejects a non-array todos input', async () => {

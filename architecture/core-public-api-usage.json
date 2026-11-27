@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 551,
-      "typeOnly": 403,
+      "files": 553,
+      "typeOnly": 405,
       "runtimeOrMixed": 180
     },
     "@wrongstack/core/boot": {
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1037,
+      "files": 1040,
       "typeOnly": 78,
-      "runtimeOrMixed": 994
+      "runtimeOrMixed": 997
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1955,6 +1955,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/_cwd-check.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/_util.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1986,6 +1992,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/exec.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/grep-paths.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16517,6 +16529,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/_cwd-check.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/_env.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16908,6 +16926,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/tests/background-log.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/tests/dev-tools-report-fidelity.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/tests/file-tools-input-coverage.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

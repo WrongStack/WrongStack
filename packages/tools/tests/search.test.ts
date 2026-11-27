@@ -275,6 +275,34 @@ describe('search engine parsers (realistic fixtures)', () => {
     ).rejects.toThrow(/duckduckgo unreachable/);
   });
 
+  // Captured shape of DuckDuckGo's refusal (2026-11-27): HTTP 202 with an
+  // image CAPTCHA and no result markup. It used to parse as "0 results".
+  it('fails a search that DuckDuckGo answered with a bot challenge', async () => {
+    const challenge =
+      '<html><body><form id="challenge-form" action="//duckduckgo.com/anomaly.js?sv=lite">' +
+      '<div class="anomaly-modal__modal" data-testid="anomaly-modal"></div></form></body></html>';
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(challenge, { status: 202, headers: { 'content-type': 'text/html' } }),
+    ) as never as typeof globalThis.fetch;
+    await expect(
+      searchTool.execute({ query: 'vitest docs', source: 'duckduckgo' }, {} as any, makeOpts()),
+    ).rejects.toThrow(/bot challenge \(CAPTCHA\) \(HTTP 202\)/);
+    expect(__getSearchCacheSizeForTest()).toBe(0);
+  });
+
+  it('still reports a genuine empty DuckDuckGo page as zero results', async () => {
+    globalThis.fetch = mockFetch(
+      () => '<html><body><table><tr><td>No results.</td></tr></table></body></html>',
+    ) as never as typeof globalThis.fetch;
+    const out = await searchTool.execute(
+      { query: 'zzqq nothing', source: 'duckduckgo' },
+      {} as any,
+      makeOpts(),
+    );
+    expect(out.results).toEqual([]);
+  });
+
   it('does not cache a failed search', async () => {
     __clearSearchCache();
     globalThis.fetch = vi.fn(async () => {

@@ -139,8 +139,15 @@ export function forgetTool(memory: MemoryStore): Tool<ForgetInput, ForgetOutput>
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string' },
-        scope: { type: 'string', enum: ['project-agents', 'project-memory', 'user-memory'] },
+        query: {
+          type: 'string',
+          description: 'Text matched against stored entries; every match is deleted.',
+        },
+        scope: {
+          type: 'string',
+          enum: ['project-agents', 'project-memory', 'user-memory'],
+          description: 'Which store to delete from. Defaults to project-memory.',
+        },
         dry_run: {
           type: 'boolean',
           description:

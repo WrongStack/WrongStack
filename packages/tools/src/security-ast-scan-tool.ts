@@ -18,6 +18,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/contracts/types';
+import { ToolValidationError } from '@wrongstack/contracts/types';
 import { safeResolveProjectPath } from './_util.js';
 import {
   analyzeWithProfile,
@@ -312,6 +313,15 @@ export const securityAstScanTool: Tool<SecurityScanInput, SecurityScanOutput> = 
   // returned `status: 'error'`, which the executor recorded as a successful
   // call — for a scanner that reads as "ran fine", the worst possible lie.
   async execute(input, ctx) {
+    // Nothing to scan is a wrong call, not a clean bill of health: the old
+    // `status: 'clean'` for an empty call read exactly like a scanned file
+    // with no findings.
+    if (!input.file && typeof input.content !== 'string') {
+      throw new ToolValidationError({
+        message: 'security-ast-scan: provide `file` (a project path) or `content` (code to scan)',
+        field: 'file',
+      });
+    }
     const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
     const resolved = resolveScanLanguage(input.file, input.language);
     const inlineExt = resolved.profile?.extensions[0] ?? (resolved.supported ? 'ts' : resolved.id);

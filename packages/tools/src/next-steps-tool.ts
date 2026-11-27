@@ -97,11 +97,18 @@ export const nextStepsTool: Tool<NextStepsInput, NextStepsOutput> = {
     writePendingNextSteps(ctx, steps);
 
     const accepted = Math.min(steps.length, MAX_PENDING_NEXT_STEPS);
+    // The turn-end gate drops the suggestions while any todo is still open
+    // (next-steps-slot). Saying "recorded" then let them vanish silently.
+    const open = (ctx.todos ?? []).filter(
+      (todo) => todo.status === 'pending' || todo.status === 'in_progress',
+    ).length;
     return {
       accepted,
       auto: steps[0]?.auto === true,
       message:
-        'Suggestions recorded for this turn. When the current work is complete, write your final response; the runtime will append these suggestions automatically. Do not call nextsteps again unless you need to replace the list.',
+        open > 0
+          ? `Suggestions recorded, but ${open} todo(s) are still pending/in_progress: they will be discarded at the end of this turn unless you finish those todos (or mark them completed with the todo tool) first.`
+          : 'Suggestions recorded for this turn. When the current work is complete, write your final response; the runtime will append these suggestions automatically. Do not call nextsteps again unless you need to replace the list.',
     };
   },
 };

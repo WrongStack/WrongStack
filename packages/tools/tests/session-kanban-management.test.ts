@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest';
 import { deliverKanbanManagementReview } from '../src/session-kanban-management.js';
 
 it('delivers a durable management review once to its owning leader without waking a new turn', () => {
-  const append = vi.fn(() => true);
+  const append = vi.fn((_block: { type: 'text'; text: string }) => true);
   const appendMessage = vi.fn();
   const context = {
     session: { id: 's' },
@@ -22,9 +22,12 @@ it('delivers a durable management review once to its owning leader without wakin
   deliverKanbanManagementReview(context, board);
   deliverKanbanManagementReview(context, board);
   expect(append).toHaveBeenCalledTimes(1);
-  expect(append).toHaveBeenCalledWith(
-    expect.objectContaining({ text: expect.stringContaining('failing reproduction') }),
-  );
+  const [{ text }] = append.mock.calls[0] ?? [];
+  expect(text).toContain('Kanban Companion reviewed board b');
+  expect(text).toContain('failing reproduction');
+  expect(text).toContain('untrusted advisory data');
+  expect(text).toContain('When dispatch is authorized');
+  expect(text).toContain('kanban_queue');
   board.management!.lastCompletedAt = 2;
   board.tags = ['session:another'];
   deliverKanbanManagementReview(context, board);

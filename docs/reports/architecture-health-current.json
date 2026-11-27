@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T08:04:39.923Z",
+  "generatedAt": "2026-11-27T11:45:45.324Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6592,
-    "testFiles": 6517,
-    "sourceLines": 1353242,
+    "sourceFiles": 6597,
+    "testFiles": 6523,
+    "sourceLines": 1354256,
     "workspaceEdges": 267,
-    "moduleEdges": 19346,
+    "moduleEdges": 19358,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -403,7 +403,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 665,
-      "testFiles": 868,
+      "testFiles": 869,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -420,7 +420,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 868
+          "testFiles": 869
         }
       ]
     },
@@ -1087,8 +1087,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 347,
-      "testFiles": 416,
+      "sourceFiles": 352,
+      "testFiles": 421,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/browser-tools",
@@ -1110,7 +1110,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 416
+          "testFiles": 421
         }
       ]
     },
@@ -14005,6 +14005,12 @@
       },
       {
         "file": "packages/core/tests/execution/tool-autonomy-mode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/tool-error-content-noise.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28692,6 +28698,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/codebase-tools-verdict-honesty.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/codebase-transitive-bounds.test.ts",
         "projects": [
           "root-node"
@@ -28813,6 +28825,12 @@
       },
       {
         "file": "packages/tools/tests/design.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/dev-tools-report-fidelity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28992,6 +29010,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/file-tools-input-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/format.test.ts",
         "projects": [
           "root-node"
@@ -29071,6 +29095,12 @@
       },
       {
         "file": "packages/tools/tests/grep-backpressure.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/grep-path-expansion.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30097,6 +30127,12 @@
       },
       {
         "file": "packages/tools/tests/shell-fixture-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/shell-tools-error-readability.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41896,6 +41932,11 @@
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
       "lines": 703,
       "relativeImports": 6
+    },
+    {
+      "file": "packages/tools/src/codebase-index/codebase-diff-impact-tool.ts",
+      "lines": 705,
+      "relativeImports": 10
     },
     {
       "file": "packages/tools/src/design-reference.ts",

@@ -46,7 +46,8 @@ describe('JSON Schema string bounds count Unicode code points', () => {
   ] as const)('%s', async (_label, value, schema, expected) => {
     const result = await validate(value, schema);
     expect(result.valid).toBe(expected);
-    expect(result.formatted).toBe(expected ? 'valid' : 'invalid');
+    // An invalid result lists its reasons under the verdict line.
+    expect(result.formatted.split('\n')[0]).toBe(expected ? 'valid' : 'invalid');
     if (expected) expect(result.errors).toEqual([]);
     else expect(result.errors?.length).toBeGreaterThan(0);
   });

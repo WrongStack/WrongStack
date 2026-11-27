@@ -170,7 +170,9 @@ export class WrongStackError extends Error {
 
 function formatContext(ctx: Record<string, unknown>): string {
   const parts = Object.entries(ctx)
-    .filter(([, v]) => v !== undefined)
+    // `contract` is an executor routing flag (whether to append the tool's
+    // usage contract), not a fact about the failure.
+    .filter(([k, v]) => v !== undefined && k !== 'contract')
     .slice(0, 3)
     .map(([k, v]) => `${k}=${String(v)}`);
   return parts.length > 0 ? `[${parts.join(' ')}]` : '';

@@ -205,6 +205,63 @@ describe('Phase 2.2: codebase-diff-impact Tool', () => {
     expect(matched.map((s) => s.name)).toEqual(['chargeCard']);
   });
 
+  it('does not read an in-hunk --- / +++ content pair as a file header', () => {
+    // The removed source line was `-- drop table t;` (its diff line is
+    // `--- drop table t;`) and the added one was `++ create index i on t (id);`
+    // (its diff line is `+++ create index i on t (id);`). Git emits the two
+    // adjacently INSIDE the hunk body, so they are byte-for-byte the shape of
+    // a file-header pair — but they are content, and reading them as a header
+    // invented a file that was never touched.
+    const rawDiff = [
+      'diff --git a/q.sql b/q.sql',
+      'index 1111111..2222222 100644',
+      '--- a/q.sql',
+      '+++ b/q.sql',
+      '@@ -1 +1 @@',
+      '--- drop table t;',
+      '+++ create index i on t (id);',
+    ].join('\n');
+
+    expect(parseUnifiedDiff(rawDiff)).toEqual([
+      {
+        file: 'q.sql',
+        status: 'modified',
+        hunks: [{ startLine: 1, endLine: 1 }],
+      },
+    ]);
+  });
+
+  it('still reads a real header pair after a hunk body as a file header', () => {
+    // The same rule in the other direction: once the hunk body is exhausted,
+    // the next `--- `/`+++ ` pair IS a header again (a raw unified diff has no
+    // `diff --git` line to separate the sections).
+    const rawDiff = [
+      '--- a/first.sql',
+      '+++ b/first.sql',
+      '@@ -1 +1 @@',
+      '-drop table t;',
+      '+create table t (id int);',
+      '--- a/second.sql',
+      '+++ b/second.sql',
+      '@@ -4 +4 @@',
+      '-old line',
+      '+new line',
+    ].join('\n');
+
+    expect(parseUnifiedDiff(rawDiff)).toEqual([
+      {
+        file: 'first.sql',
+        status: 'modified',
+        hunks: [{ startLine: 1, endLine: 1 }],
+      },
+      {
+        file: 'second.sql',
+        status: 'modified',
+        hunks: [{ startLine: 4, endLine: 4 }],
+      },
+    ]);
+  });
+
   it('analyzes working tree git diff, callers, test suites, and AST contract violations', async () => {
     await write(
       'src/discount.ts',

@@ -196,7 +196,7 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
     'Fetch and extract content from an approved HTTP(S) URL for research or integration work. Project origins allowed with /network allow (or /browser allow) are shared with the browser and HTTP reader. Use for a known page or endpoint.',
   search:
     'Search the public web for current external information, then inspect selected results with fetch. Use it when repository evidence is insufficient or the fact may have changed.',
-  todo: 'Create, update, or list the session’s concrete work items and their progress. Use it to keep multi-step work visible; it does not implement the tasks itself.',
+  todo: 'Set the session’s concrete work items and their progress: each call sends the whole list (order, content, status). Unfinished items you leave out are kept — mark them completed to remove them. Keep exactly one item in_progress. It tracks work; it does not do it.',
   plan: 'Create and manage higher-level plan-board items, priorities, and status. Use it for strategic work tracking rather than small immediate edits.',
   kanban:
     'Manage project Kanban boards, cards, assignments, and acceptance evidence. Use it for persistent team workflow; changing board state is intentional and reviewable.',
@@ -204,8 +204,8 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   git: 'Inspect or run scoped Git operations in the project, including status, diff, history, branches, and commits. Review the target and working tree before mutating operations.',
   patch:
     'Apply a unified diff to project files with patch-style context checking. Use it for a reviewed multi-file change when exact patch content is available.',
-  json: 'Read, query, validate, or merge JSON/JSON5/YAML files while preserving valid structure (read-only — does not write). Use it instead of raw text edits when reading or querying structured data.',
-  diff: 'Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.',
+  json: 'Parse, query (JMESPath), schema-validate, transform or deep-merge JSON, JSONC (comments, trailing commas — e.g. tsconfig) and YAML files or inline text. Read-only: never writes files. Use it instead of reading and hand-parsing config or data files.',
+  diff: 'Show git diffs — the working tree when called with no arguments, `staged: true` for the index, `a`/`b` for commits or branches, `mode: "stat"` for a summary — or dump `files` with line numbers. Prefer it over raw `git diff` in a shell.',
   tree: 'Render a bounded directory tree with depth, file, hidden-file, and ignore controls. Use it for repository orientation without reading every file.',
   lint: 'Run the project’s configured linter for a target path or working directory and return diagnostics. Use it after code edits to catch style and static-analysis issues.',
   format:

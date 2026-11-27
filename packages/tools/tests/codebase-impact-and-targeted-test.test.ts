@@ -195,13 +195,24 @@ describe('codebase-impact-analysis and codebase-targeted-test tools', () => {
     );
 
     try {
-      const result = await codebaseTargetedTestTool.execute(
-        { file: 'src/calculator.ts' },
-        { projectRoot: tempDir } as never,
-        { signal: new AbortController().signal },
-      );
+      const outcome = await codebaseTargetedTestTool
+        .execute({ file: 'src/calculator.ts' }, { projectRoot: tempDir } as never, {
+          signal: new AbortController().signal,
+        })
+        .then(
+          (result) => ({ result }),
+          (error: Error) => ({ error }),
+        );
 
-      expect(result.discoveredSuites).toContain('tests/calculator.test.ts');
+      if ('result' in outcome) {
+        expect(outcome.result.discoveredSuites).toContain('tests/calculator.test.ts');
+      } else {
+        // This temp project has no vitest: `npx --no` refuses to download it.
+        // That is a runner that never started — a failed call naming the
+        // suites, not a red test run.
+        expect(outcome.error.message).toMatch(/test runner could not start/);
+        expect(outcome.error.message).toContain('tests/calculator.test.ts');
+      }
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }

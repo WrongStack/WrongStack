@@ -80,7 +80,15 @@ function parseManifest(raw: Buffer, name: string): KitManifest {
 
 export async function loadKit(root: string, name: string): Promise<KitBundle> {
   assertKitId(name);
-  const directory = await kitPath(root, `${KIT_DIRECTORY}/${name}`);
+  // A kit that does not exist surfaced as a raw `ENOENT … lstat
+  // .wrongstack/project-kit` — name the kit and the way to find real ones.
+  const directory = await kitPath(root, `${KIT_DIRECTORY}/${name}`).catch((error) => {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    throw Object.assign(
+      new Error(`No Project Kit tool named "${name}" (project_kit action=list shows the kits).`),
+      { code: 'ENOENT' },
+    );
+  });
   const files = new Map<string, Buffer>();
   let bytes = 0;
   let entryCount = 0;

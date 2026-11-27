@@ -210,6 +210,8 @@ export function renderToolObject(
         type: obj['type'],
         keys: Array.isArray(obj['keys']) ? obj['keys'].length : undefined,
         query: stringFromInput(input, 'query'),
+        // Set only when the source was not strict JSON (jsonc / yaml).
+        source_format: obj['source_format'],
         error: obj['error'],
       }),
       obj['formatted'],
@@ -371,6 +373,11 @@ export function renderVerifierOutput(toolName: string, obj: RecordValue, input: 
         toolName === 'format' ? `files_changed=${changed}` : undefined,
         extractSpoolNote(output),
       ]),
+      // A passing run with warnings used to print only their COUNT: "warnings=2"
+      // and no way to see which two short of re-running the linter in a shell.
+      warnings > 0 && output.trim()
+        ? `warning_context:\n${compactFailureOutput(output)}`
+        : undefined,
     ]);
   }
 
