@@ -75,9 +75,10 @@ export interface ServerProcessMetrics {
 }
 
 export function formatCompactBytes(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  // Promote on the rounded value: an RSS of 1023.5 MB is "1.0 GB", not "1024 MB".
+  if (Math.round(bytes / 1024 ** 2) >= 1024) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (Math.round(bytes / 1024) >= 1024) return `${Math.round(bytes / 1024 ** 2)} MB`;
+  if (Math.round(bytes) >= 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${Math.round(bytes)} B`;
 }
 
