@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26T23:59:29.533Z",
+  "generatedAt": "2026-11-27T00:02:28.913Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6587,
-    "testFiles": 6502,
-    "sourceLines": 1352407,
+    "testFiles": 6503,
+    "sourceLines": 1352403,
     "workspaceEdges": 267,
     "moduleEdges": 19312,
     "nonCommandSlashImports": 0,
@@ -1200,7 +1200,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 799,
-      "testFiles": 582,
+      "testFiles": 583,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1226,7 +1226,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 582
+          "testFiles": 583
         }
       ]
     },
@@ -39547,6 +39547,12 @@
       },
       {
         "file": "packages/webui/tests/lib/ws-client-confirm.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/ws-client-connection-generation.test.ts",
         "projects": [
           "webui-jsdom"
         ]

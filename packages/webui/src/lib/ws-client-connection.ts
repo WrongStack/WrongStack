@@ -30,6 +30,11 @@ export function bindSocketLifecycle(
 ): { cancelTimeout: () => void } {
   let established = false;
   const timer = setTimeout(() => {
+    // A socket replaced while its connect timeout was pending no longer owns
+    // this client. Every event handler below checks the generation; the timer
+    // must too, or a late timeout closes the stale socket and reports a
+    // failure/schedules a reconnect for the socket that is already current.
+    if (!callbacks.isCurrentGeneration()) return;
     try {
       ws.close();
     } catch {

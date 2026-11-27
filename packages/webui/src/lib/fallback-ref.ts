@@ -42,32 +42,23 @@ export interface RefActiveState {
 // without needing a per-config entry — the way `./utils/expect-defined` and
 // `./types/session-markers` already do.
 
-export { formatModelRef, normalizeModelRef, parseModelRef } from '@wrongstack/core/core/model-ref';
+import { formatModelRef, normalizeModelRef, parseModelRef } from '@wrongstack/core/core/model-ref';
+
+export { formatModelRef, normalizeModelRef, parseModelRef };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /**
  * Split a `provider/model` ref into `{ providerId, model }`. Returns
  * `{ providerId: '', model: '' }` when the ref is empty / whitespace-only.
- * The slash command uses the same shape — mirrored here so the
- * `FallbackEditor` inactive badge stays consistent with `/fallback`.
+ * Delegates to canonical `parseModelRef` so the spaced `provider model`
+ * form — including model ids that contain their own slash — is classified
+ * exactly as by the `/fallback` command. A ref with no provider stays
+ * provider-relative (`providerId: ''`) and gets an advisory, not a badge.
  */
 export function splitProviderModel(ref: string): { providerId: string; model: string } {
-  const trimmed = ref.trim();
-  const slash = trimmed.indexOf('/');
-  if (slash > 0) {
-    return {
-      providerId: trimmed.slice(0, slash).trim(),
-      model: trimmed.slice(slash + 1).trim(),
-    };
-  }
-  // Bare model (no provider): the runtime routes it through the
-  // leader provider at resolve time, so we can't decide inactivity
-  // for certain against a single-provider allow-list. Treat as
-  // provider-relative and surface it as "no provider" so the inactive
-  // badge can render a clear message instead of guessing.
-  if (slash === 0) return { providerId: '', model: trimmed.slice(1).trim() };
-  return { providerId: '', model: trimmed };
+  const parsed = parseModelRef(ref);
+  return { providerId: parsed.provider ?? '', model: parsed.model };
 }
 
 /**

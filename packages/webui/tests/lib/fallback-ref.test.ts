@@ -70,6 +70,20 @@ describe('splitProviderModel', () => {
   });
 });
 
+describe('slashed model ids in spaced refs (F2651)', () => {
+  it('parses `provider model/id` like canonical parseModelRef, without a false advisory', () => {
+    // parseModelRef treats the first whitespace as the provider boundary even
+    // when the model id itself contains a slash (e.g. an OpenRouter model).
+    const ref = 'openrouter anthropic/claude-x';
+    const known = buildKnownModelSet([{ provider: 'openrouter', model: 'anthropic/claude-x' }]);
+    expect(splitProviderModel(ref)).toEqual({
+      providerId: 'openrouter',
+      model: 'anthropic/claude-x',
+    });
+    expect(classifyRef(ref, known)).toEqual({ active: true });
+  });
+});
+
 describe('refInactiveReason', () => {
   const knownModels = new Set(['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-opus-4']);
 
