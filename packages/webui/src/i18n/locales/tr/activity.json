@@ -124,7 +124,8 @@
     "chronicle": "Chronicle",
     "intake": "Gereksinimler",
     "roster": "Ajan Kadrosu",
-    "chimera": "Chimera İncelemeleri"
+    "chimera": "Chimera İncelemeleri",
+    "github": "GitHub"
   },
   "brand": {
     "returnToChat": "{{name}} — sohbete dön",
@@ -5894,5 +5895,129 @@
         "not_configured": "Kontrol tanımlanmamış"
       }
     }
+  },
+  "github": {
+    "subtitle": "Bu projenin GitHub deposundaki açık pull request'ler ve issue'lar.",
+    "refresh": "Yenile",
+    "pulls": "Pull request'ler",
+    "issues": "Issue'lar",
+    "openOnGitHub": "GitHub'da aç",
+    "filter": "Başlık, yazar, etiket veya numaraya göre süz",
+    "emptyPulls": "Açık pull request yok.",
+    "emptyIssues": "Açık issue yok.",
+    "noMatch": "Bu süzgece uyan bir şey yok.",
+    "draft": "Taslak",
+    "comments_one": "{{count}} yorum",
+    "comments_other": "{{count}} yorum",
+    "opened": "#{{number}} · {{author}}",
+    "unknownAuthor": "bilinmiyor",
+    "updated": "güncelleme: {{time}}",
+    "truncated": "En son güncellenen {{count}} kayıt gösteriliyor. Kalanı için GitHub'ı aç.",
+    "loading": "GitHub yükleniyor…",
+    "tokenEnv": "Token ortam değişkeninden",
+    "tokenGh": "Token GitHub CLI'dan",
+    "tokenNone": "Token yok, yalnızca herkese açık erişim",
+    "status": {
+      "no-remote": "Bu projenin git remote'u yok.",
+      "not-github": "Bu projenin git remote'u github.com üzerinde değil.",
+      "needs-auth": "Bu depo için GitHub token istiyor. gh auth login çalıştır ya da WebUI sunucusunun çalıştığı yerde GITHUB_TOKEN ayarla.",
+      "not-found": "Mevcut token bu depoyu GitHub'da göremiyor.",
+      "rate-limited": "GitHub istek sınırına ulaşıldı. Sonra yeniden dene ya da gh auth login ile oturum aç.",
+      "unavailable": "GitHub'a ulaşılamadı. Yeniden dene."
+    },
+    "pickItem": "Ayrıntılarını görmek için bir pull request ya da issue seç.",
+    "detail": "Ayrıntılar",
+    "back": "Geri",
+    "description": "Açıklama",
+    "noDescription": "Açıklama yok.",
+    "checks": "Kontroller",
+    "noChecks": "Bildirilen kontrol yok.",
+    "reviews": "İncelemeler",
+    "noReviews": "Henüz inceleme yok.",
+    "files_one": "{{count}} dosya değişti",
+    "files_other": "{{count}} dosya değişti",
+    "partUnavailable": "Bu bölüm yüklenemedi.",
+    "fork": "Fork'tan",
+    "actions": "İşlemler",
+    "commentLabel": "Yorum ya da inceleme notu",
+    "commentPlaceholder": "Bir yorum ya da değişiklik isteme gerekçesi yaz",
+    "mergeMethod": "Birleştirme yöntemi",
+    "working": "GitHub'a gönderiliyor…",
+    "writeNeedsToken": "GitHub'a yazmak için token gerekiyor. gh auth login çalıştır ya da WebUI sunucusunun çalıştığı yerde GITHUB_TOKEN ayarla.",
+    "mergeable": {
+      "yes": "Birleştirilebilir",
+      "no": "Çakışma var",
+      "unknown": "Birleştirilebilirlik bilinmiyor"
+    },
+    "state": {
+      "open": "Açık",
+      "closed": "Kapalı",
+      "merged": "Birleştirildi",
+      "draft": "Taslak"
+    },
+    "tone": {
+      "pass": "geçti",
+      "fail": "başarısız",
+      "pending": "çalışıyor",
+      "neutral": "atlandı"
+    },
+    "review": {
+      "APPROVED": "onayladı",
+      "CHANGES_REQUESTED": "değişiklik istedi",
+      "COMMENTED": "yorum yaptı",
+      "DISMISSED": "geçersiz sayıldı"
+    },
+    "agent": {
+      "review": "Ajanla incele",
+      "fix-checks": "Başarısız kontrolleri ajanla düzelt",
+      "address-review": "İnceleme notlarını ajanla ele al",
+      "issue": "Ajanla üzerinde çalış"
+    },
+    "action": {
+      "comment": "Yorum yap",
+      "approve": "Onayla",
+      "request-changes": "Değişiklik iste",
+      "merge": "Birleştir",
+      "close": "Kapat",
+      "reopen": "Yeniden aç",
+      "rerun-failed": "Başarısız kontrolleri yeniden çalıştır"
+    },
+    "method": {
+      "squash": "Squash ve birleştir",
+      "merge": "Merge commit",
+      "rebase": "Rebase ve birleştir"
+    },
+    "confirm": {
+      "merge": "{{repository}} deposunda #{{number}}, {{base}} dalına birleştirilsin mi ({{method}})? Bu işlem buradan geri alınamaz.",
+      "close": "{{repository}} deposunda #{{number}} kapatılsın mı?",
+      "yes": "Evet, yap",
+      "no": "Vazgeç"
+    },
+    "done": {
+      "comment": "#{{number}} için yorum gönderildi.",
+      "approve": "#{{number}} onaylandı.",
+      "request-changes": "#{{number}} için değişiklik istendi.",
+      "merge": "#{{number}} birleştirildi.",
+      "close": "#{{number}} kapatıldı.",
+      "reopen": "#{{number}} yeniden açıldı.",
+      "rerun-failed": "#{{number}} için başarısız kontroller yeniden başlatıldı."
+    },
+    "result": {
+      "needs-auth": "GitHub bu işlem için token'ı reddetti.",
+      "not-found": "GitHub bu kaydı bulamadı.",
+      "conflict": "Sayfa yüklendiğinden beri dal değişti. Yenileyip yeniden kontrol et.",
+      "rejected": "GitHub işlemi reddetti.",
+      "rate-limited": "GitHub istek sınırına ulaşıldı. Sonra yeniden dene.",
+      "unavailable": "GitHub'a ulaşılamadı. Yeniden dene.",
+      "no-remote": "Bu projenin git remote'u yok.",
+      "not-github": "Bu projenin git remote'u github.com üzerinde değil.",
+      "nothing-to-do": "Bu head'de yeniden çalıştırılacak başarısız GitHub Actions koşusu yok."
+    },
+    "mentionTitle": "Pull request'ler ve issue'lar",
+    "mentionHint": "↑↓ seç · Enter/Tab ekle · Esc kapat",
+    "mentionPull": "Pull request",
+    "mentionIssue": "Issue",
+    "noPatch": "Bu dosya için metin diff'i yok (ikili ya da çok büyük). GitHub'da aç.",
+    "patchTruncated": "Bu diff kısaltıldı. Kalanı için pull request'i GitHub'da aç."
   }
 }

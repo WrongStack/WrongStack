@@ -24,6 +24,7 @@ import {
 import { ComposerButtonBar } from './ChatInput/composer-button-bar.js';
 import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
 import { FileMentionPicker, type FileMentionState } from './ChatInput/file-mention-picker.js';
+import { useGitHubMentionPicker } from './ChatInput/github-mention-picker.js';
 import {
   isPdfAttachment,
   MAX_ATTACHED_IMAGES,
@@ -132,6 +133,17 @@ export function ChatInput({
     client,
     skillMentionSessionId,
   );
+  const githubMentions = useGitHubMentionPicker(
+    input,
+    setInput,
+    textareaRef,
+    skillMentionSessionId,
+  );
+  const mentionList = skillMentions.open
+    ? skillMentions
+    : githubMentions.open
+      ? githubMentions
+      : null;
   const fileRefs = useFileReferenceStore((s) => s.refs);
   const { removeRef, clearRefs } = useFileReferenceStore.getState();
 
@@ -435,6 +447,7 @@ export function ChatInput({
         )}
         <div className="relative w-full flex-1">
           {skillMentions.popup}
+          {!skillMentions.open && githubMentions.popup}
           <FileMentionPicker
             atMention={atMention}
             input={input}
@@ -443,7 +456,7 @@ export function ChatInput({
             setAtMention={setAtMention}
           />
 
-          {!atMention && !skillMentions.open && (
+          {!atMention && !skillMentions.open && !githubMentions.open && (
             <SlashCommandPopup
               suggestions={slashSuggestions}
               selectedIndex={slashIndex}
@@ -457,8 +470,8 @@ export function ChatInput({
           <textarea
             ref={textareaRef}
             aria-label={t('activity:chatInput.composerLabel')}
-            aria-controls={skillMentions.open ? skillMentions.listId : undefined}
-            aria-activedescendant={skillMentions.open ? skillMentions.activeId : undefined}
+            aria-controls={mentionList?.listId}
+            aria-activedescendant={mentionList?.activeId}
             aria-autocomplete="list"
             data-chat-textarea
             value={input}
@@ -474,14 +487,17 @@ export function ChatInput({
               const cur = e.target.selectionStart ?? v.length;
               setAtMention(detectAtMention(v, cur));
               skillMentions.setCursor(cur);
+              githubMentions.setCursor(cur);
             }}
             onSelect={(e) => {
               const ta = e.currentTarget;
               setAtMention(detectAtMention(ta.value, ta.selectionStart));
               skillMentions.setCursor(ta.selectionStart);
+              githubMentions.setCursor(ta.selectionStart);
             }}
             onKeyDown={(event) => {
-              if (!skillMentions.onKeyDown(event)) handleKeyDown(event);
+              if (!skillMentions.onKeyDown(event) && !githubMentions.onKeyDown(event))
+                handleKeyDown(event);
             }}
             onPaste={onTextPaste}
             placeholder={

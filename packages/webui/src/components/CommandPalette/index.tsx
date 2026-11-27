@@ -7,6 +7,7 @@ import {
   Database,
   Download,
   Gauge,
+  GitPullRequest,
   Hash,
   History as HistoryIcon,
   type LucideIcon,
@@ -140,6 +141,14 @@ export function CommandPalette() {
         icon: Wrench,
         keywords: ['kit', 'project', 'scripts', 'reusable', 'tools'],
         run: () => openMainView('project-kit'),
+      },
+      {
+        id: 'github',
+        category: 'Command',
+        label: t('activity:nav.github'),
+        icon: GitPullRequest,
+        keywords: ['github', 'pull request', 'pr', 'issues', 'repository'],
+        run: () => openMainView('github'),
       },
       {
         id: 'memory',

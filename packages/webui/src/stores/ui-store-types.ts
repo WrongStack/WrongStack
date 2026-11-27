@@ -76,6 +76,7 @@ export const VIEWS = [
   'techstack',
   'project-kit',
   'automation',
+  'github',
   'chronicle',
   'intake',
   'deadcode',

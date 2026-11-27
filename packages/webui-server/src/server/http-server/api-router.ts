@@ -12,6 +12,7 @@ import {
   handleCodemapSymbols,
 } from '../codemap-handlers.js';
 import { handleDeadCodeRequest } from '../deadcode-handlers.js';
+import { handleGitHubRoutes } from '../github-handlers.js';
 import { readRecentProcessMemoryDiagnostics } from '../memory-diagnostics.js';
 import { handleProjectKitRead } from '../project-kit-handlers.js';
 import {
@@ -159,6 +160,11 @@ export async function handleApiRoutes(
     } else await handleProjectKitRead(res, url, deps);
     return true;
   }
+  if (
+    url.pathname.startsWith('/api/github') &&
+    (await handleGitHubRoutes(req, res, url, deps, { requireAccessToken, accessTokenOk }))
+  )
+    return true;
   if (url.pathname === '/api/fleet/ping' && req.method === 'POST') {
     if (requireAccessToken && !accessTokenOk) return unauthorized(res);
     try {

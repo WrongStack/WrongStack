@@ -138,6 +138,25 @@ export * from './environment-profile.js';
 export type { WrongStackErrorKind, WrongStackErrorModel } from './error-model.js';
 export { FrameResume } from './frame-resume.js';
 export type {
+  GitHubAction,
+  GitHubActionRequest,
+  GitHubActionResult,
+  GitHubCheck,
+  GitHubIssueSummary,
+  GitHubItemBase,
+  GitHubItemDetail,
+  GitHubItemDetailView,
+  GitHubItemKind,
+  GitHubLabel,
+  GitHubMergeMethod,
+  GitHubPullFile,
+  GitHubPullSummary,
+  GitHubRepositoryStatus,
+  GitHubRepositoryView,
+  GitHubReview,
+  GitHubTokenSource,
+} from './github-repository.js';
+export type {
   ApiErrorBody,
   ApiSession,
   ApiSessionAgent,

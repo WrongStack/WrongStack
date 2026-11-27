@@ -124,7 +124,8 @@
     "chronicle": "Chronicle",
     "intake": "Requirements",
     "roster": "Agent Roster",
-    "chimera": "Chimera Reviews"
+    "chimera": "Chimera Reviews",
+    "github": "GitHub"
   },
   "brand": {
     "returnToChat": "{{name}} — return to chat",
@@ -5894,5 +5895,129 @@
         "not_configured": "No checks configured"
       }
     }
+  },
+  "github": {
+    "subtitle": "Open pull requests and issues of this project's GitHub repository.",
+    "refresh": "Refresh",
+    "pulls": "Pull requests",
+    "issues": "Issues",
+    "openOnGitHub": "Open on GitHub",
+    "filter": "Filter by title, author, label or number",
+    "emptyPulls": "No open pull requests.",
+    "emptyIssues": "No open issues.",
+    "noMatch": "Nothing matches this filter.",
+    "draft": "Draft",
+    "comments_one": "{{count}} comment",
+    "comments_other": "{{count}} comments",
+    "opened": "#{{number}} by {{author}}",
+    "unknownAuthor": "unknown",
+    "updated": "updated {{time}}",
+    "truncated": "Showing the {{count}} most recently updated. Open GitHub for the rest.",
+    "loading": "Loading GitHub…",
+    "tokenEnv": "Token from environment",
+    "tokenGh": "Token from GitHub CLI",
+    "tokenNone": "No token, public access only",
+    "status": {
+      "no-remote": "This project has no git remote.",
+      "not-github": "This project's git remote is not on github.com.",
+      "needs-auth": "GitHub needs a token for this repository. Run gh auth login or set GITHUB_TOKEN where the WebUI server runs.",
+      "not-found": "The current token cannot see this repository on GitHub.",
+      "rate-limited": "GitHub's rate limit was reached. Try again later or sign in with gh auth login.",
+      "unavailable": "GitHub could not be reached. Try again."
+    },
+    "pickItem": "Pick a pull request or issue to see its details.",
+    "detail": "Details",
+    "back": "Back",
+    "description": "Description",
+    "noDescription": "No description.",
+    "checks": "Checks",
+    "noChecks": "No checks reported.",
+    "reviews": "Reviews",
+    "noReviews": "No reviews yet.",
+    "files_one": "{{count}} file changed",
+    "files_other": "{{count}} files changed",
+    "partUnavailable": "This part could not be loaded.",
+    "fork": "From a fork",
+    "actions": "Actions",
+    "commentLabel": "Comment or review note",
+    "commentPlaceholder": "Write a comment, or the reason for requesting changes",
+    "mergeMethod": "Merge method",
+    "working": "Sending to GitHub…",
+    "writeNeedsToken": "Writing to GitHub needs a token. Run gh auth login or set GITHUB_TOKEN where the WebUI server runs.",
+    "mergeable": {
+      "yes": "Can merge",
+      "no": "Has conflicts",
+      "unknown": "Mergeability unknown"
+    },
+    "state": {
+      "open": "Open",
+      "closed": "Closed",
+      "merged": "Merged",
+      "draft": "Draft"
+    },
+    "tone": {
+      "pass": "passed",
+      "fail": "failed",
+      "pending": "running",
+      "neutral": "skipped"
+    },
+    "review": {
+      "APPROVED": "approved",
+      "CHANGES_REQUESTED": "requested changes",
+      "COMMENTED": "commented",
+      "DISMISSED": "dismissed"
+    },
+    "agent": {
+      "review": "Review with agent",
+      "fix-checks": "Fix failing checks with agent",
+      "address-review": "Address review with agent",
+      "issue": "Work on it with agent"
+    },
+    "action": {
+      "comment": "Comment",
+      "approve": "Approve",
+      "request-changes": "Request changes",
+      "merge": "Merge",
+      "close": "Close",
+      "reopen": "Reopen",
+      "rerun-failed": "Re-run failed checks"
+    },
+    "method": {
+      "squash": "Squash and merge",
+      "merge": "Merge commit",
+      "rebase": "Rebase and merge"
+    },
+    "confirm": {
+      "merge": "Merge #{{number}} into {{base}} of {{repository}} ({{method}})? This cannot be undone from here.",
+      "close": "Close #{{number}} in {{repository}}?",
+      "yes": "Yes, do it",
+      "no": "Cancel"
+    },
+    "done": {
+      "comment": "Comment posted on #{{number}}.",
+      "approve": "Approved #{{number}}.",
+      "request-changes": "Requested changes on #{{number}}.",
+      "merge": "Merged #{{number}}.",
+      "close": "Closed #{{number}}.",
+      "reopen": "Reopened #{{number}}.",
+      "rerun-failed": "Re-ran the failed checks of #{{number}}."
+    },
+    "result": {
+      "needs-auth": "GitHub refused the token for this action.",
+      "not-found": "GitHub could not find this item.",
+      "conflict": "The branch changed since this page loaded. Refresh and check it again.",
+      "rejected": "GitHub rejected the action.",
+      "rate-limited": "GitHub's rate limit was reached. Try again later.",
+      "unavailable": "GitHub could not be reached. Try again.",
+      "no-remote": "This project has no git remote.",
+      "not-github": "This project's git remote is not on github.com.",
+      "nothing-to-do": "No failed GitHub Actions runs on this head to re-run."
+    },
+    "mentionTitle": "Pull requests and issues",
+    "mentionHint": "↑↓ select · Enter/Tab insert · Esc dismiss",
+    "mentionPull": "Pull request",
+    "mentionIssue": "Issue",
+    "noPatch": "No text diff for this file (binary or too large). Open it on GitHub.",
+    "patchTruncated": "This diff is cut short. Open the pull request on GitHub for the rest."
   }
 }

@@ -124,7 +124,8 @@
     "chronicle": "Chronicle",
     "intake": "Requisitos",
     "roster": "Plantilla de agentes",
-    "chimera": "Revisiones Chimera"
+    "chimera": "Revisiones Chimera",
+    "github": "GitHub"
   },
   "brand": {
     "returnToChat": "{{name}} — volver al chat",
@@ -5894,5 +5895,129 @@
         "not_configured": "No checks configured"
       }
     }
+  },
+  "github": {
+    "subtitle": "Pull requests e issues abiertos del repositorio de GitHub de este proyecto.",
+    "refresh": "Actualizar",
+    "pulls": "Pull requests",
+    "issues": "Issues",
+    "openOnGitHub": "Abrir en GitHub",
+    "filter": "Filtrar por título, autor, etiqueta o número",
+    "emptyPulls": "No hay pull requests abiertos.",
+    "emptyIssues": "No hay issues abiertos.",
+    "noMatch": "Nada coincide con este filtro.",
+    "draft": "Borrador",
+    "comments_one": "{{count}} comentario",
+    "comments_other": "{{count}} comentarios",
+    "opened": "#{{number}} de {{author}}",
+    "unknownAuthor": "desconocido",
+    "updated": "actualizado {{time}}",
+    "truncated": "Se muestran los {{count}} actualizados más recientemente. Abre GitHub para ver el resto.",
+    "loading": "Cargando GitHub…",
+    "tokenEnv": "Token del entorno",
+    "tokenGh": "Token de GitHub CLI",
+    "tokenNone": "Sin token, solo acceso público",
+    "status": {
+      "no-remote": "Este proyecto no tiene remoto de git.",
+      "not-github": "El remoto de git de este proyecto no está en github.com.",
+      "needs-auth": "GitHub necesita un token para este repositorio. Ejecuta gh auth login o define GITHUB_TOKEN donde se ejecuta el servidor de la WebUI.",
+      "not-found": "El token actual no puede ver este repositorio en GitHub.",
+      "rate-limited": "Se alcanzó el límite de solicitudes de GitHub. Inténtalo más tarde o inicia sesión con gh auth login.",
+      "unavailable": "No se pudo conectar con GitHub. Inténtalo de nuevo."
+    },
+    "pickItem": "Elige un pull request o un issue para ver sus detalles.",
+    "detail": "Detalles",
+    "back": "Volver",
+    "description": "Descripción",
+    "noDescription": "Sin descripción.",
+    "checks": "Comprobaciones",
+    "noChecks": "No hay comprobaciones.",
+    "reviews": "Revisiones",
+    "noReviews": "Aún no hay revisiones.",
+    "files_one": "{{count}} archivo cambiado",
+    "files_other": "{{count}} archivos cambiados",
+    "partUnavailable": "No se pudo cargar esta parte.",
+    "fork": "Desde un fork",
+    "actions": "Acciones",
+    "commentLabel": "Comentario o nota de revisión",
+    "commentPlaceholder": "Escribe un comentario o el motivo para pedir cambios",
+    "mergeMethod": "Método de fusión",
+    "working": "Enviando a GitHub…",
+    "writeNeedsToken": "Escribir en GitHub requiere un token. Ejecuta gh auth login o define GITHUB_TOKEN donde se ejecuta el servidor de la WebUI.",
+    "mergeable": {
+      "yes": "Se puede fusionar",
+      "no": "Tiene conflictos",
+      "unknown": "Fusionabilidad desconocida"
+    },
+    "state": {
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "merged": "Fusionado",
+      "draft": "Borrador"
+    },
+    "tone": {
+      "pass": "superada",
+      "fail": "fallida",
+      "pending": "en curso",
+      "neutral": "omitida"
+    },
+    "review": {
+      "APPROVED": "aprobó",
+      "CHANGES_REQUESTED": "pidió cambios",
+      "COMMENTED": "comentó",
+      "DISMISSED": "descartada"
+    },
+    "agent": {
+      "review": "Revisar con el agente",
+      "fix-checks": "Corregir comprobaciones con el agente",
+      "address-review": "Atender la revisión con el agente",
+      "issue": "Trabajar en ello con el agente"
+    },
+    "action": {
+      "comment": "Comentar",
+      "approve": "Aprobar",
+      "request-changes": "Pedir cambios",
+      "merge": "Fusionar",
+      "close": "Cerrar",
+      "reopen": "Reabrir",
+      "rerun-failed": "Reejecutar comprobaciones fallidas"
+    },
+    "method": {
+      "squash": "Squash y fusionar",
+      "merge": "Commit de fusión",
+      "rebase": "Rebase y fusionar"
+    },
+    "confirm": {
+      "merge": "¿Fusionar #{{number}} en {{base}} de {{repository}} ({{method}})? No se puede deshacer desde aquí.",
+      "close": "¿Cerrar #{{number}} en {{repository}}?",
+      "yes": "Sí, hazlo",
+      "no": "Cancelar"
+    },
+    "done": {
+      "comment": "Comentario publicado en #{{number}}.",
+      "approve": "#{{number}} aprobado.",
+      "request-changes": "Se pidieron cambios en #{{number}}.",
+      "merge": "#{{number}} fusionado.",
+      "close": "#{{number}} cerrado.",
+      "reopen": "#{{number}} reabierto.",
+      "rerun-failed": "Se reejecutaron las comprobaciones fallidas de #{{number}}."
+    },
+    "result": {
+      "needs-auth": "GitHub rechazó el token para esta acción.",
+      "not-found": "GitHub no encontró este elemento.",
+      "conflict": "La rama cambió desde que se cargó la página. Actualiza y revísala de nuevo.",
+      "rejected": "GitHub rechazó la acción.",
+      "rate-limited": "Se alcanzó el límite de solicitudes de GitHub. Inténtalo más tarde.",
+      "unavailable": "No se pudo conectar con GitHub. Inténtalo de nuevo.",
+      "no-remote": "Este proyecto no tiene remoto de git.",
+      "not-github": "El remoto de git de este proyecto no está en github.com.",
+      "nothing-to-do": "No hay ejecuciones fallidas de GitHub Actions en este head para reejecutar."
+    },
+    "mentionTitle": "Pull requests e issues",
+    "mentionHint": "↑↓ elegir · Enter/Tab insertar · Esc cerrar",
+    "mentionPull": "Pull request",
+    "mentionIssue": "Issue",
+    "noPatch": "No hay diff de texto para este archivo (binario o demasiado grande). Ábrelo en GitHub.",
+    "patchTruncated": "Este diff está recortado. Abre el pull request en GitHub para ver el resto."
   }
 }

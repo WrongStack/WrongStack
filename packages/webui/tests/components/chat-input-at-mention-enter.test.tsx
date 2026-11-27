@@ -376,3 +376,130 @@ describe('ChatInput composer accessible name', () => {
     expect(textarea.value).toBe('a draft in progress');
   });
 });
+
+describe('ChatInput — # mentions of pull requests and issues', () => {
+  const list = (status: string) => ({
+    status,
+    projectRoot: '/p',
+    repository: status === 'ok' ? 'octo/repo' : null,
+    tokenSource: 'gh',
+    pulls: [
+      {
+        number: 128,
+        title: 'Add GitHub view',
+        url: 'https://github.com/octo/repo/pull/128',
+        author: 'octocat',
+        labels: [],
+        comments: 0,
+        createdAt: '',
+        updatedAt: '',
+        draft: false,
+        headRef: 'feat',
+        baseRef: 'main',
+      },
+    ],
+    issues: [],
+    truncated: { pulls: false, issues: false },
+    fetchedAt: '',
+  });
+  const merged = {
+    status: 'ok',
+    repository: 'octo/repo',
+    tokenSource: 'gh',
+    item: {
+      kind: 'pull',
+      number: 453,
+      title: 'Ship the release gate',
+      url: 'https://github.com/octo/repo/pull/453',
+      author: 'releaser',
+      labels: [],
+      comments: 0,
+      createdAt: '',
+      updatedAt: '',
+      state: 'closed',
+      body: '',
+      pull: { draft: false, merged: true },
+    },
+  };
+  const stubList = (status: string) => {
+    const fetcher = vi.fn(async (url: string) => {
+      const item = url.startsWith('/api/github/item')
+        ? url.includes('number=453') && url.includes('kind=pull')
+          ? merged
+          : { status: 'not-found', repository: 'octo/repo', tokenSource: 'gh', item: null }
+        : list(status);
+      return new Response(JSON.stringify(item), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    return fetcher;
+  };
+  const settle = () =>
+    act(async () => {
+      for (let i = 0; i < 4; i++) await Promise.resolve();
+    });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useUIStore.setState({ draftInput: '' });
+  });
+
+  it('inserts the picked pull request as its GitHub URL without sending', async () => {
+    stubList('ok');
+    render(<ChatInput />);
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, 'review #12');
+    fireEvent.select(textarea, { target: { selectionStart: 10, selectionEnd: 10 } });
+    const option = await screen.findByRole('option', { name: /#128 Add GitHub view/ });
+    expect(option).toBeTruthy();
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(wsMock.sendMessage).not.toHaveBeenCalled();
+    expect(textarea.value).toBe('review https://github.com/octo/repo/pull/128 ');
+    expect(screen.queryByRole('option', { name: /#128/ })).toBeNull();
+  });
+
+  it('stays closed and lets Enter send when nothing matches', async () => {
+    stubList('ok');
+    render(<ChatInput />);
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, 'step #3');
+    fireEvent.select(textarea, { target: { selectionStart: 7, selectionEnd: 7 } });
+    await settle();
+    expect(screen.queryByRole('listbox', { name: 'Pull requests and issues' })).toBeNull();
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(wsMock.sendMessage).toHaveBeenCalledWith('step #3', undefined);
+  });
+
+  it('finds a closed or merged item by its exact number', async () => {
+    const fetcher = stubList('ok');
+    render(<ChatInput />);
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, 'see #453');
+    fireEvent.select(textarea, { target: { selectionStart: 8, selectionEnd: 8 } });
+    expect(
+      await screen.findByRole('option', { name: /#453 Ship the release gate/ }, { timeout: 2000 }),
+    ).toBeTruthy();
+    expect(
+      fetcher.mock.calls.some(([url]) =>
+        String(url).startsWith('/api/github/item?kind=pull&number=453&parts=none'),
+      ),
+    ).toBe(true);
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(wsMock.sendMessage).not.toHaveBeenCalled();
+    expect(textarea.value).toBe('see https://github.com/octo/repo/pull/453 ');
+  });
+
+  it('stays closed and lets Enter send when the project has no GitHub repository', async () => {
+    stubList('no-remote');
+    render(<ChatInput />);
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, 'step #1');
+    fireEvent.select(textarea, { target: { selectionStart: 7, selectionEnd: 7 } });
+    await settle();
+    expect(screen.queryByRole('listbox', { name: 'Pull requests and issues' })).toBeNull();
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(wsMock.sendMessage).toHaveBeenCalledWith('step #1', undefined);
+  });
+});

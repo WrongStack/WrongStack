@@ -223,6 +223,15 @@ export const desktopFeatures: DesktopFeature[] = [
     queries: [{ label: 'Project readiness', resource: '/api/project-kit' }],
   },
   {
+    id: 'github',
+    label: 'GitHub',
+    group: 'Project intelligence',
+    description:
+      "Open pull requests and issues of the project's GitHub repository (WebUI view; no native page yet).",
+    views: ['github'],
+    queries: [{ label: 'Pull requests and issues', resource: '/api/github' }],
+  },
+  {
     id: 'intake',
     label: 'Requirement Intake',
     group: 'Project intelligence',

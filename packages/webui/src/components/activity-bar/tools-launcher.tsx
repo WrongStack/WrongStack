@@ -20,6 +20,7 @@ import {
   FlaskConical,
   Gauge,
   GitFork,
+  GitPullRequest,
   History,
   Layers,
   LayoutGrid,
@@ -72,6 +73,7 @@ const TOOL_GROUPS: readonly ToolGroup[] = [
       { view: 'intake', icon: <ClipboardList size={15} />, labelKey: 'nav.intake' },
       { view: 'project-kit', icon: <PackageOpen size={15} />, labelKey: 'nav.project-kit' },
       { view: 'automation', icon: <Rocket size={15} />, labelKey: 'nav.automation' },
+      { view: 'github', icon: <GitPullRequest size={15} />, labelKey: 'nav.github' },
     ],
   },
   {

@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 308,
+      "files": 309,
       "typeOnly": 28,
-      "runtimeOrMixed": 283
+      "runtimeOrMixed": 284
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 226,
+      "files": 227,
       "typeOnly": 62,
-      "runtimeOrMixed": 201
+      "runtimeOrMixed": 202
     },
     "@wrongstack/core/tasking": {
       "files": 48,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1042,
+      "files": 1043,
       "typeOnly": 78,
-      "runtimeOrMixed": 999
+      "runtimeOrMixed": 1000
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -9359,6 +9359,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/github-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11330,6 +11336,12 @@
       "file": "packages/webui-server/src/server/eternal-iteration-broadcast.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/src/server/github-client.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -17694,6 +17706,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/git-process.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/github-client.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -28,6 +28,7 @@
  */
 import { type ComponentType, lazy } from 'react';
 import type { View } from '@/stores/ui-store';
+
 const AutomationView = lazy(() =>
   import('./AutomationView').then((module) => ({ default: module.AutomationView })),
 );
@@ -92,6 +93,7 @@ const TechStackView = lazy(() =>
 const ProjectKitView = lazy(() =>
   import('./ProjectKitView').then((m) => ({ default: m.ProjectKitView })),
 );
+const GitHubView = lazy(() => import('./GitHubView').then((m) => ({ default: m.GitHubView })));
 const DeadCodeScanPanel = lazy(() =>
   import('./DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({ default: m.DeadCodeScanPanel })),
 );
@@ -258,6 +260,12 @@ const VIEW_REGISTRY_STRICT = {
     wrapperClassName: 'flex-1 min-h-0 min-w-0 overflow-hidden',
     boundaryNameKey: 'activity:nav.project-kit',
     loadingLabelKey: 'activity:nav.project-kit',
+  },
+  github: {
+    Component: GitHubView,
+    wrapperClassName: 'flex-1 min-h-0 min-w-0 overflow-hidden',
+    boundaryNameKey: 'activity:nav.github',
+    loadingLabelKey: 'activity:nav.github',
   },
   automation: {
     Component: AutomationView,

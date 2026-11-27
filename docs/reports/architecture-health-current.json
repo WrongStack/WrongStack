@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T17:12:24.918Z",
+  "generatedAt": "2026-11-27T23:16:56.413Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6624,
-    "testFiles": 6563,
-    "sourceLines": 1359740,
+    "sourceFiles": 6636,
+    "testFiles": 6568,
+    "sourceLines": 1362366,
     "workspaceEdges": 267,
-    "moduleEdges": 19437,
+    "moduleEdges": 19460,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1199,8 +1199,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 802,
-      "testFiles": 601,
+      "sourceFiles": 810,
+      "testFiles": 604,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1226,14 +1226,14 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 601
+          "testFiles": 604
         }
       ]
     },
     {
       "name": "@wrongstack/webui-protocol",
       "dir": "packages/webui-protocol",
-      "sourceFiles": 29,
+      "sourceFiles": 30,
       "testFiles": 20,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1256,8 +1256,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 361,
-      "testFiles": 452,
+      "sourceFiles": 364,
+      "testFiles": 454,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1292,7 +1292,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 452
+          "testFiles": 454
         }
       ]
     },
@@ -35022,6 +35022,18 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/github-item.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/github-repository.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/goal-handlers.test.ts",
         "projects": [
           "root-node"
@@ -37080,6 +37092,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/ChatInput/github-mention.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/ChatInput/subagent-model-picker-dialog.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -37771,6 +37789,18 @@
       },
       {
         "file": "packages/webui/tests/components/generated-image-preview.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/github-view-model.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/github-view.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

@@ -25,6 +25,7 @@ export type MainView =
   | 'techstack'
   | 'project-kit'
   | 'automation'
+  | 'github'
   | 'chronicle'
   | 'prompts'
   | 'chimera'
