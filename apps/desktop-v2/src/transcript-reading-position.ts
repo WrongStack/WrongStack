@@ -1,10 +1,15 @@
 import { type RefObject, useCallback, useLayoutEffect, useRef } from 'react';
 import type { ChatMessage } from './engine-state';
-import type { TranscriptHandle } from './TranscriptVirtualizer';
 
 export interface TranscriptReadingPosition {
   messageId: string;
   offset: number;
+}
+
+/** Imperative handle of the transcript list. Lives here so the list and this module do not import each other. */
+export interface TranscriptHandle {
+  scrollToMessage(index: number, offset?: number): void;
+  readingPosition(): TranscriptReadingPosition | undefined;
 }
 
 const STORAGE_KEY = 'wrongstack.desktop.transcript-reading.v1';

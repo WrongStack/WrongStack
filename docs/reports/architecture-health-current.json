@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T12:26:46.740Z",
+  "generatedAt": "2026-11-27T12:33:56.258Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,19 +14,17 @@
     "packages": 51,
     "sourceFiles": 6623,
     "testFiles": 6556,
-    "sourceLines": 1359138,
+    "sourceLines": 1359140,
     "workspaceEdges": 267,
     "moduleEdges": 19436,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 2,
+    "typeModuleCycles": 1,
     "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1064
   },
-  "errors": [
-    "1 unexcepted module cycle(s)"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -1391,13 +1389,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "apps/desktop-v2/src/TranscriptVirtualizer.tsx",
-          "apps/desktop-v2/src/transcript-reading-position.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/contracts/src/types/blocks.ts",
           "packages/contracts/src/types/context.ts",
           "packages/contracts/src/types/conversation-state.ts",
@@ -1414,15 +1405,7 @@
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-12"
     ],
-    "unexcepted": [
-      {
-        "kind": "type-module-cycle",
-        "members": [
-          "apps/desktop-v2/src/TranscriptVirtualizer.tsx",
-          "apps/desktop-v2/src/transcript-reading-position.ts"
-        ]
-      }
-    ]
+    "unexcepted": []
   },
   "testOwnership": {
     "runtimeAssignments": [

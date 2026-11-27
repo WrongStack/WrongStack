@@ -26,7 +26,10 @@ const PICKER_OWNED = new Set(['wrongProxyUrl']);
 
 describe('TUI settings reset targets match the core config defaults', () => {
   const cfg = structuredClone(CONFIG_BEHAVIOR_DEFAULTS);
-  const live = readTuiSettings({ get: () => cfg } as unknown as ConfigStore);
+  // Indexed by the reset table's string keys below, so read it as a plain record.
+  const live: Record<string, unknown> = readTuiSettings({
+    get: () => cfg,
+  } as unknown as ConfigStore);
 
   it('keeps explicit AGENTS.md exclusions when opening the settings picker', () => {
     const excluded = {

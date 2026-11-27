@@ -10,12 +10,9 @@ import {
 } from 'react';
 import { Virtualizer, type VirtualizerHandle } from 'virtua';
 import type { ChatMessage } from './engine-state';
-import type { TranscriptReadingPosition } from './transcript-reading-position';
+import type { TranscriptHandle } from './transcript-reading-position';
 
-export interface TranscriptHandle {
-  scrollToMessage(index: number, offset?: number): void;
-  readingPosition(): TranscriptReadingPosition | undefined;
-}
+export type { TranscriptHandle } from './transcript-reading-position';
 
 /** Only viewport rows mount; questions and approvals in the footer always remain available. */
 export function TranscriptVirtualizer({

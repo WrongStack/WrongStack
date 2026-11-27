@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-27T12:26:46.740Z
+**Generated:** 2026-11-27T12:33:56.258Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,19 +9,19 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6623 |
-| Production source lines | 1359138 |
+| Production source lines | 1359140 |
 | Test files | 6556 |
 | Workspace dependency edges | 267 |
 | Relative module edges | 19436 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 2 |
+| Type-inclusive module cycles | 1 |
 | Tests without TypeScript test-project coverage | 15 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 1 unexcepted module cycle(s)
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -87,7 +87,6 @@ None.
 
 ### Type-inclusive
 
-- apps/desktop-v2/src/TranscriptVirtualizer.tsx ↔ apps/desktop-v2/src/transcript-reading-position.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/tool.ts
 
 ## Largest production files

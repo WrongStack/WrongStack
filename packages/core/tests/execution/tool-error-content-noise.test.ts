@@ -64,7 +64,9 @@ describe('the registered contract rides only on shape errors', () => {
       session: { id: 's', append: async () => {}, recordFileChange: () => {} },
     };
     const result = await executor.executeBatch([{ ...use, input: { path: 'x' } }], ctx as never);
-    return (result.outputs[0]?.result as ToolResultBlock).content as string;
+    const output = result.outputs[0];
+    if (!output) throw new Error('executor returned no output');
+    return (output.result as ToolResultBlock).content as string;
   }
 
   it('appends usage to a cross-field validation error', async () => {
