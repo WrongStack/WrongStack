@@ -195,7 +195,11 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
         },
         subject: { type: 'string', description: 'Short subject line.' },
         body: { type: 'string', description: 'Full message content.' },
-        priority: { type: 'string', enum: ['low', 'normal', 'high'] },
+        priority: {
+          type: 'string',
+          enum: ['low', 'normal', 'high'],
+          description: 'Default normal. Readers can filter with minPriority.',
+        },
         audience: {
           type: 'string',
           enum: ['all', 'leaders'],
@@ -222,7 +226,11 @@ export function makeMailboxTool(opts: MailboxToolOptions = {}): Tool {
         },
         incompleteOnly: { type: 'boolean', description: 'Only incomplete messages.' },
         from: { type: 'string', description: 'Filter by sender.' },
-        minPriority: { type: 'string', enum: ['low', 'normal', 'high'] },
+        minPriority: {
+          type: 'string',
+          enum: ['low', 'normal', 'high'],
+          description: 'Only return messages at or above this priority.',
+        },
         since: { type: 'string', description: 'ISO8601 timestamp — only messages after this.' },
         sessionId: { type: 'string', description: 'Filter query results by sender session id.' },
         limit: { type: 'number', description: 'Max messages to return.' },

@@ -105,9 +105,23 @@ export function createDefineSubagentTool(
         type: 'string',
         description: 'Optional provider override.',
       },
-      maxIterations: { type: 'number', minimum: 1 },
-      maxToolCalls: { type: 'number', minimum: 1 },
-      timeoutMs: { type: 'number', minimum: 1000 },
+      maxIterations: {
+        type: 'number',
+        minimum: 1,
+        description:
+          'Maximum LLM iterations. Default for every spawn of this subagent; unset = role default. Raise for deep multi-step tasks.',
+      },
+      maxToolCalls: {
+        type: 'number',
+        minimum: 1,
+        description:
+          'Maximum tool invocations. Default for every spawn of this subagent; unset = role default. Raise for file-heavy tasks.',
+      },
+      timeoutMs: {
+        type: 'number',
+        minimum: 1000,
+        description: 'Default wall-clock budget in ms for every spawn of this subagent.',
+      },
     },
     required: ['name', 'description'],
     additionalProperties: false,

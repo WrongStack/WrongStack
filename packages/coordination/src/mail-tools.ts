@@ -187,7 +187,11 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
             'Behavioral: steer (mid-task direction change), btw (low-priority aside). ' +
             'Informational: note/status/broadcast/control.',
         },
-        priority: { type: 'string', enum: ['low', 'normal', 'high'] },
+        priority: {
+          type: 'string',
+          enum: ['low', 'normal', 'high'],
+          description: 'Default normal. Readers can filter with minPriority.',
+        },
         audience: {
           type: 'string',
           enum: ['all', 'leaders'],

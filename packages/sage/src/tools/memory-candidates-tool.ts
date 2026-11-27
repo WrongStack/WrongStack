@@ -77,13 +77,22 @@ export function memoryCandidatesTool(memory: SageServiceLike): Tool<
       reason: stringSchema(
         'Reason for rejection, the review reason for propose, or the resolution note for resolve.',
       ),
-      include_resolved: { type: 'boolean' },
+      include_resolved: {
+        type: 'boolean',
+        description: 'list: also show accepted/rejected candidates (default: pending only).',
+      },
       text: stringSchema('Candidate text (required for propose).'),
       kind: enumSchema(KIND_VALUES, 'Memory kind for propose.'),
       scope: enumSchema(SCOPE_VALUES, 'Scope for propose.'),
       tags: stringArraySchema('Extra tags for propose.'),
-      importance: numberSchema(0, 1),
-      confidence: numberSchema(0, 1),
+      importance: {
+        ...numberSchema(0, 1),
+        description: 'How much this matters when ranking what to inject: 0 trivia … 1 must-know.',
+      },
+      confidence: {
+        ...numberSchema(0, 1),
+        description: 'How sure the fact is: below 0.5 becomes an archive candidate after 30 days.',
+      },
       suggested_action: {
         type: 'string',
         enum: ['delete', 'archive', 'investigate'],

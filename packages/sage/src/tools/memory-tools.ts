@@ -172,8 +172,15 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
           description:
             'Set to true to prevent auto-scoping from your agent role. Creates a general project memory even when called from a subagent.',
         },
-        importance: numberSchema(0, 1),
-        confidence: numberSchema(0, 1),
+        importance: {
+          ...numberSchema(0, 1),
+          description: 'How much this matters when ranking what to inject: 0 trivia … 1 must-know.',
+        },
+        confidence: {
+          ...numberSchema(0, 1),
+          description:
+            'How sure the fact is: below 0.5 becomes an archive candidate after 30 days.',
+        },
         persistence: enumSchema(
           ['permanent', 'long_lived', 'short_lived'],
           'Retention class. Prefer long_lived; permanent is only for explicit invariants.',
@@ -503,9 +510,20 @@ function memoryHygieneTool(memory: SageServiceLike): Tool<SageHygieneOptions, Sa
     description:
       'Deduplicate, verify anchors, mark stale, supersede old versions, and surface review candidates for deletion or archival. Never auto-deletes live memories — those decisions belong to the user or agent. The optional, opt-in purgeDeletedAfterDays physically compacts ALREADY-deleted tombstones older than N days out of the JSONL log (never touches active or permanent memories).',
     inputSchema: objectSchema({
-      retentionDays: numberSchema(0, 3650),
-      archiveLowConfidenceAfterDays: numberSchema(0, 3650),
-      verify: { type: 'boolean' },
+      retentionDays: {
+        ...numberSchema(0, 3650),
+        description:
+          'Days a stale memory may stay before it becomes a review candidate (default 90).',
+      },
+      archiveLowConfidenceAfterDays: {
+        ...numberSchema(0, 3650),
+        description:
+          'Days before a memory with confidence below 0.5 becomes an archive candidate (default 30).',
+      },
+      verify: {
+        type: 'boolean',
+        description: 'Also re-check every anchor (files, commands) before judging staleness.',
+      },
       purgeDeletedAfterDays: {
         ...numberSchema(0, 3650),
         description:

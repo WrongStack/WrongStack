@@ -52,7 +52,12 @@ export function makeKanbanQueueTool(
     inputSchema: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['dispatch_ready'] },
+        action: {
+          type: 'string',
+          enum: ['dispatch_ready'],
+          description:
+            'dispatch_ready (the default): claim ready tasks and start a worker for each.',
+        },
         boardId: { type: 'string', description: 'Optional board id/prefix to claim from.' },
         taskId: { type: 'string', description: 'Optional exact task id/prefix to claim.' },
         query: { type: 'string', description: 'Optional natural-language filter for ready tasks.' },
@@ -89,22 +94,36 @@ export function makeKanbanQueueTool(
           description:
             'Lease time-to-live seeded on dispatch. Default 300000 (5m). Workers should refresh via heartbeat_assignment before expiry.',
         },
-        agentId: { type: 'string' },
-        name: { type: 'string' },
-        role: { type: 'string' },
-        provider: { type: 'string' },
-        model: { type: 'string' },
+        agentId: { type: 'string', description: 'Worker identity recorded as the task claimant.' },
+        name: { type: 'string', description: 'Display name for the dispatched workers.' },
+        role: { type: 'string', description: 'Worker role (sets its prompt and tool defaults).' },
+        provider: { type: 'string', description: 'Provider override for the workers.' },
+        model: { type: 'string', description: 'Model override for the workers.' },
         tier: {
           type: 'string',
           description:
             "Cost level for the dispatched workers ('budget' | 'standard' | 'premium'). Resolved from `modelTiers`; an explicit provider/model still wins.",
         },
         effort: LEADER_EFFORT_SCHEMA,
-        fallbackModels: { type: 'array', items: { type: 'string' } },
-        tools: { type: 'array', items: { type: 'string' } },
-        allowedCapabilities: { type: 'array', items: { type: 'string' } },
+        fallbackModels: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Models to try, in order, when the primary one fails.',
+        },
+        tools: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Tool names the workers may use (unset = role default).',
+        },
+        allowedCapabilities: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Capabilities the workers may exercise (unset = role default).',
+        },
         worktree: {
           anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['auto', 'required', 'off'] }],
+          description:
+            'Git worktree isolation per worker: auto (only when it can write), required (true), off (false).',
         },
       },
     } satisfies JSONSchema,

@@ -147,7 +147,10 @@ export function memorySearchTool(
       {
         query: stringSchema('Search text, symbol, tag, command, or path.'),
         limit: numberSchema(1, 100),
-        include_stale: { type: 'boolean' },
+        include_stale: {
+          type: 'boolean',
+          description: 'Also return memories marked stale (default: active only).',
+        },
       },
       ['query'],
     ),
@@ -208,7 +211,10 @@ export function memorySearchExplainTool(memory: SageServiceLike): Tool<
       {
         query: stringSchema('Search text, symbol, tag, command, or path.'),
         limit: numberSchema(1, 100),
-        include_stale: { type: 'boolean' },
+        include_stale: {
+          type: 'boolean',
+          description: 'Also return memories marked stale (default: active only).',
+        },
       },
       ['query'],
     ),
@@ -270,7 +276,11 @@ export function memoryGraphTool(
     inputSchema: objectSchema(
       {
         query: stringSchema('A memory id, graph node, path, symbol, or search query.'),
-        depth: numberSchema(1, 6),
+        depth: {
+          ...numberSchema(1, 6),
+          description:
+            'Relationship hops to follow from the matches across memories, files, symbols, commands and sessions (default 2).',
+        },
         limit: numberSchema(1, 500),
       },
       ['query'],

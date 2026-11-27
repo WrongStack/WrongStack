@@ -80,9 +80,19 @@ export function memoryUpdateTool(
         kind: enumSchema(KIND_VALUES, 'New kind.'),
         anchors: anchorsSchema(),
         audience: audienceSchema(),
-        importance: numberSchema(0, 1),
-        confidence: numberSchema(0, 1),
-        freshness: numberSchema(0, 1),
+        importance: {
+          ...numberSchema(0, 1),
+          description: 'How much this matters when ranking what to inject: 0 trivia … 1 must-know.',
+        },
+        confidence: {
+          ...numberSchema(0, 1),
+          description:
+            'How sure the fact is: below 0.5 becomes an archive candidate after 30 days.',
+        },
+        freshness: {
+          ...numberSchema(0, 1),
+          description: 'How current the fact still is: 1 just verified … 0 likely outdated.',
+        },
         persistence: enumSchema(
           ['permanent', 'long_lived', 'short_lived'],
           'Retention class. Prefer long_lived; permanent is only for explicit invariants.',

@@ -67,9 +67,22 @@ export function makeSpawnTool(
         type: 'string',
         description: 'Extra prompt text appended after the role-base prompt.',
       },
-      maxIterations: { type: 'number', minimum: 1 },
-      maxToolCalls: { type: 'number', minimum: 1 },
-      maxCostUsd: { type: 'number', minimum: 0 },
+      maxIterations: {
+        type: 'number',
+        minimum: 1,
+        description:
+          'Maximum LLM iterations. Unset = role default. Raise for deep multi-step tasks.',
+      },
+      maxToolCalls: {
+        type: 'number',
+        minimum: 1,
+        description: 'Maximum tool invocations. Unset = role default. Raise for file-heavy tasks.',
+      },
+      maxCostUsd: {
+        type: 'number',
+        minimum: 0,
+        description: 'Max estimated USD cost. Unset = role default.',
+      },
       timeoutMs: {
         type: 'number',
         minimum: 1,
