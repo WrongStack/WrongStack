@@ -10,10 +10,12 @@
  * factory: a profile whose provider was either failed to boot ("needs an
  * explicit family"), and the pickers never offered them.
  */
+import { join } from 'node:path';
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, Provider } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import {
   type AcpLeaderHost,
@@ -28,6 +30,7 @@ import {
   setAcpLeaderSessionAgents,
 } from '@wrongstack/runtime/acp-leader';
 import { drainRemoteWork } from '@wrongstack/runtime/acp-leader-host';
+import { discoverAcpRegistry } from '@wrongstack/runtime/commands';
 import {
   createWrongForgeLeaderProviderFactory,
   wrongForgeLeaderPickable,
@@ -52,11 +55,24 @@ export function registerStandaloneAcpLeaderProvider(
 }
 
 /**
+ * Keep the cached official ACP registry fresh in the background (1h TTL +
+ * in-flight dedup inside `discoverAcpRegistry`) so Desktop and WebUI always
+ * pick up newly released ACP adapters and pinned package versions.
+ */
+function refreshAcpRegistryInBackground(): void {
+  if (process.env['VITEST']) return;
+  void discoverAcpRegistry({ cacheDir: join(wstackGlobalRoot(), 'cache') } as never).catch(
+    () => undefined,
+  );
+}
+
+/**
  * The providers this engine serves itself, listed beside the saved ones in the
  * pickers: `acp` with one model per ACP agent installed here, and `wrongforge`
  * with the models the machine's WrongForge serves (none set up → no row).
  */
 export function standaloneHostProviders(config: Config | undefined): HostProvider[] {
+  refreshAcpRegistryInBackground();
   return [...acpLeaderPickable(config), ...wrongForgeLeaderPickable()];
 }
 
@@ -116,6 +132,7 @@ export function bindStandaloneAcpLeaderHost(
     }),
   );
   confirmAcpLeaderThroughEvents();
+  refreshAcpRegistryInBackground();
   const bound: AcpLeaderHost | undefined = acpLeaderHost();
   const resolveSession = (sessionId: string) => input.peekAgent(sessionId);
   setAcpLeaderSessionAgents(resolveSession);

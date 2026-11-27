@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1036,
+      "files": 1037,
       "typeOnly": 78,
-      "runtimeOrMixed": 993
+      "runtimeOrMixed": 994
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -17976,6 +17976,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/skills-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/standalone-acp-leader.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
