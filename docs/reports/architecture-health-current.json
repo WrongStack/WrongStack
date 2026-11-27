@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T15:15:26.732Z",
+  "generatedAt": "2026-11-27T15:51:03.892Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6624,
-    "testFiles": 6560,
-    "sourceLines": 1359738,
+    "testFiles": 6561,
+    "sourceLines": 1359737,
     "workspaceEdges": 267,
     "moduleEdges": 19437,
     "nonCommandSlashImports": 0,
@@ -695,7 +695,7 @@
       "name": "@wrongstack/plug-lsp",
       "dir": "packages/plug-lsp",
       "sourceFiles": 52,
-      "testFiles": 73,
+      "testFiles": 74,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -710,7 +710,7 @@
         {
           "path": "packages/plug-lsp/tsconfig.test.json",
           "error": null,
-          "testFiles": 73
+          "testFiles": 74
         }
       ]
     },
@@ -21331,6 +21331,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/lsp-location-nan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plug-lsp/tests/registry-bind-generation-fence.test.ts",
         "projects": [
           "root-node"
         ]

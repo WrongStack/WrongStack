@@ -57,7 +57,6 @@ export class LSPRegistry {
         this.list()
           .filter((s) => s.config.languages.some((lang) => languages.has(lang)))
           .map(async (s) => {
-            if (this.generation !== bindGen) return;
             await startServerSafely(s, this.ctx.log);
             if (this.generation !== bindGen) {
               await s

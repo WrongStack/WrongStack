@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-27T15:15:26.732Z
+**Generated:** 2026-11-27T15:51:03.892Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6624 |
-| Production source lines | 1359738 |
-| Test files | 6560 |
+| Production source lines | 1359737 |
+| Test files | 6561 |
 | Workspace dependency edges | 267 |
 | Relative module edges | 19437 |
 | Non-command slash imports | 0 |
@@ -51,7 +51,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/mailbox-mcp | 7 | 12 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 76 | 128 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/persistence | 10 | 31 | — |
-| @wrongstack/plug-lsp | 52 | 73 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plug-lsp | 52 | 74 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 18 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 170 | 174 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 55 | — |
