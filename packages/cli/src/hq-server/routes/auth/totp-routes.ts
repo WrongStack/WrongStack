@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
-import { mutateHqAuthFile, verifyHqPassword } from '@wrongstack/hq';
 import {
   buildOtpAuthUri,
   generateRecoveryCodes,
@@ -9,6 +8,7 @@ import {
   verifyRecoveryCode,
   verifyTotp,
 } from '@wrongstack/core/security';
+import { mutateHqAuthFile, verifyHqPassword } from '@wrongstack/hq';
 import {
   parseHqSessionCookie,
   readHqSessionCookie,
@@ -18,11 +18,11 @@ import {
 import { resolveClientAddress } from '../../client-address.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
-import { readRequestBody } from '../../utils.js';
 import {
   type ApplyHqAuthFile,
   authorizeAuthAdmin,
   consumeTotpCode,
+  readAuthJsonBody,
   recordVerifyFailure,
 } from './common.js';
 
@@ -90,14 +90,9 @@ export async function handleApiLoginVerify(
     return;
   }
 
-  let body: { code?: unknown; recoveryCode?: unknown };
-  try {
-    body = JSON.parse(await readRequestBody(req)) as typeof body;
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }));
-    return;
-  }
+  const parsedBody = await readAuthJsonBody(req, res);
+  if (!parsedBody) return;
+  const body = parsedBody as { code?: unknown; recoveryCode?: unknown };
 
   // The caller decides when the body ends, so the throttle and the pending
   // session checked above may be stale by now: a burst of requests holding
@@ -322,14 +317,9 @@ export async function handleApiTotpEnable(
     return;
   }
 
-  let body: { code?: unknown };
-  try {
-    body = JSON.parse(await readRequestBody(req)) as typeof body;
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }));
-    return;
-  }
+  const parsedBody = await readAuthJsonBody(req, res);
+  if (!parsedBody) return;
+  const body = parsedBody as { code?: unknown };
 
   if (typeof body.code !== 'string' || body.code.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -380,14 +370,9 @@ export async function handleApiTotpDisable(
 ): Promise<void> {
   if (!authorizeAuthAdmin(req, res, mutableAuth, sessions)) return;
 
-  let body: { password?: unknown; code?: unknown };
-  try {
-    body = JSON.parse(await readRequestBody(req)) as typeof body;
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }));
-    return;
-  }
+  const parsedBody = await readAuthJsonBody(req, res);
+  if (!parsedBody) return;
+  const body = parsedBody as { password?: unknown; code?: unknown };
 
   // Checked after the body (whose end the caller controls) and charged before
   // the verify awaits, so a concurrent burst cannot all pass one check. A

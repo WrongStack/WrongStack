@@ -162,7 +162,13 @@ export async function handleApiMailboxSend(
     audience?: string;
   };
   try {
-    mbody = JSON.parse(await readRequestBody(_req));
+    const parsed: unknown = JSON.parse(await readRequestBody(_req));
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'expected a JSON object' }));
+      return;
+    }
+    mbody = parsed as typeof mbody;
   } catch (error) {
     writeInvalidBody(res, error);
     return;
@@ -336,7 +342,13 @@ export async function handleMailboxAction(
     projectId?: string;
   };
   try {
-    abody = JSON.parse(await readRequestBody(_req));
+    const parsed: unknown = JSON.parse(await readRequestBody(_req));
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'expected a JSON object' }));
+      return;
+    }
+    abody = parsed as typeof abody;
   } catch (error) {
     writeInvalidBody(res, error);
     return;

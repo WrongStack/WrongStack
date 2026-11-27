@@ -27,6 +27,7 @@ import {
   isTokenAuth,
 } from './routes.js';
 import type { HqSessionEntry } from './types.js';
+import { parseHqRequestUrl } from './utils.js';
 
 interface MailboxGatewayManagerDeps {
   host: string;
@@ -60,7 +61,14 @@ export class MailboxGatewayManager {
   }
 
   authorizeMailboxGateway(req: IncomingMessage, projectDir: string): MailboxHttpAccessDecision {
-    const requestUrl = new URL(req.url ?? '/', `http://${this.deps.host}:${this.deps.port}`);
+    const requestUrl = parseHqRequestUrl(req.url, this.deps.host, this.deps.port);
+    if (requestUrl === null) {
+      return {
+        allowed: false,
+        status: 400,
+        body: { error: { code: 'BAD_REQUEST', message: 'invalid request url' } },
+      };
+    }
     const auth = authenticateBrowserRequest(
       req,
       requestUrl,

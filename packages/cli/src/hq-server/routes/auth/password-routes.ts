@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
 import {
   hashHqPassword,
+  hqPasswordNeedsUpgrade,
   mintHqCookieSecret,
   mutateHqAuthFile,
-  hqPasswordNeedsUpgrade,
   verifyHqPassword,
 } from '@wrongstack/hq';
 import {
@@ -20,11 +20,11 @@ import {
 import { resolveClientAddress } from '../../client-address.js';
 import { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
-import { readRequestBody, writeInvalidBody } from '../../utils.js';
 import {
   type ApplyHqAuthFile,
   consumeTotpCode,
   isLoopbackRequest,
+  readAuthJsonBody,
   recordVerifyFailure,
 } from './common.js';
 
@@ -119,13 +119,9 @@ export async function handleApiLogin(
     return;
   }
 
-  let body: { password?: unknown };
-  try {
-    body = JSON.parse(await readRequestBody(req)) as { password?: unknown };
-  } catch (error) {
-    writeInvalidBody(res, error);
-    return;
-  }
+  const parsedBody = await readAuthJsonBody(req, res);
+  if (!parsedBody) return;
+  const body = parsedBody as { password?: unknown };
 
   if (typeof body.password !== 'string' || body.password.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -293,14 +289,9 @@ export async function handleApiPassword(
     );
   }
 
-  let body: { currentPassword?: unknown; newPassword?: unknown; code?: unknown } = {};
-  try {
-    body = JSON.parse(await readRequestBody(req)) as typeof body;
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }));
-    return;
-  }
+  const parsedBody = await readAuthJsonBody(req, res);
+  if (!parsedBody) return;
+  const body = parsedBody as { currentPassword?: unknown; newPassword?: unknown; code?: unknown };
 
   // WS-SEC-05: holding `auth.admin` used to skip this proof entirely, so any
   // principal with an admin browser token — a copy-pasteable string — could

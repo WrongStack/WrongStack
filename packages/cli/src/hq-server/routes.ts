@@ -252,8 +252,13 @@ export function createHqRouter(deps: HqRouterDeps): HqRouter {
 
   const handler = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     try {
-      const url = new URL(req.url ?? '/', `http://${host}:${listeningPort()}`);
       HqServerAuth.setHqSecurityHeaders(res);
+      const url = HqServerUtils.parseHqRequestUrl(req.url, host, listeningPort());
+      if (url === null) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'invalid request url' }));
+        return;
+      }
 
       // Evaluate the real TCP peer before origin/auth. Forwarded headers are
       // deliberately irrelevant here: on a wildcard bind they are supplied

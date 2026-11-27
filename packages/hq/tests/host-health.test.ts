@@ -123,6 +123,22 @@ describe('hqHostHealthProblems', () => {
     expect(hqHostHealthProblems(undefined, now)).toEqual([]);
   });
 
+  it('ignores a future-dated sample beyond the clock-skew allowance', () => {
+    const critical = { ...SAMPLE, diskFreeBytes: 1e9, memAvailableBytes: 1e8 };
+    // 30s ahead is tolerated clock skew and still reports real problems.
+    expect(
+      hqHostHealthProblems({ ...critical, reportedAt: new Date(now + 30_000).toISOString() }, now),
+    ).toEqual(['disk', 'memory']);
+    // An hour ahead is not an observation from this moment: it must not
+    // suppress a real disk/memory alert (matching health-history's guard).
+    expect(
+      hqHostHealthProblems(
+        { ...critical, reportedAt: new Date(now + 3_600_000).toISOString() },
+        now,
+      ),
+    ).toEqual([]);
+  });
+
   it('follows the operator thresholds, and 0 turns a check off', () => {
     // 20 GB free of 500 GB = 4%: low by default (under 5%).
     const sample = { ...SAMPLE, diskFreeBytes: 20e9, memAvailableBytes: 1.2e9, reportedAt: at };

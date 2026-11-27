@@ -14,6 +14,7 @@ import { resolveSocketAddress } from './client-address.js';
 import type { HqIpAllowlist } from './ip-allowlist.js';
 import { hasTrustedBrowserOrigin, parseHqSessionCookie } from './routes.js';
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './types.js';
+import { parseHqRequestUrl } from './utils.js';
 import * as HqServerWs from './ws.js';
 
 interface HqUpgradeHandlerDeps {
@@ -59,7 +60,11 @@ export function handleHqUpgrade(
   head: Buffer,
   deps: HqUpgradeHandlerDeps,
 ): void {
-  const url = new URL(req.url ?? '/', `http://${deps.host}:${deps.port}`);
+  const url = parseHqRequestUrl(req.url, deps.host, deps.port);
+  if (url === null) {
+    socket.destroy();
+    return;
+  }
   const pathname = url.pathname;
 
   if (pathname !== '/ws/client' && pathname !== '/ws/browser') {
@@ -236,9 +241,8 @@ export function handleHqConnection(
     }
     HqServerWs.handleBrowser(ws, deps.snapshotBroadcaster, deps.browsers, deps.eventLog);
   } else {
-    const token = new URL(req.url ?? '/', `http://${deps.host}:${deps.port}`).searchParams.get(
-      'token',
-    );
+    const token =
+      parseHqRequestUrl(req.url, deps.host, deps.port)?.searchParams.get('token') ?? null;
     const authToken = token
       ? deps.mutableAuth.clientTokenObjs.get(hqTokenVerifier(token))
       : undefined;

@@ -8,7 +8,7 @@ import {
   setHqSessionCookie,
 } from '../../auth.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
-import { readRequestBody, writeInvalidBody } from '../../utils.js';
+import { readAuthJsonBody } from './common.js';
 
 export async function handleApiBootstrap(
   req: http.IncomingMessage,
@@ -31,13 +31,9 @@ export async function handleApiBootstrap(
     return;
   }
 
-  let body: { code?: unknown };
-  try {
-    body = JSON.parse(await readRequestBody(req)) as { code?: unknown };
-  } catch (error) {
-    writeInvalidBody(res, error);
-    return;
-  }
+  const parsedBody = await readAuthJsonBody(req, res);
+  if (!parsedBody) return;
+  const body = parsedBody as { code?: unknown };
 
   if (typeof body.code !== 'string' || body.code.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });

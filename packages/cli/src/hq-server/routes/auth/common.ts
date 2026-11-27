@@ -4,6 +4,31 @@ import { type HqAuthFile, isLoopbackHost, mutateHqAuthFile } from '@wrongstack/h
 import { authenticateBrowserRequest, type HqBrowserAuthResult } from '../../auth.js';
 import type { LoginAttemptStore } from '../../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../../types.js';
+import { readRequestBody, writeInvalidBody } from '../../utils.js';
+
+/** Read and validate that an auth endpoint's request body is a plain JSON object. */
+export async function readAuthJsonBody(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<Record<string, unknown> | undefined> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readRequestBody(req));
+  } catch (error) {
+    writeInvalidBody(res, error);
+    return undefined;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: { code: 'BAD_REQUEST', message: 'Request body must be a JSON object.' },
+      }),
+    );
+    return undefined;
+  }
+  return parsed as Record<string, unknown>;
+}
 
 /**
  * Record a failed second-factor confirmation and return the new failure count.

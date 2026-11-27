@@ -10,6 +10,8 @@ import type { HqAlertRuleConfig } from './alerts.js';
 import type { HqHostHealth } from './protocol.js';
 
 export const HQ_HOST_HEALTH_FRESH_MS = 5 * 60_000;
+/** Match `HqTimeseriesStore`'s clock-skew allowance for future-dated samples. */
+const HQ_HOST_HEALTH_FUTURE_SKEW_MS = 60_000;
 
 /** When a machine's health needs a person; 0 turns a check off. */
 export interface HqHostHealthThresholds {
@@ -61,7 +63,12 @@ export function hqHostHealthProblems(
 ): HqHostHealthProblem[] {
   if (health === undefined) return [];
   const at = Date.parse(health.reportedAt);
-  if (!Number.isFinite(at) || !Number.isFinite(now) || now - at > HQ_HOST_HEALTH_FRESH_MS) {
+  if (
+    !Number.isFinite(at) ||
+    !Number.isFinite(now) ||
+    now - at > HQ_HOST_HEALTH_FRESH_MS ||
+    at > now + HQ_HOST_HEALTH_FUTURE_SKEW_MS
+  ) {
     return [];
   }
   const problems: HqHostHealthProblem[] = [];

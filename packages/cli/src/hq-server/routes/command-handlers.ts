@@ -47,7 +47,13 @@ export async function handleApiCommand(
 
   let body: { clientId?: string; type?: string; payload?: unknown };
   try {
-    body = JSON.parse(await readRequestBody(req)) as {
+    const parsed: unknown = JSON.parse(await readRequestBody(req));
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'expected a JSON object' }));
+      return;
+    }
+    body = parsed as {
       clientId?: string;
       type?: string;
       payload?: unknown;

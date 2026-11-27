@@ -243,6 +243,18 @@ export function writeInvalidBody(res: http.ServerResponse, error: unknown): void
 
 // ── URL builders ───────────────────────────────────────────────────────────
 
+export function parseHqRequestUrl(
+  rawUrl: string | undefined,
+  host: string,
+  port: number,
+): URL | null {
+  try {
+    return new URL(rawUrl ?? '/', `http://${displayHost(host)}:${port}`);
+  } catch {
+    return null;
+  }
+}
+
 export function buildHttpUrl(host: string, port: number, token?: string, tls = false): string {
   const url = new URL(`${tls ? 'https' : 'http'}://${displayHost(host)}:${port}/`);
   if (token) url.searchParams.set('token', token);
