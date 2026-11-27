@@ -12,6 +12,7 @@ import {
 } from './model-visibility';
 import { ProviderVisibilityControl } from './ProviderVisibilityControl';
 import { useProviderNames } from './provider-names';
+import { ProviderField } from './ModelReferenceField';
 import './model-visibility.css';
 
 export function ModelVisibilitySettings({
@@ -117,21 +118,15 @@ export function ModelVisibilitySettings({
   return (
     <section className="model-visibility" aria-label={t('modelVisibility.label')}>
       <div className="model-visibility-toolbar">
-        <label>
-          {t('modelVisibility.savedProvider')}
-          <select
-            aria-label={t('modelVisibility.providerSelect')}
-            value={provider}
-            disabled={busy || !!review}
-            onChange={(event) => setProvider(event.target.value)}
-          >
-            {providers.map((item) => (
-              <option key={String(item['id'])} value={String(item['id'])}>
-                {names[String(item['id'])] ?? String(item['id'])}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ProviderField
+          label={t('modelVisibility.savedProvider')}
+          name={t('modelVisibility.providerSelect')}
+          providers={providers.map((item) => String(item['id']))}
+          names={names}
+          value={provider}
+          disabled={busy || !!review}
+          onChange={setProvider}
+        />
         <label>
           {t('modelVisibility.search')}
           <input

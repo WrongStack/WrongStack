@@ -64,7 +64,6 @@
   accent-color: var(--accent);
   flex: 0 0 auto;
 }
-.refinement-route-fields,
 .refinement-preview-columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -74,7 +73,6 @@
   min-width: 0;
 }
 @media (max-width: 1050px) {
-  .refinement-route-fields,
   .refinement-preview-columns {
     grid-template-columns: 1fr;
   }

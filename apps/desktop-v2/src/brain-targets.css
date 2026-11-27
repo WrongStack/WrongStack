@@ -17,7 +17,19 @@
   display: flex;
   gap: 6px;
 }
-.brain-target-fields,
+.brain-target-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: start;
+  margin: 14px 0;
+}
+.brain-target-fields > .field-help {
+  margin: 0;
+  padding-top: 30px;
+  font-size: 12px;
+  color: var(--muted);
+}
 .brain-voter-policy {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -50,5 +62,8 @@
   .brain-target-fields,
   .brain-voter-policy {
     grid-template-columns: 1fr;
+  }
+  .brain-target-fields > .field-help {
+    padding-top: 0;
   }
 }

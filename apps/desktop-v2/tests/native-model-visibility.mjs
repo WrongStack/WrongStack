@@ -23,6 +23,12 @@ export async function exerciseNativeModelVisibility({
   const ref = `${providerId}/baseline`,
     other = 'other-provider/baseline';
   const main = page.getByRole('navigation', { name: 'Main navigation' });
+  // The provider picker is a combobox: typing the id commits it, Enter closes the list.
+  const chooseProvider = async (id) => {
+    const picker = page.getByRole('combobox', { name: 'Visibility provider', exact: true });
+    await picker.fill(id);
+    await picker.press('Enter');
+  };
   const open = async () => {
     await main.getByRole('button', { name: 'Projects', exact: true }).click();
     await main.getByRole('button', { name: 'WrongStack settings', exact: true }).click();
@@ -30,9 +36,7 @@ export async function exerciseNativeModelVisibility({
       .getByRole('navigation', { name: 'WrongStack settings sections' })
       .getByRole('button', { name: 'Model visibility', exact: true })
       .click();
-    await page
-      .getByRole('combobox', { name: 'Visibility provider', exact: true })
-      .selectOption(providerId);
+    await chooseProvider(providerId);
   };
   const save = async () => {
     await page.getByRole('button', { name: 'Save settings', exact: true }).click();
@@ -102,9 +106,7 @@ export async function exerciseNativeModelVisibility({
     await page
       .getByRole('button', { name: 'Reload saved values (discard drafts)', exact: true })
       .click();
-    await page
-      .getByRole('combobox', { name: 'Visibility provider', exact: true })
-      .selectOption(providerId);
+    await chooseProvider(providerId);
     card = page.getByRole('article', { name: 'Model visibility baseline', exact: true });
     await card.getByRole('button', { name: 'Enable model', exact: true }).click();
     await page
@@ -194,9 +196,7 @@ export async function exerciseNativeModelVisibility({
     await page
       .getByRole('button', { name: 'Reload saved values (discard drafts)', exact: true })
       .click();
-    await page
-      .getByRole('combobox', { name: 'Visibility provider', exact: true })
-      .selectOption(providerId);
+    await chooseProvider(providerId);
     await toggleProvider(false);
     await save();
     policy = await call('prefs.get');

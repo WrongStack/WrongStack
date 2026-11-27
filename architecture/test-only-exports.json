@@ -150,6 +150,9 @@
     "apps/desktop-v2/src/model-recents.ts": [
       "MAX_RECENT_MODELS"
     ],
+    "apps/desktop-v2/src/model-reference-options.ts": [
+      "providerDisplayName"
+    ],
     "apps/desktop-v2/src/ModelCatalogProfile.tsx": [
       "readModelProfile"
     ],

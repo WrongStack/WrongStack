@@ -47,13 +47,10 @@ export async function exerciseNativeRefinementPolicy({
   };
   await open();
   const policy = screen.getByRole('region', { name: 'Prompt refinement policy', exact: true });
-  const select = policy.getByLabel('Saved refiner model', { exact: true });
-  await select
-    .locator('option')
-    .filter({ hasText: `desktop-local/${fixtureModel}` })
-    .waitFor({ state: 'attached' });
-  await select.selectOption({ label: `desktop-local/${fixtureModel}` });
-  await policy.getByLabel('Explicit refiner model', { exact: true }).fill('explicit/refiner');
+  // One provider/model picker holds the explicit refiner reference.
+  const refiner = policy.getByRole('combobox', { name: 'Refiner model', exact: true });
+  await refiner.fill('explicit/refiner');
+  await refiner.press('Enter');
   await policy.getByLabel('Named refiner profile', { exact: true }).selectOption('native-refiner');
   await policy
     .getByLabel('Preferred refinement language', { exact: true })
@@ -135,13 +132,10 @@ export async function exerciseNativeRefinementPolicy({
     fullPage: true,
   });
   await policy.getByLabel('Named refiner profile', { exact: true }).selectOption('');
-  await policy.getByLabel('Explicit refiner model', { exact: true }).fill('local-draft');
+  await refiner.fill('local-draft');
   await nav.getByRole('button', { name: 'Context & reasoning', exact: true }).click();
   await nav.getByRole('button', { name: 'Prompt refinement', exact: true }).click();
-  assert.equal(
-    await policy.getByLabel('Explicit refiner model', { exact: true }).inputValue(),
-    'local-draft',
-  );
+  assert.equal(await refiner.inputValue(), 'local-draft');
   await call('prefs.update', { refinerProvider: 'other-provider' });
   await screen.getByRole('button', { name: 'Save settings', exact: true }).click();
   await screen.getByRole('alert').filter({ hasText: 'routing changed elsewhere' }).waitFor();
@@ -150,14 +144,11 @@ export async function exerciseNativeRefinementPolicy({
     .getByRole('button', { name: 'Reload saved values (discard drafts)', exact: true })
     .click();
   await waitFor(
-    async () =>
-      (await policy.getByLabel('Explicit refiner provider', { exact: true }).inputValue()) ===
-      'other-provider',
+    async () => (await refiner.inputValue()) === 'other-provider/explicit/refiner',
     'Refiner route conflict reload',
   );
   await policy.getByLabel('Named refiner profile', { exact: true }).selectOption('');
-  await policy.getByLabel('Explicit refiner provider', { exact: true }).fill('');
-  await policy.getByLabel('Explicit refiner model', { exact: true }).fill('');
+  await refiner.fill('');
   await policy.getByLabel('Preferred refinement language', { exact: true }).selectOption('english');
   await policy.getByRole('checkbox', { name: 'Review refinement on submit', exact: true }).check();
   await save();

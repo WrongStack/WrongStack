@@ -8,11 +8,16 @@
   align-items: end;
   margin-bottom: 16px;
 }
-.model-visibility-toolbar label {
+.model-visibility-toolbar label,
+.model-visibility-toolbar .model-reference-field {
   display: grid;
   gap: 8px;
   flex: 1;
   min-width: 160px;
+}
+.model-visibility-toolbar .model-reference-field > label {
+  font-size: inherit;
+  color: inherit;
 }
 .model-visibility-toolbar :is(input, select) {
   width: 100%;

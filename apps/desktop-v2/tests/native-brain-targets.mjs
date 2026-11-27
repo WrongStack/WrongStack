@@ -18,13 +18,12 @@ export async function exerciseNativeBrainTargets({
     exact: true,
   });
   const completions = providerFixture.calls.length;
+  // Each target is one provider/model picker: typing the reference commits it; Enter closes.
+  const reference = (label) =>
+    editor.getByRole('combobox', { name: `${label} model`, exact: true });
   const choose = async (label) => {
-    const select = editor.getByLabel(`${label} saved model`, { exact: true });
-    await select
-      .locator('option')
-      .filter({ hasText: `desktop-local/${fixtureModel}` })
-      .waitFor({ state: 'attached' });
-    await select.selectOption({ label: `desktop-local/${fixtureModel}` });
+    await reference(label).fill(`desktop-local/${fixtureModel}`);
+    await reference(label).press('Enter');
   };
   const save = async () => {
     await panel.getByRole('button', { name: 'Save Brain policy', exact: true }).click();
@@ -35,8 +34,7 @@ export async function exerciseNativeBrainTargets({
   await editor.getByRole('button', { name: 'Add Brain pool model', exact: true }).click();
   await choose('Brain pool model 1');
   await editor.getByRole('button', { name: 'Add Brain pool model', exact: true }).click();
-  await editor.getByLabel('Brain pool model 2 provider', { exact: true }).fill('desktop-local');
-  await editor.getByLabel('Brain pool model 2 model ID', { exact: true }).fill('custom/second');
+  await reference('Brain pool model 2').fill('desktop-local/custom/second');
   await editor.getByRole('button', { name: 'Move Brain pool model 2 up', exact: true }).click();
   await editor.getByLabel('Brain pool strategy', { exact: true }).selectOption('round-robin');
   await editor.getByRole('button', { name: 'Add council voter', exact: true }).click();
@@ -45,7 +43,7 @@ export async function exerciseNativeBrainTargets({
   await editor.getByLabel('Brain voter 1 weight', { exact: true }).fill('2.5');
   await editor.getByLabel('Brain voter 1 veto', { exact: true }).selectOption('no');
   await editor.getByRole('button', { name: 'Add council voter', exact: true }).click();
-  await editor.getByLabel('Brain voter 2 model ID', { exact: true }).fill('custom/second');
+  await reference('Brain voter 2').fill('custom/second');
   await editor.getByRole('button', { name: 'Add council voter', exact: true }).click();
   await editor.getByRole('button', { name: 'Remove Brain voter 3', exact: true }).click();
   await choose('Council judge');
@@ -72,10 +70,7 @@ export async function exerciseNativeBrainTargets({
   const nav = page.getByRole('navigation', { name: 'WrongStack settings sections', exact: true });
   await nav.getByRole('button', { name: 'Fleet & companions', exact: true }).click();
   await nav.getByRole('button', { name: 'Brain policy', exact: true }).click();
-  assert.equal(
-    await editor.getByLabel('Brain pool model 1 model ID', { exact: true }).inputValue(),
-    'custom/second',
-  );
+  assert.equal(await reference('Brain pool model 1').inputValue(), 'desktop-local/custom/second');
   await save();
   const config = (await call('brain.config.get')).config;
   assert.deepEqual(config.models, [

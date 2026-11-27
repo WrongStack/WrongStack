@@ -101,7 +101,7 @@ describe('the Brain settings in the display language', () => {
       'Decision model pool',
       'Fallback in order',
       'Pool model 1',
-      'Choose from saved catalogs…',
+      'Pick a saved model, or type provider/model. A model ID alone inherits the runtime provider.',
       'Add Brain pool model',
       'Council voting seats',
       'Voting seat 1',
@@ -118,11 +118,11 @@ describe('the Brain settings in the display language', () => {
     expect(page.labels).toEqual(
       expect.arrayContaining([
         'Brain models and council editor',
-        'Brain pool model 1 saved model',
+        'Brain pool model 1 model',
         'Move Brain pool model 1 up',
         'Brain voter 1 lens',
         'Remove Brain seat default 1',
-        'Council judge model ID',
+        'Council judge model',
       ]),
     );
 
@@ -132,7 +132,7 @@ describe('the Brain settings in the display language', () => {
       'Karar modeli havuzu',
       'Sırayla yedekle',
       'Havuz modeli 1',
-      'Kayıtlı kataloglardan seç…',
+      'Kayıtlı bir model seç ya da sağlayıcı/model yaz. Tek başına bir model kimliği çalışma ortamı sağlayıcısını devralır.',
       'Brain havuzuna model ekle',
       'Konsey oy koltukları',
       'Oy koltuğu 1',
@@ -148,11 +148,11 @@ describe('the Brain settings in the display language', () => {
     expect(page.labels).toEqual(
       expect.arrayContaining([
         'Brain modelleri ve konsey düzenleyicisi',
-        'Brain havuz modeli 1 kayıtlı modeli',
+        'Brain havuz modeli 1 modeli',
         'Yukarı taşı: Brain havuz modeli 1',
         'Brain oy vericisi 1 merceği',
         'Kaldır: Brain koltuk varsayılanı 1',
-        'Konsey hakemi model kimliği',
+        'Konsey hakemi modeli',
       ]),
     );
   });

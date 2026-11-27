@@ -88,8 +88,14 @@
   margin-bottom: 9px;
   min-width: 0;
 }
-.policy-chain-row > label {
+.policy-chain-row > label,
+.policy-chain-row > .model-reference-field {
   flex: 1;
+  min-width: 0;
+}
+/* A chain row reads as one line per model: the picker, then its meaning under it. */
+.policy-chain-row > .model-reference-field :is(.catalog-combobox-caption) {
+  margin-top: -3px;
 }
 .policy-order {
   align-self: center;

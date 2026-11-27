@@ -7,15 +7,11 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { byteText, durationText, record } from './engine-values';
-import {
-  ModelCatalog,
-  ModelReference,
-  modelRef,
-  modelRefPatch,
-  type PolicyProps,
-  ProfileSelect,
-} from './ModelPolicySettings';
+import { type PolicyProps, ProfileSelect } from './ModelPolicySettings';
+import { ModelReferenceField } from './ModelReferenceField';
+import { modelRef, modelRefPatch } from './model-reference-options';
 import { removeModelTier, validSettingsName, withoutSetting } from './settings-save-model';
+import { ModelCatalogProvider } from './saved-model-catalog';
 
 type Row = Record<string, unknown>;
 type LimitKey = (typeof LIMITS_SCALAR_KEYS)[number] | (typeof LIMITS_BUDGET_KEYS)[number];
@@ -192,202 +188,203 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
     setError('');
   };
   return (
-    <div className="model-policy-settings">
-      <ModelCatalog command={command} />
-      <p className="settings-defaults-note">{t('tierPolicy.intro')}</p>
-      <label className="policy-toggle">
-        <input
-          type="checkbox"
-          checked={tiers['enabled'] === true}
-          onChange={(e) => patch({ enabled: e.target.checked })}
-        />
-        {t('tierPolicy.enable')}
-      </label>
-      {tierSelect(t('tierPolicy.default'), tiers['default'], (v) =>
-        change('modelTiers', optional(tiers, 'default', v)),
-      )}
-      <section className="policy-profile-create">
-        <label>
-          {t('tierPolicy.newTier')}
+    <ModelCatalogProvider command={command} partialNotice={t('tierPolicy.catalogError')}>
+      <div className="model-policy-settings">
+        <p className="settings-defaults-note">{t('tierPolicy.intro')}</p>
+        <label className="policy-toggle">
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('tierPolicy.newTierPlaceholder')}
+            type="checkbox"
+            checked={tiers['enabled'] === true}
+            onChange={(e) => patch({ enabled: e.target.checked })}
           />
+          {t('tierPolicy.enable')}
         </label>
-        <button type="button" className="button secondary" disabled={!name.trim()} onClick={add}>
-          <Plus size={14} />
-          {t('tierPolicy.add')}
-        </button>
-      </section>
-      {error && (
-        <p className="session-error" role="alert">
-          {error}
-        </p>
-      )}
-      {Object.entries(levels).map(([id, v]) => {
-        const row = record(v);
-        return (
-          <article className="policy-profile" key={id}>
-            <header>
-              <div>
-                <span className="eyebrow">{t('tierPolicy.eyebrow')}</span>
-                <h3>{id}</h3>
+        {tierSelect(t('tierPolicy.default'), tiers['default'], (v) =>
+          change('modelTiers', optional(tiers, 'default', v)),
+        )}
+        <section className="policy-profile-create">
+          <label>
+            {t('tierPolicy.newTier')}
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('tierPolicy.newTierPlaceholder')}
+            />
+          </label>
+          <button type="button" className="button secondary" disabled={!name.trim()} onClick={add}>
+            <Plus size={14} />
+            {t('tierPolicy.add')}
+          </button>
+        </section>
+        {error && (
+          <p className="session-error" role="alert">
+            {error}
+          </p>
+        )}
+        {Object.entries(levels).map(([id, v]) => {
+          const row = record(v);
+          return (
+            <article className="policy-profile" key={id}>
+              <header>
+                <div>
+                  <span className="eyebrow">{t('tierPolicy.eyebrow')}</span>
+                  <h3>{id}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="icon-button danger"
+                  aria-label={t('tierPolicy.remove', { id })}
+                  onClick={() => change('modelTiers', removeModelTier(tiers, id))}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </header>
+              <label>
+                {t('tierPolicy.field.description')}
+                <input
+                  aria-label={t('tierPolicy.description', { id })}
+                  value={String(row['description'] ?? '')}
+                  onChange={(e) => level(id, optional(row, 'description', e.target.value))}
+                />
+              </label>
+              <div className="policy-field-grid">
+                <ModelReferenceField
+                  label={t('tierPolicy.field.primary')}
+                  name={t('tierPolicy.primary', { id })}
+                  value={modelRef(row)}
+                  onChange={(v) => level(id, modelRefPatch(row, v))}
+                />
+                <ProfileSelect
+                  label={t('tierPolicy.field.fallback')}
+                  name={t('tierPolicy.fallback', { id })}
+                  value={row['fallbackProfile']}
+                  profiles={profiles}
+                  onChange={(v) => level(id, optional(row, 'fallbackProfile', v))}
+                />
               </div>
+              <div className="policy-field-grid">
+                {(
+                  [
+                    ['maxCostUsd', 0, '0.01'],
+                    ['maxIterations', 1, '1'],
+                    ['maxToolCalls', 1, '1'],
+                    ['maxTokens', 1, '1'],
+                    ['timeoutMs', 0.001, 'any'],
+                  ] as const
+                ).map(([key, min, step]) => (
+                  <OptionalNumber
+                    key={key}
+                    label={t(`tierPolicy.budgetField.${key}`)}
+                    name={t('tierPolicy.budget', {
+                      id,
+                      label: t(`tierPolicy.budgetField.${key}`),
+                    })}
+                    value={row[key]}
+                    min={min}
+                    step={step}
+                    scale={key === 'timeoutMs' ? 1000 : 1}
+                    onChange={(v) => level(id, optional(row, key, v))}
+                  />
+                ))}
+              </div>
+            </article>
+          );
+        })}
+        <section className="policy-profile">
+          <header>
+            <div>
+              <span className="eyebrow">{t('tierPolicy.routingEyebrow')}</span>
+              <h3>{t('tierPolicy.routingTitle')}</h3>
+            </div>
+          </header>
+          {Object.entries(routes).map(([id, value]) => (
+            <div className="policy-chain-row" key={id}>
+              {tierSelect(t('tierPolicy.routeTier', { id }), value, (v) =>
+                patch({ routing: v ? { ...routes, [id]: v } : withoutSetting(routes, id) }),
+              )}
               <button
                 type="button"
                 className="icon-button danger"
-                aria-label={t('tierPolicy.remove', { id })}
-                onClick={() => change('modelTiers', removeModelTier(tiers, id))}
+                aria-label={t('tierPolicy.removeRoute', { id })}
+                onClick={() => patch({ routing: withoutSetting(routes, id) })}
               >
-                <Trash2 size={15} />
+                <Trash2 size={14} />
               </button>
-            </header>
+            </div>
+          ))}
+          <div className="policy-field-grid">
             <label>
-              {t('tierPolicy.field.description')}
+              {t('tierPolicy.routeName')}
               <input
-                aria-label={t('tierPolicy.description', { id })}
-                value={String(row['description'] ?? '')}
-                onChange={(e) => level(id, optional(row, 'description', e.target.value))}
+                value={route}
+                onChange={(e) => setRoute(e.target.value)}
+                placeholder={t('tierPolicy.routeNamePlaceholder')}
               />
             </label>
-            <div className="policy-field-grid">
-              <ModelReference
-                label={t('tierPolicy.field.primary')}
-                name={t('tierPolicy.primary', { id })}
-                value={modelRef(row)}
-                onChange={(v) => level(id, modelRefPatch(row, v))}
-              />
-              <ProfileSelect
-                label={t('tierPolicy.field.fallback')}
-                name={t('tierPolicy.fallback', { id })}
-                value={row['fallbackProfile']}
-                profiles={profiles}
-                onChange={(v) => level(id, optional(row, 'fallbackProfile', v))}
-              />
-            </div>
-            <div className="policy-field-grid">
-              {(
-                [
-                  ['maxCostUsd', 0, '0.01'],
-                  ['maxIterations', 1, '1'],
-                  ['maxToolCalls', 1, '1'],
-                  ['maxTokens', 1, '1'],
-                  ['timeoutMs', 0.001, 'any'],
-                ] as const
-              ).map(([key, min, step]) => (
-                <OptionalNumber
-                  key={key}
-                  label={t(`tierPolicy.budgetField.${key}`)}
-                  name={t('tierPolicy.budget', {
-                    id,
-                    label: t(`tierPolicy.budgetField.${key}`),
-                  })}
-                  value={row[key]}
-                  min={min}
-                  step={step}
-                  scale={key === 'timeoutMs' ? 1000 : 1}
-                  onChange={(v) => level(id, optional(row, key, v))}
-                />
-              ))}
-            </div>
-          </article>
-        );
-      })}
-      <section className="policy-profile">
-        <header>
-          <div>
-            <span className="eyebrow">{t('tierPolicy.routingEyebrow')}</span>
-            <h3>{t('tierPolicy.routingTitle')}</h3>
-          </div>
-        </header>
-        {Object.entries(routes).map(([id, value]) => (
-          <div className="policy-chain-row" key={id}>
-            {tierSelect(t('tierPolicy.routeTier', { id }), value, (v) =>
-              patch({ routing: v ? { ...routes, [id]: v } : withoutSetting(routes, id) }),
-            )}
+            {tierSelect(t('tierPolicy.routeTo'), target, setTarget)}
             <button
               type="button"
-              className="icon-button danger"
-              aria-label={t('tierPolicy.removeRoute', { id })}
-              onClick={() => patch({ routing: withoutSetting(routes, id) })}
+              className="button secondary"
+              disabled={!validSettingsName(route) || !target || Object.hasOwn(routes, route.trim())}
+              onClick={() => {
+                patch({ routing: { ...routes, [route.trim()]: target } });
+                setRoute('');
+                setTarget('');
+              }}
             >
-              <Trash2 size={14} />
+              {t('tierPolicy.addRoute')}
             </button>
           </div>
-        ))}
-        <div className="policy-field-grid">
+        </section>
+        <section className="policy-profile">
+          <header>
+            <div>
+              <span className="eyebrow">{t('tierPolicy.leaderEyebrow')}</span>
+              <h3>{t('tierPolicy.leaderTitle')}</h3>
+            </div>
+          </header>
+          <p className="field-help">{t('tierPolicy.leaderIntro')}</p>
           <label>
-            {t('tierPolicy.routeName')}
-            <input
-              value={route}
-              onChange={(e) => setRoute(e.target.value)}
-              placeholder={t('tierPolicy.routeNamePlaceholder')}
-            />
+            {t('tierPolicy.leaderMode')}
+            <select
+              aria-label={t('tierPolicy.leaderMode')}
+              value={String(leader['mode'] ?? 'off')}
+              onChange={(e) => patch({ leader: { ...leader, mode: e.target.value } })}
+            >
+              {['off', 'propose', 'auto'].map((v) => (
+                <option key={v} value={v}>
+                  {t(`tierPolicy.leaderModeOption.${v}`)}
+                </option>
+              ))}
+            </select>
           </label>
-          {tierSelect(t('tierPolicy.routeTo'), target, setTarget)}
-          <button
-            type="button"
-            className="button secondary"
-            disabled={!validSettingsName(route) || !target || Object.hasOwn(routes, route.trim())}
-            onClick={() => {
-              patch({ routing: { ...routes, [route.trim()]: target } });
-              setRoute('');
-              setTarget('');
-            }}
-          >
-            {t('tierPolicy.addRoute')}
-          </button>
-        </div>
-      </section>
-      <section className="policy-profile">
-        <header>
-          <div>
-            <span className="eyebrow">{t('tierPolicy.leaderEyebrow')}</span>
-            <h3>{t('tierPolicy.leaderTitle')}</h3>
+          <div className="policy-field-grid">
+            {tierSelect(t('tierPolicy.leaderMax'), leader['maxTier'], (v) =>
+              patch({ leader: optional(leader, 'maxTier', v) }),
+            )}
+            <OptionalNumber
+              label={t('tierPolicy.dwell')}
+              value={leader['dwellTurns']}
+              min={0}
+              step="1"
+              onChange={(v) => patch({ leader: optional(leader, 'dwellTurns', v) })}
+            />
+            <OptionalNumber
+              label={t('tierPolicy.savings')}
+              value={leader['minSavingsUsd']}
+              min={0}
+              onChange={(v) => patch({ leader: optional(leader, 'minSavingsUsd', v) })}
+            />
+            <OptionalNumber
+              label={t('tierPolicy.contextFill')}
+              value={leader['maxContextFillForSwitch']}
+              min={0}
+              max={1}
+              onChange={(v) => patch({ leader: optional(leader, 'maxContextFillForSwitch', v) })}
+            />
           </div>
-        </header>
-        <p className="field-help">{t('tierPolicy.leaderIntro')}</p>
-        <label>
-          {t('tierPolicy.leaderMode')}
-          <select
-            aria-label={t('tierPolicy.leaderMode')}
-            value={String(leader['mode'] ?? 'off')}
-            onChange={(e) => patch({ leader: { ...leader, mode: e.target.value } })}
-          >
-            {['off', 'propose', 'auto'].map((v) => (
-              <option key={v} value={v}>
-                {t(`tierPolicy.leaderModeOption.${v}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="policy-field-grid">
-          {tierSelect(t('tierPolicy.leaderMax'), leader['maxTier'], (v) =>
-            patch({ leader: optional(leader, 'maxTier', v) }),
-          )}
-          <OptionalNumber
-            label={t('tierPolicy.dwell')}
-            value={leader['dwellTurns']}
-            min={0}
-            step="1"
-            onChange={(v) => patch({ leader: optional(leader, 'dwellTurns', v) })}
-          />
-          <OptionalNumber
-            label={t('tierPolicy.savings')}
-            value={leader['minSavingsUsd']}
-            min={0}
-            onChange={(v) => patch({ leader: optional(leader, 'minSavingsUsd', v) })}
-          />
-          <OptionalNumber
-            label={t('tierPolicy.contextFill')}
-            value={leader['maxContextFillForSwitch']}
-            min={0}
-            max={1}
-            onChange={(v) => patch({ leader: optional(leader, 'maxContextFillForSwitch', v) })}
-          />
-        </div>
-      </section>
-    </div>
+        </section>
+      </div>
+    </ModelCatalogProvider>
   );
 }

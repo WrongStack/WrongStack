@@ -46,6 +46,15 @@ describe('AvailabilitySettings catalog own-property lookup', () => {
       );
     });
 
-    expect(container!.querySelector('datalist')).not.toBeNull();
+    // The provider and model pickers replace the datalists; opening the model list must not
+    // read a provider named like a prototype member.
+    const model = container!.querySelector<HTMLInputElement>(
+      'input[role="combobox"][aria-label="Window 1 model"]',
+    );
+    expect(model).not.toBeNull();
+    await act(async () => {
+      model!.focus();
+    });
+    expect([...container!.querySelectorAll('[role="option"]')]).toHaveLength(0);
   });
 });

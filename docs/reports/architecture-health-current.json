@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T00:20:56.218Z",
+  "generatedAt": "2026-11-27T00:23:08.875Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6588,
-    "testFiles": 6514,
-    "sourceLines": 1352822,
+    "sourceFiles": 6592,
+    "testFiles": 6517,
+    "sourceLines": 1353157,
     "workspaceEdges": 267,
-    "moduleEdges": 19315,
+    "moduleEdges": 19345,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 15,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1062
+    "testOnlyExports": 1063
   },
   "errors": [],
   "packageCycles": [],
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 572,
-      "testFiles": 409,
+      "sourceFiles": 576,
+      "testFiles": 412,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 409
+          "testFiles": 412
         }
       ]
     },
@@ -1668,6 +1668,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/catalog-combobox.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/chat-cards.test.ts",
         "projects": [
           "root-node"
@@ -2797,6 +2803,18 @@
       },
       {
         "file": "apps/desktop-v2/tests/model-recents.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/model-reference-field.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/model-reference-options.test.ts",
         "projects": [
           "root-node"
         ]
@@ -40841,6 +40859,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/CatalogCombobox.tsx",
+      "specifier": "./catalog-combobox.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ChatEventCard.tsx",
       "specifier": "./chat-cards.css",
       "syntax": "import"
@@ -42574,6 +42597,10 @@
     {
       "file": "apps/desktop-v2/src/model-recents.ts",
       "name": "MAX_RECENT_MODELS"
+    },
+    {
+      "file": "apps/desktop-v2/src/model-reference-options.ts",
+      "name": "providerDisplayName"
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogProfile.tsx",
