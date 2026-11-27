@@ -32,6 +32,9 @@ replies.
   to the tab.
 - ACP: Claude's acceptEdits, auto and bypassPermissions modes are available
   as leader modes.
+- CLI: `wstack tools list|describe|run|batch` also serves the tools of enabled
+  plugins that work per call. A tool of a plugin that is not enabled exits 3
+  and names the plugin to enable.
 
 ### Changed
 
@@ -64,6 +67,9 @@ replies.
   config import and the HQ device vault report a null or non-object JSON
   reply as malformed instead of crashing.
 - HQ answers 400 to malformed request URLs and requires JSON object bodies.
+- The ACP HTTP server and the mailbox bridge lock bracket IPv6 hosts and use
+  the port actually bound, so same-origin clients on `::1` or an ephemeral
+  port are no longer refused.
 - WebUI model switches and key operations wait past the 15 s config lock
   instead of reporting a timeout (#448).
 - Desktop terminals stay responsive while the terminal is still rendering
