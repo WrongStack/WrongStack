@@ -410,9 +410,12 @@ export function stripNextStepsBlock(
   text: string,
   options?: { preserveWhitespace?: boolean },
 ): string {
-  const spans = fenceSpans(text);
-  const outsideFences = (index: number): boolean =>
-    !spans.some(([start, end]) => index >= start && index < end);
+  // Streaming prose usually has no suggestion tag. Check fences only after finding one.
+  let spans: ReturnType<typeof fenceSpans> | undefined;
+  const outsideFences = (index: number): boolean => {
+    spans ??= fenceSpans(text);
+    return !spans.some(([start, end]) => index >= start && index < end);
+  };
 
   let result = '';
   let cursor = 0;

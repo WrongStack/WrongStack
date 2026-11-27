@@ -77,6 +77,13 @@ describe('completion marker parsing', () => {
     const body = `Example:\n\`\`\`\n${NEXT_STEPS_COMPLETE_MARKER}\n\`\`\``;
     expect(hasNextStepsCompleteMarker(body)).toBe(false);
     expect(parseNextSteps(body).stripped).toBe(body);
+    expect(stripNextStepsBlock(body)).toBe(body);
+  });
+
+  it('keeps the whitespace policy for ordinary Markdown with no suggestion tags', () => {
+    const body = ' Intro\n\n\n~~~ts\nconst value = 1;\n~~~\n\n';
+    expect(stripNextStepsBlock(body)).toBe('Intro\n\n~~~ts\nconst value = 1;\n~~~');
+    expect(stripNextStepsBlock(body, { preserveWhitespace: true })).toBe(body);
   });
 
   it('is stripped alongside a real block', () => {
