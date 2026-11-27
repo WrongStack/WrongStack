@@ -59,7 +59,7 @@ export function isPickerOverlayOpen(state: State): boolean {
     state.brainPanel.open ||
     state.helpPanel.open ||
     state.shadowPanel.open ||
-    state.memoryPanel.open ||
+    state.memoryPanel?.open ||
     // Optional: partial State fixtures (and any state persisted before this
     // slice existed) legitimately lack it; a throw here would black out the
     // whole layout resolver.
