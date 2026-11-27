@@ -54,9 +54,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/hooks": {
-      "files": 20,
+      "files": 21,
       "typeOnly": 3,
-      "runtimeOrMixed": 17
+      "runtimeOrMixed": 18
     },
     "@wrongstack/core/infrastructure": {
       "files": 71,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 48,
+      "files": 49,
       "typeOnly": 20,
-      "runtimeOrMixed": 30
+      "runtimeOrMixed": 31
     },
     "@wrongstack/core/prompts": {
       "files": 12,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 62
     },
     "@wrongstack/core/registry": {
-      "files": 219,
-      "typeOnly": 84,
-      "runtimeOrMixed": 144
+      "files": 221,
+      "typeOnly": 85,
+      "runtimeOrMixed": 145
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -4685,6 +4685,12 @@
     },
     {
       "specifier": "@wrongstack/core/hooks",
+      "file": "packages/cli/src/tool-gateway-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5663,6 +5669,12 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/tool-gateway-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6491,6 +6503,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/src/tool-gateway-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/tool-gateway.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6858,6 +6876,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/tools-cli-index-freshness.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/tools-cli-plugins.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

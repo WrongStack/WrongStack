@@ -14,6 +14,11 @@
  *   3 not exposed (withheld, session-bound, unknown) or denied by policy
  *   4 needs an interactive confirmation this surface cannot give
  * A batch exits with the code of its first failing call (0 when all pass).
+ *
+ * Besides the built-in tools, the enabled official plugins whose tools work in
+ * a fresh process are loaded for list/describe/run/batch
+ * (`tool-gateway-plugins.ts`); a tool of a one-shot plugin that is not enabled
+ * exits 3 and names the plugin to enable.
  */
 
 import type { Tool, ToolSettlement } from '@wrongstack/contracts/types';
@@ -27,6 +32,7 @@ import {
   type ToolGateway,
   withheldReason,
 } from '../../tool-gateway.js';
+import { disabledPluginForTool, loadGatewayPlugins } from '../../tool-gateway-plugins.js';
 import type { SubcommandDeps } from '../contracts.js';
 import {
   parseBatchLines,
@@ -97,6 +103,8 @@ export async function runToolsCli(
     return TOOLS_CLI_EXIT.usage;
   }
   const registry = resolveGatewayRegistry(deps.toolRegistry, deps.config);
+  const warn = (message: string) => io.stderr(`wstack tools: ${message}\n`);
+  const plugins = await loadGatewayPlugins({ registry, config: deps.config, onWarning: warn });
   const gateway = await createToolGateway({
     registry,
     config: deps.config,
@@ -106,7 +114,7 @@ export async function runToolsCli(
     allow,
     whitelist: null,
     oneShot: true,
-    onWarning: (message) => io.stderr(`wstack tools: ${message}\n`),
+    onWarning: warn,
   });
   try {
     if (verb === 'list') return listTools(gateway, json, io);
@@ -122,6 +130,19 @@ export async function runToolsCli(
       );
       return TOOLS_CLI_EXIT.usage;
     }
+    if (!registry.get(name)) {
+      const owner = await disabledPluginForTool(name, deps.config);
+      if (owner) {
+        const outcome = failure(
+          name,
+          'plugin_not_enabled',
+          `Tool "${name}" belongs to the "${owner}" plugin, which is not enabled. Enable it with \`wstack plugin enable ${owner}\`.`,
+          TOOLS_CLI_EXIT.notExposed,
+        );
+        printRun(outcome, json, io);
+        return outcome.code;
+      }
+    }
     if (verb === 'describe') return describeTool(gateway, registry, name, json, io);
     // `--input -`: the top-level parser never takes a dash-led token as a value,
     // so `--input` arrives bare and the `-` lands here as a positional.
@@ -131,6 +152,7 @@ export async function runToolsCli(
     return outcome.code;
   } finally {
     await gateway.close();
+    await plugins.dispose();
   }
 }
 

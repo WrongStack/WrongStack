@@ -331,7 +331,13 @@ export const BUILTIN_PLUGIN_NAME_HINTS: readonly string[] = [
   'telegram',
 ];
 
-function builtinEnablement(name: string, config: Config, aliases?: readonly string[]) {
+/**
+ * Whether a built-in plugin is enabled for `config`: the same decision
+ * `setupPlugins` makes (explicit `config.plugins` entry, else the audit
+ * catalog's default state). Exported so one-shot hosts (`wstack tools`) load
+ * exactly the plugins a session would.
+ */
+export function builtinEnablement(name: string, config: Config, aliases?: readonly string[]) {
   const auditEntry = PLUGIN_AUDIT_ENTRIES.find((entry) => entry.name === name);
   return resolvePluginEnablement({
     name,

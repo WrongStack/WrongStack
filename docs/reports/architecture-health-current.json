@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T14:33:49.928Z",
+  "generatedAt": "2026-11-27T14:36:08.740Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6623,
-    "testFiles": 6559,
-    "sourceLines": 1359526,
+    "sourceFiles": 6624,
+    "testFiles": 6560,
+    "sourceLines": 1359736,
     "workspaceEdges": 267,
-    "moduleEdges": 19436,
+    "moduleEdges": 19437,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -231,8 +231,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 654,
-      "testFiles": 753,
+      "sourceFiles": 655,
+      "testFiles": 754,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -284,7 +284,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 753
+          "testFiles": 754
         }
       ]
     },
@@ -9883,6 +9883,12 @@
       },
       {
         "file": "packages/cli/tests/tools-cli-index-freshness.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/tools-cli-plugins.test.ts",
         "projects": [
           "root-node"
         ]
