@@ -523,6 +523,30 @@ export function matchesWatchedTool(toolName: string, patterns: readonly string[]
 }
 
 const FILE_MUTATION_TOOLS = new Set(['write', 'edit', 'patch', 'replace']);
+
+/** Where a redirection target ends: the next blank, separator or closer. */
+const REDIRECT_END = String.raw`(?=$|[\s;&|)])`;
+/** `2>&1`, `>&2`, `>&-`: duplicating or closing a descriptor writes no file. */
+const FD_DUPLICATION = new RegExp(String.raw`\d*>&\s*(?:\d+|-)${REDIRECT_END}`, 'g');
+/**
+ * Redirection into the null device. The target must END there:
+ * `> nul/../.wrongstack/adversary.md` names a directory called `nul`.
+ */
+const NULL_DEVICE = new RegExp(String.raw`(?:\d*|&)>>?\s*(?:\/dev\/null|nul)${REDIRECT_END}`, 'gi');
+/** PowerShell's `$null`. In a POSIX shell `$null` is an ordinary variable. */
+const PWSH_NULL = new RegExp(String.raw`(?:\d*|\*)>>?\s*\$null${REDIRECT_END}`, 'gi');
+
+/**
+ * The line with the redirections that cannot write a file removed, so the
+ * everyday `2>/dev/null`, `2>&1`, `>&2` and pwsh `2>$null` stop reading as
+ * a write. Every `>` used to: a READ of the policy
+ * (`cat .wrongstack/adversary.md 2>/dev/null`) was refused as tampering,
+ * with "do not retry", even while the plugin was dormant.
+ */
+function withoutHarmlessRedirections(line: string, pwsh: boolean): string {
+  const out = line.replace(FD_DUPLICATION, ' ').replace(NULL_DEVICE, ' ');
+  return pwsh ? out.replace(PWSH_NULL, ' ') : out;
+}
 const PATH_KEYS = ['path', 'file', 'filePath', 'file_path', 'target', 'destination'] as const;
 
 export interface TamperCheckOptions {
@@ -684,9 +708,10 @@ export function isAdversaryPolicyTamperAttempt(
       }
       // Read-only cat/type/head/Get-Content without redirection or deletion is fine;
       // redirection, rm/del/mv/cp/sed -i/Set-Content/Out-File/tee/inline write is not.
+      const writeSurface = withoutHarmlessRedirections(line, lowerTool === 'pwsh');
       const mutatingShell =
         /(?:>|>>|\b(?:rm|rmdir|del|erase|unlink|mv|move|cp|copy|tee|truncate|dd)\b|\bsed\s+-i|\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item)\b|\b(?:writeFileSync|writeFile|appendFileSync|unlinkSync|rmSync)\b|\bopen\s*\([^)]*['"][wa+])/i.test(
-          line,
+          writeSurface,
         );
       if (mutatingShell) {
         return 'Refused shell command targeting adversary.md — agents cannot modify or delete adversary.md policy files.';

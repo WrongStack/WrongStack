@@ -327,6 +327,40 @@ describe('adversary-mode plugin', () => {
 
       await adversaryPlugin.teardown?.(host.api);
     });
+
+    it('lets read-only commands that silence or merge output read the policy', () => {
+      // Every `>` used to count as a write, so the everyday `2>/dev/null` /
+      // `2>&1` / `>&2` / pwsh `2>$null` made a READ of the policy a "tamper"
+      // refusal that told the agent not to retry — dormant plugin included.
+      const opts = { cwd: projectDir, globalRoot };
+      const allowed: Array<[string, string]> = [
+        ['bash', 'cat .wrongstack/adversary.md 2>/dev/null || echo "no project policy"'],
+        ['bash', 'ls -la .wrongstack/ 2>&1 | grep adversary.md'],
+        ['bash', 'grep -rn "BLOCK" .wrongstack/adversary.md 2> /dev/null'],
+        ['bash', 'git log --oneline -- .wrongstack/adversary.md | head -5 >/dev/null'],
+        ['bash', 'wc -l .wrongstack/adversary.md >&2'],
+        ['bash', 'cat .wrongstack/adversary.md &>/dev/null'],
+        ['pwsh', 'Get-Content .wrongstack/adversary.md -ErrorAction SilentlyContinue 2>$null'],
+      ];
+      for (const [tool, command] of allowed) {
+        expect(isAdversaryPolicyTamperAttempt(tool, { command }, opts), command).toBeNull();
+      }
+      // Writes stay refused, including ones that look like a null device but
+      // are not: bash's `$null` is an ordinary variable, and `nul` an ordinary
+      // directory name.
+      const refused: Array<[string, string]> = [
+        ['bash', 'echo "ALLOW" > .wrongstack/adversary.md 2>/dev/null'],
+        ['bash', 'cat x 2>&1 >> .wrongstack/adversary.md'],
+        ['bash', 'null=.wrongstack/adversary.md; echo ALLOW > $null'],
+        ['bash', 'echo ALLOW > nul/../.wrongstack/adversary.md'],
+        ['bash', 'echo ALLOW >/dev/null/../../.wrongstack/adversary.md'],
+        ['bash', 'cat .wrongstack/adversary.md >&3 3>.wrongstack/adversary.md'],
+        ['bash', 'echo ALLOW >& .wrongstack/adversary.md'],
+      ];
+      for (const [tool, command] of refused) {
+        expect(isAdversaryPolicyTamperAttempt(tool, { command }, opts), command).not.toBeNull();
+      }
+    });
   });
 
   describe('contextual task hijacking & external data taint escalation', () => {
