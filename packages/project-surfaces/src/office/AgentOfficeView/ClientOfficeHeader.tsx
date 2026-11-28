@@ -59,9 +59,12 @@ export function ClientOfficeHeader({ office, now }: { office: ClientOfficeModel;
           >
             <Wifi aria-hidden="true" /> {presenceLabel}
           </span>
-          <span className="agent-office__presence-chip">
-            <Clock3 aria-hidden="true" /> {formatUptime(client.startedAt, now)} UP
-          </span>
+          {/* An unknown start time read "— UP". */}
+          {client.startedAt !== undefined && Number.isFinite(Date.parse(client.startedAt)) && (
+            <span className="agent-office__presence-chip">
+              <Clock3 aria-hidden="true" /> {formatUptime(client.startedAt, now)} UP
+            </span>
+          )}
           <span
             className={cn(
               'agent-office__presence-chip',

@@ -51,10 +51,13 @@ export function AgentLane({
         })
       : wait.reason === 'telemetry'
         ? t('activity:agentOffice.waitingTelemetry')
-        : t('activity:agentOffice.waitingNoWork', {
-            duration: waitIdleLabel,
-            last: wait.anchor || t('activity:agentOffice.waitingNothingYet'),
-          })
+        : // With no idle time to give, "no activity for — (last: nothing yet)" said nothing.
+          !Number.isFinite(wait.idleMs)
+          ? t('activity:agentOffice.waiting')
+          : t('activity:agentOffice.waitingNoWork', {
+              duration: waitIdleLabel,
+              last: wait.anchor || t('activity:agentOffice.waitingNothingYet'),
+            })
     : undefined;
   // `buildMailRoutes` only emits desk↔desk routes today; revisit this gate if
   // lounge agents ever get lanes of their own. A mail the wait badge already
@@ -141,7 +144,7 @@ export function AgentLane({
             }}
           >
             <Clock3 aria-hidden="true" />
-            <span>{waitIdleLabel}</span>
+            {Number.isFinite(wait.idleMs) && <span>{waitIdleLabel}</span>}
           </button>
         )}
         {wait.waiting && !waitActionable && (
@@ -154,7 +157,7 @@ export function AgentLane({
             aria-label={waitTitle}
           >
             <Clock3 aria-hidden="true" />
-            <span>{waitIdleLabel}</span>
+            {Number.isFinite(wait.idleMs) && <span>{waitIdleLabel}</span>}
           </span>
         )}
         <span className="agent-office__role">
@@ -207,16 +210,14 @@ export function AgentLane({
             </span>
           </button>
         )}
-        {!agent.currentTask && active && (
+        {/* Without telemetry the desk briefing already asks for a reconnect; each lane
+            repeating it said the same thing once per agent. */}
+        {!agent.currentTask && active && client.todos !== undefined && (
           <div className="agent-office__agent-task is-missing">
             <Activity aria-hidden="true" />
             <span>
               <strong>{t('activity:agentOffice.currentTask')}</strong>
-              <small>
-                {client.todos === undefined
-                  ? t('activity:agentOffice.telemetryWaiting')
-                  : t('activity:agentOffice.taskNotReported')}
-              </small>
+              <small>{t('activity:agentOffice.taskNotReported')}</small>
             </span>
           </div>
         )}

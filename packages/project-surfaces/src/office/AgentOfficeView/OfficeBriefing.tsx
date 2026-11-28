@@ -1,4 +1,4 @@
-import { Activity, CheckCircle2, ListTodo, MessageSquareText } from 'lucide-react';
+import { CheckCircle2, ListTodo, MessageSquareText } from 'lucide-react';
 import { useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import type { SelectedAction } from '../AgentOfficeDetails.js';
@@ -99,12 +99,9 @@ export function OfficeBriefing({
           </strong>
         </span>
         <span className="agent-office__todo-preview">
-          {!telemetryConnected ? (
-            <span className="agent-office__todo-empty is-waiting">
-              <Activity aria-hidden="true" />
-              {t('activity:agentOffice.todoTelemetryWaiting')}
-            </span>
-          ) : activeTodos.length > 0 ? (
+          {/* Disconnected: the heading says "waiting for sync" and the prompt card beside it
+              asks for the reconnect; a second reconnect line here repeated it. */}
+          {!telemetryConnected ? null : activeTodos.length > 0 ? (
             activeTodos.slice(0, 3).map((todo) => (
               <span className={cn('agent-office__todo-line', `is-${todo.status}`)} key={todo.id}>
                 <i aria-hidden="true" />
