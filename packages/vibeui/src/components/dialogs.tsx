@@ -335,6 +335,7 @@ function InputDialog({
   const [answers, setAnswers] = useState<Record<string, { selected: string[]; text: string }>>({});
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [invalidQuestions, setInvalidQuestions] = useState<string[]>([]);
   useEffect(() => {
     if (!sent) return;
     const timer = setTimeout(() => {
@@ -344,15 +345,15 @@ function InputDialog({
     return () => clearTimeout(timer);
   }, [sent]);
   const submit = (cancelled = false) => {
-    if (
-      !cancelled &&
-      request.questions.some(
-        (q) => q.required && !answers[q.id]?.text.trim() && !answers[q.id]?.selected.length,
-      )
-    ) {
+    const missing = request.questions
+      .filter((q) => q.required && !answers[q.id]?.text.trim() && !answers[q.id]?.selected.length)
+      .map((q) => q.id);
+    if (!cancelled && missing.length) {
+      setInvalidQuestions(missing);
       setError('Please answer the required questions.');
       return;
     }
+    setInvalidQuestions([]);
     if (
       send('user.input_submit', {
         sessionId: state.id,
@@ -398,7 +399,7 @@ function InputDialog({
           <fieldset className="input-question" key={question.id}>
             <legend>
               {question.prompt}
-              {question.required ? ' *' : ''}
+              {question.required ? ' * (required)' : ''}
             </legend>
             {question.options.map((option) => (
               <label key={option.id}>
@@ -406,7 +407,12 @@ function InputDialog({
                   type={question.kind === 'multi_select' ? 'checkbox' : 'radio'}
                   name={question.id}
                   checked={answers[question.id]?.selected.includes(option.id) ?? false}
-                  onChange={(event) =>
+                  aria-required={question.required && question.kind !== 'multi_select'}
+                  aria-invalid={invalidQuestions.includes(question.id)}
+                  aria-describedby={
+                    invalidQuestions.includes(question.id) ? 'input-answer-error' : undefined
+                  }
+                  onChange={(event) => {
                     setAnswers((current) => {
                       const previous = current[question.id] ?? { selected: [], text: '' };
                       return {
@@ -421,8 +427,9 @@ function InputDialog({
                               : [option.id],
                         },
                       };
-                    })
-                  }
+                    });
+                    setInvalidQuestions((ids) => ids.filter((id) => id !== question.id));
+                  }}
                 />
                 {option.label}
               </label>
@@ -432,21 +439,27 @@ function InputDialog({
                 aria-label={`${question.prompt} — written answer`}
                 placeholder={question.options.length ? 'Or write your own answer…' : 'Your answer…'}
                 value={answers[question.id]?.text ?? ''}
-                onChange={(event) =>
+                aria-required={question.required && question.kind !== 'multi_select'}
+                aria-invalid={invalidQuestions.includes(question.id)}
+                aria-describedby={
+                  invalidQuestions.includes(question.id) ? 'input-answer-error' : undefined
+                }
+                onChange={(event) => {
                   setAnswers((current) => ({
                     ...current,
                     [question.id]: {
                       selected: current[question.id]?.selected ?? [],
                       text: event.target.value,
                     },
-                  }))
-                }
+                  }));
+                  setInvalidQuestions((ids) => ids.filter((id) => id !== question.id));
+                }}
               />
             )}
           </fieldset>
         ))}
         {error && (
-          <p className="form-error" role="alert">
+          <p id="input-answer-error" className="form-error" role="alert">
             <AlertCircle size={14} />
             {error}
           </p>

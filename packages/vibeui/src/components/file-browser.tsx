@@ -341,7 +341,8 @@ export function FileBrowser({
               <button
                 type="button"
                 className="icon-button"
-                aria-label={tiles ? 'Show folder tree' : 'Show file cards'}
+                aria-label="Show file cards"
+                title="Show file cards"
                 aria-pressed={tiles}
                 onClick={() => setTiles(!tiles)}
               >

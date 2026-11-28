@@ -109,7 +109,7 @@ export function useSkillPicker(
         );
         return true;
       }
-      if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
+      if (!event.shiftKey && (event.key === 'Enter' || event.key === 'Tab')) {
         event.preventDefault();
         if (matches[selected]) pick(matches[selected].name);
         return true;

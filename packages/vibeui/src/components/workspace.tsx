@@ -211,6 +211,7 @@ export function Workspace() {
             sessionTitle={activeSession?.title || 'New session'}
             locked={locked}
             panel={panel}
+            sidebarOpen={sidebar}
             setSidebar={setSidebar}
             setPanel={setPanel}
             setFilesOpen={setFilesOpen}

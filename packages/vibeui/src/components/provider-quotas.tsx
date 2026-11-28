@@ -132,7 +132,7 @@ export function ProviderQuotas({ controller }: { controller: SessionController }
           </button>
         </div>
         {error && (
-          <p className="form-error" role="status">
+          <p className="form-error" role="alert">
             {error}
           </p>
         )}

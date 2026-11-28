@@ -103,7 +103,7 @@ export function WorkspaceViewMenu({ onChoose }: { onChoose: (view: WorkspaceView
         <button
           type="button"
           className="view-trigger"
-          aria-label="Change workspace view"
+          aria-label={`Change workspace view: ${current.name}`}
           title="Make yourself at home"
         >
           <current.icon size={15} />

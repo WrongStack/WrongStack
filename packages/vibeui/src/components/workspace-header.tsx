@@ -26,6 +26,7 @@ export function WorkspaceHeader({
   sessionTitle,
   locked,
   panel,
+  sidebarOpen,
   setSidebar,
   setPanel,
   setFilesOpen,
@@ -39,6 +40,7 @@ export function WorkspaceHeader({
   sessionTitle: string;
   locked: boolean;
   panel: boolean;
+  sidebarOpen: boolean;
   setSidebar: Dispatch<SetStateAction<boolean>>;
   setPanel: Dispatch<SetStateAction<boolean>>;
   setFilesOpen: Dispatch<SetStateAction<boolean>>;
@@ -52,6 +54,7 @@ export function WorkspaceHeader({
           type="button"
           className="icon-button mobile-menu"
           aria-label="Open sessions"
+          aria-expanded={sidebarOpen}
           onClick={() => setSidebar((open) => !open)}
         >
           <Menu size={18} />

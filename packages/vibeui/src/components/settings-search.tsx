@@ -60,11 +60,12 @@ export function SettingsSearch({ children }: { children: ReactNode }) {
           </button>
         )}
       </label>
+      <p className="sr-only" role="status">
+        {query.trim() ? `${matches.length} matching settings` : ''}
+      </p>
       {query.trim() && (
         <section className="command-results" aria-label="Matching settings">
-          <p className="fine-print" role="status">
-            {matches.length} matching settings
-          </p>
+          <p className="fine-print">{matches.length} matching settings</p>
           {matches.map(({ label, hint, element }) => (
             <button
               type="button"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T13:04:56.705Z",
+  "generatedAt": "2026-11-28T13:06:02.629Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6671,
-    "testFiles": 6596,
-    "sourceLines": 1368055,
+    "testFiles": 6605,
+    "sourceLines": 1368074,
     "workspaceEdges": 268,
     "moduleEdges": 19577,
     "nonCommandSlashImports": 0,
@@ -1180,7 +1180,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 102,
-      "testFiles": 54,
+      "testFiles": 63,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1193,7 +1193,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 54
+          "testFiles": 63
         }
       ]
     },
@@ -34039,6 +34039,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/file-layout-toggle-name.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/file-mentions.test.tsx",
         "projects": [
           "root-node"
@@ -34087,6 +34093,24 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/input-error-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/input-required-aria.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/input-required-label.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/mascot.test.ts",
         "projects": [
           "root-node"
@@ -34106,6 +34130,12 @@
       },
       {
         "file": "packages/vibeui/tests/model-picker.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/provider-quota-error-alert.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34178,6 +34208,18 @@
       },
       {
         "file": "packages/vibeui/tests/session.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/settings-search-live-region.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/skill-picker-shift-tab.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34261,6 +34303,12 @@
         ]
       },
       {
+        "file": "packages/vibeui/tests/workspace-header-sidebar-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vibeui/tests/workspace-hooks.test.ts",
         "projects": [
           "root-node"
@@ -34274,6 +34322,12 @@
       },
       {
         "file": "packages/vibeui/tests/workspace-round2.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/workspace-view-menu-label.test.ts",
         "projects": [
           "root-node"
         ]
