@@ -311,9 +311,15 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
       const outputMatch = /(?:^|\s)of=("[^"]*"|'[^']*'|[^\s]+)/i.exec(d[2] ?? '');
       // stripSubshellClosers runs before quote-stripping so a quoted operand
       // ending in `)` (`of="notes(2)"`) is not mistaken for subshell punctuation.
-      const output = outputMatch?.[1]
+      let output = outputMatch?.[1]
         ? stripSubshellClosers(outputMatch[1]).replace(/^['"]|['"]$/g, '')
         : undefined;
+      if (outputMatch && output) {
+        // `of="a"/.env` writes a/.env: include the suffix glued after the quote.
+        const after = (d[2] ?? '').slice(outputMatch.index + outputMatch[0].length);
+        const glued = /^[^;&|\s]+/.exec(after)?.[0] ?? '';
+        output = stripSubshellClosers(output + glued);
+      }
       if (output) targets.push(output);
     }
     d = dd.exec(normalizedCommand);
@@ -599,9 +605,16 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
     let end = index + 1;
     let target: string;
     if (targetQuote === "'" || targetQuote === '"') {
-      end = normalizedCommand.indexOf(targetQuote, index + 2);
-      if (end === -1) continue;
-      target = normalizedCommand.slice(index + 2, end);
+      const close = normalizedCommand.indexOf(targetQuote, index + 2);
+      if (close === -1) continue;
+      end = close + 1;
+      // A shell concatenates adjacent quoted and unquoted words: `>"a"/.env`
+      // writes a/.env. Keep consuming the glued suffix so the guard inspects
+      // the full destination, not the quoted prefix alone.
+      while (end < normalizedCommand.length && !/[\s;&|>()]/.test(normalizedCommand[end] ?? '')) {
+        end += 1;
+      }
+      target = normalizedCommand.slice(index + 2, end).replace(/['"]/g, '');
     } else {
       while (end < normalizedCommand.length && !/[\s;&|>()]/.test(normalizedCommand[end] ?? '')) {
         end += 1;

@@ -142,6 +142,10 @@
       "lines": 763,
       "relativeImports": 5
     },
+    "packages/plugins/src/adversary-mode/policy.ts": {
+      "lines": 763,
+      "relativeImports": 2
+    },
     "packages/plugins/src/audit/index.ts": {
       "lines": 716,
       "relativeImports": 0
@@ -151,7 +155,7 @@
       "relativeImports": 1
     },
     "packages/plugins/src/template-engine/index.ts": {
-      "lines": 701,
+      "lines": 735,
       "relativeImports": 1
     },
     "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {

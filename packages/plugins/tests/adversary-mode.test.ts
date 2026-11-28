@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Container, TOKENS } from '@wrongstack/contracts/kernel';
@@ -915,5 +915,19 @@ describe('adversary-mode plugin', () => {
 
       await adversaryPlugin.teardown?.(host.api);
     });
+  });
+
+  it('refuses a write through an in-project symlink alias to adversary.md (FIX23)', () => {
+    const projectDir = mkdtempSync(join(tmpdir(), 'adversary-alias-'));
+    try {
+      mkdirSync(join(projectDir, '.wrongstack'));
+      writeFileSync(join(projectDir, '.wrongstack', 'adversary.md'), 'BLOCK bad\n', 'utf8');
+      symlinkSync(join(projectDir, '.wrongstack', 'adversary.md'), join(projectDir, 'alias.md'));
+      expect(
+        isAdversaryPolicyTamperAttempt('write', { path: 'alias.md' }, { cwd: projectDir }),
+      ).toMatch(/Refused/);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 });

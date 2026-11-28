@@ -8,8 +8,9 @@
  * - template_list: List all saved templates
  */
 
+import { realpathSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 import { releaseHandle, withinProject } from '../runtime/index.js';
 
@@ -240,18 +241,51 @@ function validateWritableTemplateTarget(field: string, value: string): string | 
     .replace(/\/+/g, '/')
     .replace(/^(\.\/)+/, '')
     .toLowerCase();
-  const base = norm.slice(norm.lastIndexOf('/') + 1);
-  if (
-    PROTECTED_WRITE_PREFIXES.some((p) => norm.startsWith(p) || norm.includes(`/${p}`)) ||
-    PROTECTED_WRITE_FILES.has(base) ||
-    base === '.env' ||
-    base.startsWith('.env.')
-  ) {
+  const isProtected = (p: string): boolean => {
+    const base = p.slice(p.lastIndexOf('/') + 1);
     return (
-      `${field} "${value}" is a protected path (VCS hooks, CI workflows, ` +
-      `dependency manifests, or agent configuration). Write it with the ` +
-      `\`write\` tool instead, which prompts for confirmation.`
+      PROTECTED_WRITE_PREFIXES.some((x) => p.startsWith(x) || p.includes(`/${x}`)) ||
+      PROTECTED_WRITE_FILES.has(base) ||
+      base === '.env' ||
+      base.startsWith('.env.')
     );
+  };
+  const reject = (): string =>
+    `${field} "${value}" is a protected path (VCS hooks, CI workflows, ` +
+    `dependency manifests, or agent configuration). Write it with the ` +
+    `\`write\` tool instead, which prompts for confirmation.`;
+  if (isProtected(norm)) return reject();
+  // An in-project symlink can alias a protected destination. Core file tools
+  // canonicalize before writing, so the guard must decide on the real path too.
+  try {
+    // The leaf may not exist yet: canonicalize the longest existing parent and
+    // append the remaining components, so an in-project symlink alias resolves.
+    let cursor = resolve(value);
+    let tail = '';
+    for (;;) {
+      let real: string;
+      try {
+        real = realpathSync(cursor);
+      } catch {
+        const parent = dirname(cursor);
+        if (parent === cursor) throw new Error('unresolvable path');
+        tail = `${basename(cursor)}${tail ? `/${tail}` : ''}`;
+        cursor = parent;
+        continue;
+      }
+      const canonical = relative(process.cwd(), resolve(real, tail))
+        .replace(/\\/g, '/')
+        .replace(/\/+/g, '/')
+        .replace(/^(\.\/)+/, '')
+        .toLowerCase();
+      if (canonical.startsWith('../') || canonical === '..' || isAbsolute(canonical)) {
+        return `${field} "${value}" resolves outside the project directory`;
+      }
+      if (isProtected(canonical)) return reject();
+      break;
+    }
+  } catch {
+    // Target does not exist yet — the lexical check above stays the decision point.
   }
   return null;
 }

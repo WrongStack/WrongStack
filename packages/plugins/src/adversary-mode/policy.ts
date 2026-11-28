@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
 import { compilePathGlob, safeProfileName, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
@@ -544,6 +544,38 @@ export function looksLikeAdversaryPolicyPath(
     .trim()
     .replace(/[. ]+$/, '');
   if (!trimmed) return false;
+  // An in-project alias can point at a policy file even when the written leaf
+  // is not named adversary.md. Canonicalize BEFORE the leaf-name short-circuit.
+  try {
+    const cwdBase = resolve(opts?.cwd ?? process.cwd());
+    const gRootAlias = normalizePosixLower(resolve(opts?.globalRoot ?? wstackGlobalRoot()));
+    let cursor = resolve(cwdBase, trimmed);
+    let tail = '';
+    for (;;) {
+      let canonical: string;
+      try {
+        canonical = realpathSync(cursor);
+      } catch {
+        const parent = dirname(cursor);
+        if (parent === cursor) break;
+        tail = join(basename(cursor), tail);
+        cursor = parent;
+        continue;
+      }
+      const canonicalNorm = normalizePosixLower(resolve(canonical, tail));
+      if (/(?:^|\/)\.wrongstack\/(?:profiles\/[^/]+\/)?adversary\.md$/i.test(canonicalNorm))
+        return true;
+      if (
+        canonicalNorm === `${gRootAlias}/adversary.md` ||
+        (canonicalNorm.startsWith(`${gRootAlias}/profiles/`) &&
+          canonicalNorm.endsWith('/adversary.md'))
+      )
+        return true;
+      break;
+    }
+  } catch {
+    // Unresolvable — the lexical checks below still decide.
+  }
   // Strip NTFS ADS suffix if present (`adversary.md::$DATA`), preserving drive letters (`C:/...`).
   const cut = trimmed.lastIndexOf('/');
   const dirPart = cut >= 0 ? trimmed.slice(0, cut + 1) : '';
@@ -565,6 +597,37 @@ export function looksLikeAdversaryPolicyPath(
     (resolvedNorm.startsWith(`${rootNorm}/profiles/`) && resolvedNorm.endsWith('/adversary.md'))
   ) {
     return true;
+  }
+
+  // An in-project symlink can alias the policy file. Core's agent-state guard
+  // canonicalizes before matching, so this refusal must see through it too.
+  try {
+    let cursor = resolve(baseCwd, cleanCandidate);
+    let tail = '';
+    for (;;) {
+      let canonical: string;
+      try {
+        canonical = realpathSync(cursor);
+      } catch {
+        const parent = dirname(cursor);
+        if (parent === cursor) break;
+        tail = join(basename(cursor), tail);
+        cursor = parent;
+        continue;
+      }
+      const canonicalNorm = normalizePosixLower(resolve(canonical, tail));
+      if (/(?:^|\/)\.wrongstack\/(?:profiles\/[^/]+\/)?adversary\.md$/i.test(canonicalNorm))
+        return true;
+      if (
+        canonicalNorm === `${rootNorm}/adversary.md` ||
+        (canonicalNorm.startsWith(`${rootNorm}/profiles/`) &&
+          canonicalNorm.endsWith('/adversary.md'))
+      )
+        return true;
+      break;
+    }
+  } catch {
+    // Unresolvable path — the lexical checks above still decide.
   }
 
   return /(?:^|\/)\.wrongstack\/(?:profiles\/[^/]+\/)?adversary\.md$/i.test(resolvedNorm);

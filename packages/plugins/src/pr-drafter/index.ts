@@ -29,8 +29,9 @@
  */
 
 import { execFile } from 'node:child_process';
+import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { type Plugin, type PluginAPI, ToolValidationError } from '@wrongstack/contracts/types';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import { releaseHandle } from '../runtime/index.js';
@@ -135,7 +136,45 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
   if (typeof rawPath !== 'string' || rawPath.length === 0) return null;
   const root = resolve(cwd);
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
-  const rel = relative(root, resolved);
+  // Resolve through in-project symlinks: an alias to a protected destination
+  // (e.g. .git/hooks/pre-commit) must not pass the containment check. Fail closed.
+  let cursor = resolved;
+  let tail = '';
+  let canonical: string | undefined;
+  for (let hops = 0; hops < 40; hops++) {
+    try {
+      canonical = resolve(realpathSync(cursor), tail);
+      break;
+    } catch {
+      // A dangling symlink's target may not exist yet — the write would create
+      // it, so follow the link explicitly before falling back to its parent.
+      try {
+        if (lstatSync(cursor).isSymbolicLink()) {
+          cursor = resolve(dirname(cursor), readlinkSync(cursor));
+          continue;
+        }
+      } catch {
+        // Not a symlink — climb below.
+      }
+      const parent = dirname(cursor);
+      if (parent === cursor) return null;
+      tail = join(basename(cursor), tail);
+      cursor = parent;
+    }
+  }
+  if (canonical === undefined) return null;
+  const rel = relative(root, canonical);
+  // Containment alone is not enough: a path inside the project can still name
+  // a code-execution or agent-config destination that path-guard would block
+  // for core file tools (SA3 family). The plugin writes directly, so deny here.
+  const relNorm = rel.replace(/\\/g, '/').toLowerCase();
+  if (
+    ['.git/', '.github/workflows/', '.wrongstack/', '.claude/', 'node_modules/'].some(
+      (p) => relNorm.startsWith(p) || relNorm.includes(`/${p}`),
+    ) ||
+    /(?:^|\/)\.env(?:\.|$)/.test(relNorm)
+  )
+    return null;
   if (rel === '' || (rel.split(/[\\/]/)[0] !== '..' && !isAbsolute(rel))) return resolved;
   return null;
 }

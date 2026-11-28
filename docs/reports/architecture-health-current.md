@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T18:21:16.281Z
+**Generated:** 2026-11-28T18:25:56.757Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6675 |
-| Production source lines | 1369471 |
-| Test files | 6607 |
+| Production source lines | 1369680 |
+| Test files | 6608 |
 | Workspace dependency edges | 268 |
 | Relative module edges | 19591 |
 | Non-command slash imports | 0 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 10 | 31 | — |
 | @wrongstack/plug-lsp | 52 | 74 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 18 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 171 | 175 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 171 | 176 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 55 | — |
 | @wrongstack/project-surfaces | 280 | 59 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/providers | 142 | 163 | @wrongstack/contracts, @wrongstack/core |
@@ -132,6 +132,7 @@ None.
 | 770 | `packages/webui-server/src/server/provider-routes.ts` |
 | 767 | `apps/desktop-v2/src/useFileWorkspace.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
+| 763 | `packages/plugins/src/adversary-mode/policy.ts` |
 | 762 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 761 | `packages/coordination/src/multi-agent-coordinator.ts` |
@@ -142,7 +143,6 @@ None.
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 754 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
-| 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 
 ## Exports only tests reference
 

@@ -136,6 +136,20 @@ function nearestExistingAncestor(abs: string, root: string): string | null {
   return null;
 }
 
+/** Resolve a target through in-project symlinks for protected-destination matching. */
+function canonicalTargetForMatching(targetPath: string, cwd?: string): string {
+  const base = cwd ? resolve(cwd) : process.cwd();
+  const abs = resolve(base, targetPath);
+  const ancestor = nearestExistingAncestor(abs, base);
+  if (ancestor === null) return targetPath;
+  try {
+    const tail = relative(ancestor, abs);
+    return relative(base, resolve(realpathSync(ancestor), tail)).replace(/\\/g, '/');
+  } catch {
+    return targetPath;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Per-host state
 // ---------------------------------------------------------------------------
@@ -432,6 +446,16 @@ const plugin: Plugin = {
             isSymlinkEscape(target.path, input.cwd)
           ) {
             return { ...target, kind: 'file' as const };
+          }
+          // An alias inside the project can still resolve to a protected
+          // destination (.git/hooks, .github/workflows, .env). Match on the
+          // canonical path too, not just the caller's spelling (SA3).
+          const canonical = canonicalTargetForMatching(target.path, input.cwd);
+          if (
+            canonical !== target.path.replace(/\\/g, '/') &&
+            targetIntersectsPatterns({ ...target, path: canonical }, cfg.protect, protectRes)
+          ) {
+            return target;
           }
           if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
           // Concrete write targets use the sync matcher. The worker-thread

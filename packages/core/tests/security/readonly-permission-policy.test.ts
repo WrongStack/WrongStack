@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/contracts/types';
@@ -151,6 +152,23 @@ describe('ReadOnlyPermissionPolicy', () => {
     const ctx = makeCtx(true);
     const result = await policy.evaluate(writeTool(), { path: 'docs/report.md' }, ctx);
     expect(result.permission).toBe('deny');
+  });
+
+  it('denies a .temp_files symlink alias to a protected file (FIX15)', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wstack-ro-symlink-'));
+    const saved = projectRoot;
+    try {
+      fs.mkdirSync(path.join(root, '.temp_files'));
+      fs.writeFileSync(path.join(root, '.env'), 'SECRET=do-not-write');
+      fs.symlinkSync(path.join(root, '.env'), path.join(root, '.temp_files', 'alias.md'));
+      projectRoot = root;
+      const policy = new ReadOnlyPermissionPolicy(ALLOW_INNER, root);
+      const result = await policy.evaluate(writeTool(), { path: '.temp_files/alias.md' }, makeCtx(true));
+      expect(result.permission).toBe('deny');
+    } finally {
+      projectRoot = saved;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('rejects path traversal escape from .temp_files/ when readOnly is true', async () => {

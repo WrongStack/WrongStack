@@ -129,8 +129,14 @@ export function maskNonExecutingHeredocBodies(command: string): string {
       /^(?:[^\s;&|]+[\\/])?(?:cat|tee)(?:\s|$)/i.test(owner) ||
       /^(?:while\s+)?read(?:\s|$)/i.test(owner) ||
       whileReadLoopOwnsHeredoc;
-    const redirectedFileMatch = /^(?:>>|>\||>)\s*("[^"]+"|'[^']+'|[^\s;&|<>]+)/.exec(suffix);
-    const redirectedFile = redirectedFileMatch?.[1]?.replace(/^['"]|['"]$/g, '');
+    const redirectedFileMatch = /^(?:>>|>\||>)\s*("[^"]+"|'[^']+'|[^\s;&|<>]+)([^\s;&|<>]*)/.exec(
+      suffix,
+    );
+    // The shell concatenates a quoted segment with the text glued after it:
+    // `> "dir"/x.sh` writes dir/x.sh, so the guard must see the whole operand.
+    const redirectedFile = redirectedFileMatch
+      ? `${redirectedFileMatch[1]}${redirectedFileMatch[2] ?? ''}`.replace(/['"]/g, '')
+      : undefined;
     const remainingCommand = lines.slice(index + 1).join('');
     const executionSearch = `${suffix}\n${remainingCommand}`;
     const normalizedRedirectedFile = redirectedFile ? normalizePath(redirectedFile) : undefined;

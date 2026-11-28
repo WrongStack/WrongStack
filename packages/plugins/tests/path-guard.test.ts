@@ -152,6 +152,15 @@ describe('destructiveTargets', () => {
   it('extracts rm and redirect targets', async () => {
     expect(destructiveTargets('rm -rf pnpm-lock.yaml')).toContain('pnpm-lock.yaml');
     expect(destructiveTargets('echo hi > .env')).toContain('.env');
+    // A shell concatenates adjacent quoted/unquoted words: >"a"/.env writes
+    // a/.env, so the guard must see the full destination, not just "a" (SA1).
+    expect(destructiveTargets('echo hi >"a"/.env')).toContain('a/.env');
+    expect(destructiveTargets("echo hi >'a'/.env")).toContain('a/.env');
+    expect(destructiveTargets('dd if=x of="a"/.env')).toContain('a/.env');
+    // Heredoc script written through a quoted prefix + glued suffix (FIX14).
+    expect(
+      destructiveTargets("cat <<'EOF' > \"dir\"/x.sh\nrm .env\nEOF\nbash dir/x.sh"),
+    ).toContain('.env');
     expect(destructiveTargets('mv .env .env.bak')).toEqual(
       expect.arrayContaining(['.env', '.env.bak']),
     );
@@ -786,6 +795,38 @@ describe('path-guard plugin', () => {
     const hook = getHook(api);
     const result = await hook({ toolName: 'edit', toolInput: { file_path: 'apps/web/.env' } });
     expect(result?.decision).toBe('block');
+  });
+
+  it('blocks a write through an in-project symlink alias to .git/hooks (SA3)', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'path-guard-alias-'));
+    const original = process.cwd();
+    try {
+      fs.mkdirSync(path.join(dir, '.git', 'hooks'), { recursive: true });
+      try {
+        fs.symlinkSync(
+          path.join(dir, '.git'),
+          path.join(dir, 'lg'),
+          process.platform === 'win32' ? 'junction' : 'dir',
+        );
+      } catch {
+        return; // platform cannot create the link without elevation
+      }
+      process.chdir(dir);
+      const api = makeApi();
+      pathGuardPlugin.setup(api as never);
+      const hook = getHook(api);
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: 'lg/hooks/pre-commit' },
+      });
+      expect(result?.decision).toBe('block');
+    } finally {
+      process.chdir(original);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('blocks destructive command substitutions at the hook level', async () => {

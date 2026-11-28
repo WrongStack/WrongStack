@@ -29,6 +29,7 @@
  * ```
  */
 
+import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type {
@@ -101,7 +102,36 @@ function isAllowedReportFile(input: unknown, projectRoot: string): boolean {
   try {
     const resolved = path.resolve(projectRoot, inputPath);
     const tempDir = path.resolve(projectRoot, '.temp_files');
-    if (!resolved.startsWith(tempDir + path.sep) && resolved !== tempDir) return false;
+    // Canonicalize through in-project symlinks. A link under .temp_files/ can
+    // alias a protected file outside the sole read-mode exception; the file
+    // tools resolve the real path before writing, so this policy must too.
+    // Fail closed when the path cannot be resolved at all.
+    let cursor = resolved;
+    let tail = '';
+    let canonical: string | undefined;
+    for (;;) {
+      try {
+        canonical = path.resolve(realpathSync(cursor), tail);
+        break;
+      } catch {
+        const parent = path.dirname(cursor);
+        if (parent === cursor) return false;
+        tail = path.join(path.basename(cursor), tail);
+        cursor = parent;
+      }
+    }
+    let canonicalTemp = tempDir;
+    try {
+      canonicalTemp = realpathSync(tempDir);
+    } catch {
+      // No report directory yet — compare against its lexical path.
+    }
+    if (
+      canonical !== undefined &&
+      !canonical.startsWith(canonicalTemp + path.sep) &&
+      canonical !== canonicalTemp
+    )
+      return false;
     return true;
   } catch {
     return false;

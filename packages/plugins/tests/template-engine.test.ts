@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -154,6 +154,28 @@ describe('template-engine plugin', () => {
         }),
       ).rejects.toThrow(/protected path/);
       expect(existsSync(path.join(sandbox, 'nested/.git/hooks/pre-commit'))).toBe(false);
+    });
+
+    it('template_expand refuses a symlink alias to .git/hooks (SA3)', async () => {
+      mkdirSync(path.join(sandbox, '.git', 'hooks'), { recursive: true });
+      symlinkSync(
+        path.join(sandbox, '.git'),
+        path.join(sandbox, 'lg'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      templateEnginePlugin.setup(mockApi as any);
+      const tool = mockApi.tools.register.mock.calls.find(
+        ([tool]: any[]) => tool.name === 'template_expand',
+      )?.[0];
+      await expect(
+        tool.execute({
+          template: '#!/bin/sh\necho pwned',
+          variables: {},
+          raw: true,
+          output_path: 'lg/hooks/pre-commit',
+        }),
+      ).rejects.toThrow(/protected path/);
+      expect(existsSync(path.join(sandbox, '.git/hooks/pre-commit'))).toBe(false);
     });
   });
 
