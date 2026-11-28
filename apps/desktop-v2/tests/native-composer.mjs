@@ -116,6 +116,8 @@ export async function exerciseNativeComposer({
   };
   await idle();
   await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+  // The chip opens the quick switcher; the full picker is behind "All models".
+  await page.getByRole('button', { name: 'All models and search…', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Choose a model' });
   await picker.getByRole('textbox', { name: 'Search session models' }).fill(fixtureModel);
   await picker

@@ -92,6 +92,8 @@ export async function exerciseNativeProfileModelPolicy({
     await composer.fill('[native-profile-policy-draft] Keep the model-policy draft.');
     const promptsBefore = await humanFrames();
     await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+    // The chip opens the quick switcher; the full picker is behind "All models".
+    await page.getByRole('button', { name: 'All models and search…', exact: true }).click();
     const picker = page.getByRole('dialog', { name: 'Choose a model', exact: true });
     const modelButton = (id) =>
       picker
@@ -160,11 +162,15 @@ export async function exerciseNativeProfileModelPolicy({
       'high',
     );
     await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+    // The chip opens the quick switcher; the full picker is behind "All models".
+    await page.getByRole('button', { name: 'All models and search…', exact: true }).click();
     await modelButton(fixtureModel).click();
     await picker.waitFor({ state: 'detached' });
     assert.equal((await rpc('engine.identity', { id: agent.id })).model, fixtureModel);
     // The recently used alternate switches back with one click from the recents row.
     await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+    // The chip opens the quick switcher; the full picker is behind "All models".
+    await page.getByRole('button', { name: 'All models and search…', exact: true }).click();
     await picker
       .getByRole('group', { name: 'Recent models', exact: true })
       .getByRole('button')
@@ -173,6 +179,8 @@ export async function exerciseNativeProfileModelPolicy({
     await picker.waitFor({ state: 'detached' });
     assert.equal((await rpc('engine.identity', { id: agent.id })).model, alt);
     await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+    // The chip opens the quick switcher; the full picker is behind "All models".
+    await page.getByRole('button', { name: 'All models and search…', exact: true }).click();
     await modelButton(fixtureModel).click();
     await picker.waitFor({ state: 'detached' });
     assert.equal((await rpc('engine.identity', { id: agent.id })).model, fixtureModel);

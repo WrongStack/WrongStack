@@ -246,54 +246,59 @@ function DesktopShell() {
             />
           </div>
         )}
-        <main className="main-content">
-          <RenderErrorBoundary
-            resetKey={`${section}:${vm.project ?? ''}:${currentSession?.id ?? ''}:${vm.projectPage}`}
-            onHome={() => {
-              setSection('fleet');
-              setSelected(null);
-              setProject(null);
-            }}
-          >
-            <Suspense fallback={<div className="runtime-state">{t('topbar.opening')}</div>}>
-              {section === 'fleet' &&
-                (focused ? (
-                  <SessionWorkbench
-                    vm={vm}
-                    terminal={{
-                      setSlot: setTabSlot,
-                      dock: tabTerminal && !docked ? () => dockTerminal(tabTerminal) : undefined,
-                      dockButtonRef: (button) => {
-                        if (tabTerminal) focusTerminalControl(button, tabTerminal.id, 'tab');
-                      },
-                      docked: Boolean(docked && docked.id === tabTerminal?.id),
-                    }}
-                  />
-                ) : (
-                  <FleetPanel vm={vm} />
-                ))}
-              <ProjectViews vm={vm} />
-              {section === 'project' && currentProject && (
-                <ProjectWorkspace key={currentProject.id} project={currentProject} vm={vm} />
-              )}
-              {section === 'wrongstack' && <WrongStackSettings vm={vm} />}
-            </Suspense>
-          </RenderErrorBoundary>
-        </main>
-        {dockVisible && (
-          <TerminalDock
-            session={docked}
-            open={dock?.open === true}
-            setSlot={setDockSlot}
-            toggleButtonRef={(button) => focusTerminalControl(button, docked.id, 'dock')}
-            toggle={() => setDock((previous) => previous && { ...previous, open: !previous.open })}
-            undock={() => {
-              terminalFocus.current = { id: docked.id, placement: 'tab' };
-              setDock(undefined);
-              vm.jumpToSession(docked);
-            }}
-          />
-        )}
+        {/* The working surface: one raised card on the tinted canvas the chrome sits on. */}
+        <div className="workspace-card">
+          <main className="main-content">
+            <RenderErrorBoundary
+              resetKey={`${section}:${vm.project ?? ''}:${currentSession?.id ?? ''}:${vm.projectPage}`}
+              onHome={() => {
+                setSection('fleet');
+                setSelected(null);
+                setProject(null);
+              }}
+            >
+              <Suspense fallback={<div className="runtime-state">{t('topbar.opening')}</div>}>
+                {section === 'fleet' &&
+                  (focused ? (
+                    <SessionWorkbench
+                      vm={vm}
+                      terminal={{
+                        setSlot: setTabSlot,
+                        dock: tabTerminal && !docked ? () => dockTerminal(tabTerminal) : undefined,
+                        dockButtonRef: (button) => {
+                          if (tabTerminal) focusTerminalControl(button, tabTerminal.id, 'tab');
+                        },
+                        docked: Boolean(docked && docked.id === tabTerminal?.id),
+                      }}
+                    />
+                  ) : (
+                    <FleetPanel vm={vm} />
+                  ))}
+                <ProjectViews vm={vm} />
+                {section === 'project' && currentProject && (
+                  <ProjectWorkspace key={currentProject.id} project={currentProject} vm={vm} />
+                )}
+                {section === 'wrongstack' && <WrongStackSettings vm={vm} />}
+              </Suspense>
+            </RenderErrorBoundary>
+          </main>
+          {dockVisible && (
+            <TerminalDock
+              session={docked}
+              open={dock?.open === true}
+              setSlot={setDockSlot}
+              toggleButtonRef={(button) => focusTerminalControl(button, docked.id, 'dock')}
+              toggle={() =>
+                setDock((previous) => previous && { ...previous, open: !previous.open })
+              }
+              undock={() => {
+                terminalFocus.current = { id: docked.id, placement: 'tab' };
+                setDock(undefined);
+                vm.jumpToSession(docked);
+              }}
+            />
+          )}
+        </div>
         {terminals.map((session) => (
           <HostedTerminal
             key={session.id}

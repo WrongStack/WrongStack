@@ -89,7 +89,7 @@ import '/src/brand-tokens.css'; import '/src/appearance.css'; import '/src/workb
 import '/src/project.css'; import '/src/files.css'; import '/src/knowledge.css';
 import '/src/atlas.css'; import '/src/chronicle.css'; import '/src/git-history.css';
 import '/src/skills.css'; import '/src/shell.css'; import '/src/controls.css';
-import '/src/ide-workbench.css';
+import '/src/ide-workbench.css'; import '/src/shell-canvas.css';
 const now=Date.now();
 const projects=[{id:'p1',name:'WrongStack UI',root:'D:/fixture/ui',createdAt:now},{id:'p2',name:'Unicode 検証 '+ 'long-project-'.repeat(5),root:'D:/fixture/unicode',createdAt:now}];
 const titles=['Review the session workspace','Verify keyboard navigation','Investigate a failed build','Unicode 検証 '+ 'long-session-'.repeat(6)];
@@ -518,7 +518,18 @@ try {
           );
         }
         const modelButton = page.locator('.model-selector');
+        // The chip opens the quick switcher: a dialog above the composer, closed by Escape with
+        // focus back on the chip. Its "All models" opens the full picker.
+        const switcher = page.getByRole('dialog', { name: 'Switch model', exact: true });
         await modelButton.click();
+        await switcher.waitFor();
+        assert.equal(await modelButton.getAttribute('aria-expanded'), 'true');
+        await page.keyboard.press('Escape');
+        await switcher.waitFor({ state: 'detached' });
+        assert.ok(await modelButton.evaluate((el) => el === document.activeElement));
+        const allModels = switcher.getByRole('button', { name: 'All models and search…' });
+        await modelButton.click();
+        await allModels.click();
         const picker = page.locator('.profile-model-picker');
         // The provider rail is pressed at once; the model rows arrive with the catalog.
         await picker
@@ -545,6 +556,7 @@ try {
         assert.ok(await modelButton.evaluate((el) => el === document.activeElement));
         if (width === 1440) {
           await modelButton.press('Enter');
+          await allModels.click();
           // The provider rail is pressed at once; the model rows arrive with the catalog.
           await picker
             .locator('.composer-model-list[aria-busy="false"] > button[aria-pressed="true"]')

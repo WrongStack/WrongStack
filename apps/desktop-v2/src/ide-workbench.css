@@ -14,12 +14,9 @@
  * Surfaces
  * ------------------------------------------------------------------ */
 
-/* One ramp for the chrome, so the workbench reads as three planes: the
-   title bar and tab strip are chrome, the explorer sits between them and
-   the working surface, and the surface itself is the calmest of the three. */
-.app-shell .topbar,
-.app-shell .workspace-shell .session-tabs,
-.desktop-status-bar {
+/* The tab strip is the working card's own header; the chrome around the card sits on the
+   shell canvas (shell-canvas.css). */
+.app-shell .workspace-shell .session-tabs {
   background: var(--raised);
 }
 

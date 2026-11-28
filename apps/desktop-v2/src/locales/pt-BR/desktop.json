@@ -6570,7 +6570,9 @@
     "section": {
       "system": "Instruções do sistema",
       "tools": "Definições de ferramentas",
-      "messages": "Mensagens da conversa"
+      "messages": "Mensagens da conversa",
+      "other": "Outro",
+      "free": "Livre"
     },
     "toolFallback": "Ferramenta",
     "messageFallback": "Mensagem",
@@ -6585,7 +6587,8 @@
     "clearTitle": "Limpar este contexto do provedor?",
     "clearBody": "A identidade da sessão e a conversa em disco permanecem. A próxima solicitação começa com uma conversa vazia para o provedor.",
     "keep": "Manter o contexto",
-    "confirmClear": "Confirmar a limpeza do contexto"
+    "confirmClear": "Confirmar a limpeza do contexto",
+    "used": "{{percent}}% da janela em uso"
   },
   "contextEdit": {
     "summary_one": "{{count}} mensagem · ~{{tokens}} tokens na solicitação completa · {{removed}} selecionadas para remoção",
@@ -9953,6 +9956,18 @@
     "modelPlaceholder": "Escolha um modelo salvo ou digite provedor/modelo",
     "providerPlaceholder": "Escolha um provedor salvo",
     "provider": "Provedor"
+  },
+  "switcher": {
+    "label": "Trocar modelo",
+    "models": "Modelos de {{name}}",
+    "all": "Todos os modelos e busca…",
+    "needsKey": "Requer chave",
+    "left": "{{window}} · {{percent}}% restante",
+    "reached": "Limite atingido",
+    "reachedAt": "Limite atingido · {{time}}",
+    "noModels": "Nenhum modelo disponível.",
+    "agents": "Agentes",
+    "providers": "Provedores"
   },
   "githubPage": {
     "targetLabel": "Conversa de destino para o repasse do GitHub",

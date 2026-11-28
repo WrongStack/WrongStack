@@ -16,7 +16,7 @@ import {Sidebar} from '/src/Sidebar.tsx';
 import {useDesktop} from '/src/useDesktop.ts';
 import {useWorkbenchExplorer} from '/src/useWorkbenchExplorer.ts';
 import '/src/styles.css'; import '/src/brand-tokens.css'; import '/src/appearance.css';
-import '/src/workbench.css'; import '/src/controls.css'; import '/src/shell.css'; import '/src/ide-workbench.css';
+import '/src/workbench.css'; import '/src/controls.css'; import '/src/shell.css'; import '/src/ide-workbench.css'; import '/src/shell-canvas.css';
 let projects=['Alpha','Beta','Unicode 検証 '+ 'long-name-'.repeat(15)].map((name,i)=>({id:'p'+i,name,root:'D:/fixture/'+name,createdAt:i}));
 const original=structuredClone(projects);
 const sessions=[['shell','Build shell','terminal','running'],['review','Review pending changes','agent','stopped']].map(([id,title,kind,status],i)=>({id,title,kind,status,projectId:'p0',workdir:'D:/fixture/Alpha',createdAt:i,updatedAt:i,exitCode:null,error:null}));

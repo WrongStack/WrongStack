@@ -15,8 +15,6 @@
   flex-direction: column;
   align-items: center;
   padding: 4px 0;
-  border-right: 1px solid var(--border);
-  background: var(--raised);
 }
 .rail-brand {
   display: grid;
@@ -176,7 +174,6 @@
   height: 42px;
   padding: 0 16px;
   gap: 12px;
-  background: var(--raised);
 }
 .topbar .topbar-title {
   display: flex;

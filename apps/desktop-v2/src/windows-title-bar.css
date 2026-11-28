@@ -11,8 +11,6 @@
   display: flex;
   align-items: stretch;
   height: 36px;
-  background: var(--raised);
-  border-block-end: 1px solid var(--border);
   user-select: none;
   cursor: default;
 }

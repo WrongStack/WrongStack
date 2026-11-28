@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T01:39:49.889Z",
+  "generatedAt": "2026-11-28T01:45:52.534Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6648,
-    "testFiles": 6572,
-    "sourceLines": 1364190,
+    "sourceFiles": 6651,
+    "testFiles": 6573,
+    "sourceLines": 1364876,
     "workspaceEdges": 268,
-    "moduleEdges": 19506,
+    "moduleEdges": 19526,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 585,
-      "testFiles": 417,
+      "sourceFiles": 588,
+      "testFiles": 418,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 417
+          "testFiles": 418
         }
       ]
     },
@@ -2828,6 +2828,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/model-reference-options.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/model-switcher-model.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41500,6 +41506,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/main.tsx",
+      "specifier": "./shell-canvas.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/MarkdownContent.tsx",
       "specifier": "./syntax-highlight.css",
       "syntax": "import"
@@ -41542,6 +41553,11 @@
     {
       "from": "apps/desktop-v2/src/ModelDraftNotice.tsx",
       "specifier": "./draft-conflict.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ModelQuickSwitcher.tsx",
+      "specifier": "./model-switcher.css",
       "syntax": "import"
     },
     {

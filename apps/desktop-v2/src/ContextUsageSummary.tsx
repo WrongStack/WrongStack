@@ -9,56 +9,63 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
   const percent = contextPercent(usage);
   const hit = cacheHitPercent(usage);
   const zone = contextZone(percent);
+  const prompt = usage.totals.input + usage.totals.cacheRead + usage.totals.cacheWrite;
   return (
     <section className="context-live" aria-label={t('contextLive.label')}>
-      <div className="context-summary">
-        <div>
-          <strong className={`context-${zone}`}>
+      <div className="context-live-tiles">
+        <div className={`context-live-tile context-${zone}`}>
+          <span>{t('contextLive.latest')}</span>
+          <strong>
             {usage.tokens
               ? usage.tokens.toLocaleString(displayLocale())
               : t('contextLive.notReported')}
-            {percent !== null ? ` (${percent}%)` : ''}
+            {percent !== null ? <small> {percent}%</small> : null}
           </strong>
-          <span>{t('contextLive.latest')}</span>
+          {percent !== null && (
+            <meter
+              className="context-live-meter"
+              aria-label={t('contextLive.meter')}
+              min={0}
+              max={100}
+              value={percent}
+            />
+          )}
         </div>
-        <div>
+        <div className="context-live-tile is-cache">
+          <span>{t('contextLive.fromCache')}</span>
           <strong>{hit !== null ? `${hit}%` : t('contextLive.notReported')}</strong>
-          <span>
-            {t('contextLive.fromCache')}
-            {hit !== null
-              ? ` · ${t('contextLive.cacheDetail', {
+          {hit !== null && (
+            <>
+              <span className="context-live-bar" aria-hidden="true">
+                <i style={{ inlineSize: `${hit}%` }} />
+              </span>
+              <small>
+                {t('contextLive.cacheDetail', {
                   read: usage.cacheRead.toLocaleString(displayLocale()),
                   written: usage.cacheWrite.toLocaleString(displayLocale()),
-                })}`
-              : ''}
-          </span>
+                })}
+              </small>
+            </>
+          )}
         </div>
-        <div>
-          <strong>
-            {(usage.totals.input + usage.totals.cacheRead + usage.totals.cacheWrite).toLocaleString(
-              displayLocale(),
-            )}{' '}
-            / {usage.totals.output.toLocaleString(displayLocale())}
-          </strong>
+        <div className="context-live-tile is-billed">
           <span>
             {usage.responses === 1
               ? t('contextLive.tokensOne')
               : t('contextLive.tokensMany', { number: usage.responses })}
           </span>
+          <strong>
+            {prompt.toLocaleString(displayLocale())}
+            <small> / {usage.totals.output.toLocaleString(displayLocale())}</small>
+          </strong>
+          {prompt + usage.totals.output > 0 && (
+            <span className="context-live-split" aria-hidden="true">
+              <i style={{ flexGrow: prompt }} />
+              <i style={{ flexGrow: usage.totals.output }} />
+            </span>
+          )}
         </div>
       </div>
-      {percent !== null && (
-        <meter
-          className={`context-live-meter context-${zone}`}
-          min={0}
-          max={100}
-          low={60}
-          high={85}
-          optimum={0}
-          value={percent}
-          aria-label={t('contextLive.meter')}
-        />
-      )}
       {usage.decreasedFrom > 0 && (
         <p role="status">
           {t('contextLive.limit', {

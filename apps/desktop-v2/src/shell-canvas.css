@@ -1,0 +1,58 @@
+/* The shell as two planes: the chrome (activity rail, explorer, title bar, status bar) sits
+   flat on one tinted canvas with no rules between its parts, and the working surface is a
+   single raised card inset on it. The card goes flush again where every pixel counts: a
+   narrow or short window, and high zoom. */
+.app-shell {
+  --canvas: var(--sidebar);
+  --card-inset: 8px;
+  background: var(--canvas);
+}
+/* In the dark the canvas sinks below the card; in the light it is the palette's sidebar tint. */
+:root[data-mode="dark"] .app-shell {
+  --canvas: color-mix(in oklab, var(--base) 72%, black);
+}
+/* Explorer parts painted with the sidebar colour stay on the canvas they sit on. */
+.app-shell > .sidebar {
+  --sidebar: var(--canvas);
+}
+.app-shell > .sidebar,
+.app-shell > .sidebar .rail,
+.app-shell > .workspace-shell > .topbar,
+.app-shell > .desktop-status-bar,
+.app-shell > .desktop-titlebar {
+  background: var(--canvas);
+}
+.app-shell > .workspace-shell {
+  padding: 0 var(--card-inset) var(--card-inset) 0;
+  background: var(--canvas);
+}
+.workspace-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  background: var(--base);
+  box-shadow: 0 1px 3px color-mix(in srgb, black 10%, transparent);
+}
+:root[data-mode="dark"] .workspace-card {
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, black 35%, transparent);
+}
+/* The card follows the shell's height, so a focused workbench still fits the window. */
+.workspace-card > .main-content {
+  min-height: 0;
+}
+@media (max-width: 800px), (max-height: 600px) {
+  .app-shell {
+    --card-inset: 0px;
+  }
+  .workspace-card {
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

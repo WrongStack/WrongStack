@@ -75,7 +75,6 @@
   width: 238px;
   flex-shrink: 0;
   background: var(--sidebar);
-  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -309,7 +308,6 @@ kbd {
 }
 .topbar {
   height: 62px;
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;

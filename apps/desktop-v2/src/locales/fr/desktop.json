@@ -6570,7 +6570,9 @@
     "section": {
       "system": "Instructions système",
       "tools": "Définitions d’outils",
-      "messages": "Messages de la conversation"
+      "messages": "Messages de la conversation",
+      "other": "Autre",
+      "free": "Libre"
     },
     "toolFallback": "Outil",
     "messageFallback": "Message",
@@ -6585,7 +6587,8 @@
     "clearTitle": "Vider ce contexte fournisseur ?",
     "clearBody": "L’identité de la session et la conversation sur disque restent. La prochaine requête démarre avec une conversation vide côté fournisseur.",
     "keep": "Garder le contexte",
-    "confirmClear": "Confirmer le vidage du contexte"
+    "confirmClear": "Confirmer le vidage du contexte",
+    "used": "{{percent}} % de la fenêtre utilisée"
   },
   "contextEdit": {
     "summary_one": "{{count}} message · ~{{tokens}} tokens dans la requête complète · {{removed}} sélectionnés pour suppression",
@@ -9953,6 +9956,18 @@
     "modelPlaceholder": "Choisis un modèle enregistré ou saisis fournisseur/modèle",
     "providerPlaceholder": "Choisis un fournisseur enregistré",
     "provider": "Fournisseur"
+  },
+  "switcher": {
+    "label": "Changer de modèle",
+    "models": "Modèles de {{name}}",
+    "all": "Tous les modèles et recherche…",
+    "needsKey": "Clé requise",
+    "left": "{{window}} · {{percent}} % restant",
+    "reached": "Limite atteinte",
+    "reachedAt": "Limite atteinte · {{time}}",
+    "noModels": "Aucun modèle disponible.",
+    "agents": "Agents",
+    "providers": "Fournisseurs"
   },
   "githubPage": {
     "targetLabel": "Conversation cible pour la transmission GitHub",

@@ -6570,7 +6570,9 @@
     "section": {
       "system": "System instructions",
       "tools": "Tool definitions",
-      "messages": "Conversation messages"
+      "messages": "Conversation messages",
+      "other": "Other",
+      "free": "Free"
     },
     "toolFallback": "Tool",
     "messageFallback": "Message",
@@ -6585,7 +6587,8 @@
     "clearTitle": "Clear this provider context?",
     "clearBody": "The session identity and on-disk conversation remain. The next request starts with an empty provider-bound conversation.",
     "keep": "Keep context",
-    "confirmClear": "Confirm clear context"
+    "confirmClear": "Confirm clear context",
+    "used": "{{percent}}% of the window in use"
   },
   "contextEdit": {
     "summary_one": "{{count}} message · ~{{tokens}} tokens in the full request · {{removed}} selected for removal",
@@ -9953,6 +9956,18 @@
     "modelPlaceholder": "Choose a saved model, or type provider/model",
     "providerPlaceholder": "Choose a saved provider",
     "provider": "Provider"
+  },
+  "switcher": {
+    "label": "Switch model",
+    "models": "Models of {{name}}",
+    "all": "All models and search…",
+    "needsKey": "Needs a key",
+    "left": "{{window}} · {{percent}}% left",
+    "reached": "Limit reached",
+    "reachedAt": "Limit reached · {{time}}",
+    "noModels": "No models available.",
+    "agents": "Agents",
+    "providers": "Providers"
   },
   "githubPage": {
     "targetLabel": "GitHub hand-off target conversation",

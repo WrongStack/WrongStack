@@ -381,31 +381,65 @@
 .context-clear-action {
   margin-inline-start: auto;
 }
+/* The context at a glance: a ring for how full the window is, the numbers beside it. */
 .context-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-block: 1px solid var(--border);
-  margin: 16px 0 12px;
+  --zone: var(--accent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  margin: 16px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  background: var(--raised);
+}
+.context-summary.zone-warn {
+  --zone: hsl(var(--ws-warning));
+}
+.context-summary.zone-critical {
+  --zone: var(--danger);
 }
 .context-summary > div {
   display: flex;
   flex-direction: column-reverse;
   justify-content: flex-end;
-  gap: 4px;
-  padding: 12px;
+  gap: 3px;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
-.context-summary > div:where(:not(:first-child)) {
-  border-inline-start: 1px solid var(--border);
-}
 .context-summary strong {
-  font-size: clamp(14px, 2.3vw, 21px);
-  font-weight: 600;
+  font-size: clamp(15px, 2.1vw, 20px);
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .context-summary span {
   color: var(--muted);
   font-size: 11px;
+}
+.context-ring {
+  flex: none;
+  inline-size: 64px;
+  block-size: 64px;
+}
+.context-ring circle {
+  fill: none;
+  stroke-width: 7;
+}
+.context-ring-track {
+  stroke: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.context-ring-value {
+  stroke: var(--zone);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 32px 32px;
+}
+.context-ring text {
+  fill: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .context-token-row {
   display: grid;
@@ -423,8 +457,56 @@
 .context-token-row strong {
   text-align: right;
 }
+/* What fills the window: one bar of parts with a 2px surface gap, then a labelled legend.
+   Categorical slots validated against the card surface in both modes (dataviz validator). */
 .context-breakdown {
-  padding-bottom: 8px;
+  --part-system: #338ced;
+  --part-tools: #e76624;
+  --part-messages: #00a888;
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+:root:not([data-mode="dark"]) .context-breakdown {
+  --part-system: #257de0;
+  --part-tools: #f47230;
+  --part-messages: #00b894;
+}
+.context-stack {
+  display: flex;
+  gap: 2px;
+  block-size: 12px;
+  overflow: hidden;
+  border-radius: var(--corner-sm);
+}
+.context-part {
+  flex-basis: 0;
+  min-inline-size: 3px;
+  background: var(--part-color, var(--subtle));
+}
+.part-system {
+  --part-color: var(--part-system);
+}
+.part-tools {
+  --part-color: var(--part-tools);
+}
+.part-messages {
+  --part-color: var(--part-messages);
+}
+.part-other {
+  --part-color: color-mix(in srgb, var(--text) 35%, transparent);
+}
+.part-free {
+  --part-color: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.context-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
 }
 .context-inspector-body > details {
   border-block-start: 1px solid var(--border);
@@ -452,11 +534,24 @@
   margin: 10px 0;
 }
 .context-entries > div {
+  position: relative;
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  padding: 8px;
+  padding: 8px 8px 12px;
   font-size: 12px;
+}
+/* Each row's tokens against the largest row, as a thin bar under it. */
+.context-entries > div::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 8px;
+  inset-block-end: 4px;
+  inline-size: calc((100% - 16px) * var(--share-ratio, 0));
+  max-inline-size: calc(100% - 16px);
+  block-size: 3px;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .context-entries span {
   min-width: 0;
@@ -705,4 +800,38 @@ section.memory-injections > header {
 .memory-injection-query {
   color: var(--muted);
   font-style: italic;
+}
+/* Each entry: swatch and name, then the tokens and their share under the name. */
+ul.context-legend > li {
+  display: grid;
+  grid-template-areas:
+    "swatch label label"
+    ". value share";
+  grid-template-columns: 10px auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px 8px;
+}
+.context-legend > li > i {
+  grid-area: swatch;
+  align-self: center;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--corner-xs);
+  background: var(--part-color);
+}
+.context-legend > li > span {
+  grid-area: label;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.context-legend > li > strong {
+  grid-area: value;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.context-legend > li > small {
+  grid-area: share;
+  color: var(--subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }

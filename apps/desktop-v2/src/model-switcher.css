@@ -1,0 +1,275 @@
+/* The composer's model switcher: a light list above the composer, one row per provider/agent. */
+.model-switcher {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  inset-inline-start: 6px;
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  inline-size: min(400px, calc(100cqw - 24px));
+  max-block-size: min(560px, 50dvh);
+  container: model-switcher / inline-size;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  background: var(--raised);
+  box-shadow:
+    0 18px 44px -14px color-mix(in srgb, black 55%, transparent),
+    0 2px 6px color-mix(in srgb, black 18%, transparent);
+  color: var(--text);
+}
+.model-switcher-body {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+.model-switcher-rows {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-block-size: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.model-switcher-row {
+  border-radius: var(--corner-md);
+}
+.model-switcher-row.is-current {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.model-switcher-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.model-switcher-pick {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 11px;
+  min-inline-size: 0;
+  padding: 8px;
+  border-radius: var(--corner-md);
+  color: var(--text);
+  text-align: start;
+}
+.model-switcher-pick:hover:not(:disabled),
+.model-switcher-pick:focus-visible {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.model-switcher-pick:disabled {
+  cursor: progress;
+}
+/* A monogram tinted by the provider's name: the same hue wherever the provider appears. */
+.model-switcher-mark {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--corner-md);
+  background: color-mix(in oklch, oklch(0.72 0.14 var(--mark-hue, 250)) 18%, transparent);
+  color: oklch(0.76 0.14 var(--mark-hue, 250));
+  font-size: 14px;
+  font-weight: 700;
+}
+:root:not([data-mode="dark"]) .model-switcher-mark {
+  color: oklch(0.48 0.15 var(--mark-hue, 250));
+}
+.model-switcher-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-inline-size: 0;
+}
+.model-switcher-copy strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.model-switcher-copy small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.model-switcher-status {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  gap: 5px;
+  max-inline-size: 46%;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.model-switcher-status.is-key,
+.model-switcher-status.is-reached {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.model-switcher-status.is-key {
+  color: var(--subtle);
+}
+.model-switcher-status.is-reached,
+.model-switcher-status.level-critical {
+  color: var(--danger);
+}
+.model-switcher-status.level-warn {
+  color: hsl(var(--ws-warning));
+}
+.model-switcher-quota {
+  display: block;
+  inline-size: 76px;
+  block-size: 4px;
+  overflow: hidden;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.model-switcher-quota > span {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: hsl(var(--ws-success));
+}
+.level-warn > .model-switcher-quota > span {
+  background: hsl(var(--ws-warning));
+}
+.level-critical > .model-switcher-quota > span {
+  background: var(--danger);
+}
+.model-switcher-check {
+  flex: none;
+  color: var(--accent);
+}
+.model-switcher-expand {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: var(--corner-sm);
+  color: var(--muted);
+}
+.model-switcher-expand:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+}
+.model-switcher-expand > svg {
+  transition: transform 140ms ease;
+}
+.model-switcher-expand[aria-expanded="true"] > svg {
+  transform: rotate(180deg);
+}
+/* A provider's models hang under its row on a guide line. */
+.model-switcher-models {
+  display: grid;
+  gap: 1px;
+  margin: 0 6px 6px 50px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--border);
+}
+.model-switcher-model {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--corner-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: start;
+}
+.model-switcher-model:hover:not(:disabled),
+.model-switcher-model:focus-visible {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.model-switcher-model-name {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.model-switcher-model > small {
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+}
+.model-switcher-model[aria-current] {
+  color: var(--accent);
+  font-weight: 600;
+}
+.model-switcher-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.model-switcher-footer {
+  padding: 6px;
+  border-block-start: 1px solid var(--border);
+}
+.model-switcher-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+  padding: 8px 10px;
+  border-radius: var(--corner-md);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.model-switcher-all:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+.model-switcher-group {
+  display: grid;
+  gap: 2px;
+}
+.model-switcher-heading {
+  margin: 6px 8px 2px;
+  color: var(--subtle);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* An ACP agent's monogram carries a small agent badge in its corner. */
+.model-switcher-agent {
+  position: absolute;
+  inset-block-end: -3px;
+  inset-inline-end: -3px;
+  padding: 1px;
+  border-radius: var(--corner-pill);
+  background: var(--raised);
+  color: var(--muted);
+}
+
+/* A narrow switcher gives the name the row's width and puts the deciding fact under it. */
+@container model-switcher (inline-size < 360px) {
+  .model-switcher-pick {
+    flex-wrap: wrap;
+  }
+  .model-switcher-copy {
+    flex-basis: calc(100% - 64px);
+  }
+  /* The current row's tint already marks it; the check would wrap onto a line of its own. */
+  .model-switcher-check {
+    display: none;
+  }
+  .model-switcher-status {
+    order: 3;
+    flex-basis: 100%;
+    justify-items: start;
+    max-inline-size: none;
+    padding-inline-start: 43px;
+    text-align: start;
+  }
+}
+.model-switcher:focus {
+  outline: none;
+}

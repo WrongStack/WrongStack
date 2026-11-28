@@ -1,5 +1,6 @@
 import { Gauge, LoaderCircle, RefreshCw, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useState } from 'react';
+import { ContextComposition } from './ContextComposition';
 import { ContextEditorDialog } from './ContextEditorDialog';
 import { ContextModes } from './ContextModes';
 import { ContextResidency } from './ContextResidency';
@@ -185,7 +186,7 @@ export function SessionContextPanel({
               {notice}
             </p>
           )}
-          {usage && <ContextUsageSummary usage={usage} />}
+          {usage && (loading || !snapshot) && <ContextUsageSummary usage={usage} />}
           {loading ? (
             <p role="status">
               <LoaderCircle size={14} className="spin" /> {t('contextPanel.reading')}
@@ -194,49 +195,22 @@ export function SessionContextPanel({
             <p>{t('contextPanel.unavailable')}</p>
           ) : (
             <>
-              <div className="context-summary">
-                <div>
-                  <strong>{total.toLocaleString(displayLocale())}</strong>
-                  <span>{t('contextPanel.currentTokens')}</span>
-                </div>
-                <div>
-                  <strong>
-                    {maxContext > 0
-                      ? maxContext.toLocaleString(displayLocale())
-                      : t('contextPanel.notReported')}
-                  </strong>
-                  <span>{t('contextPanel.window')}</span>
-                </div>
-                <div>
-                  <strong>{String(snapshot['mode'] ?? t('contextPanel.defaultMode'))}</strong>
-                  <span>{t('contextPanel.mode')}</span>
-                </div>
-              </div>
-              <section className="context-breakdown" aria-label={t('contextPanel.sections')}>
-                {[
-                  [t('contextPanel.section.system'), Number(snapshot['systemPrompt'] ?? 0)],
-                  [t('contextPanel.section.tools'), Number(tools['total'] ?? 0)],
-                  [t('contextPanel.section.messages'), Number(messages['total'] ?? 0)],
-                ].map(([label, count]) => (
-                  <div className="context-token-row" key={String(label)}>
-                    <span>{label}</span>
-                    <meter
-                      min={0}
-                      max={Math.max(1, total)}
-                      value={Number(count)}
-                      aria-label={String(label)}
-                    />
-                    <strong>~{Number(count).toLocaleString(displayLocale())}</strong>
-                  </div>
-                ))}
-              </section>
+              <ContextComposition
+                total={total}
+                max={maxContext}
+                mode={String(snapshot['mode'] ?? t('contextPanel.defaultMode'))}
+                system={Number(snapshot['systemPrompt'] ?? 0)}
+                tools={Number(tools['total'] ?? 0)}
+                messages={Number(messages['total'] ?? 0)}
+              />
+              {usage && <ContextUsageSummary usage={usage} />}
               <details>
                 <summary>
                   {t('contextPanel.section.tools')} · {String(tools['count'] ?? 0)}
                 </summary>
                 <div className="context-entries">
-                  {entries(tools['breakdown']).map((tool, i) => (
-                    <div key={i}>
+                  {entries(tools['breakdown']).map((tool, i, all) => (
+                    <div key={i} style={shareOf(tool, all)}>
                       <span>{String(tool['name'] ?? t('contextPanel.toolFallback'))}</span>
                       <strong>
                         ~
@@ -253,8 +227,12 @@ export function SessionContextPanel({
                   {t('contextPanel.section.messages')} · {String(messages['count'] ?? 0)}
                 </summary>
                 <div className="context-entries">
-                  {entries(messages['breakdown']).map((message, i) => (
-                    <div key={i}>
+                  {entries(messages['breakdown']).map((message, i, all) => (
+                    <div
+                      key={i}
+                      style={shareOf(message, all)}
+                      data-role={String(message['role'] ?? '')}
+                    >
                       <span>
                         <small>
                           {String(message['role'] ?? t('contextPanel.messageFallback'))}
@@ -380,4 +358,11 @@ export function SessionContextPanel({
       </div>
     </Modal>
   );
+}
+
+/** A breakdown row's tokens as a share of the largest row, for the bar drawn under it. */
+function shareOf(row: Record<string, unknown>, all: Record<string, unknown>[]): CSSProperties {
+  const tokens = (item: Record<string, unknown>) => Number(item['tokens'] ?? item['total'] ?? 0);
+  const largest = Math.max(1, ...all.map(tokens));
+  return { '--share-ratio': (tokens(row) / largest).toFixed(3) } as CSSProperties;
 }

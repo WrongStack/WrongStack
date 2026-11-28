@@ -75,10 +75,6 @@ strong.context-critical {
   gap: 8px;
   margin-bottom: 12px;
 }
-.context-live-meter {
-  width: 100%;
-  height: 8px;
-}
 .context-live p {
   margin: 0;
   color: var(--muted);
@@ -306,4 +302,105 @@ strong.context-critical {
   .agent-working-dots i {
     animation: none;
   }
+}
+/* What the engine reported for the latest request: three tiles, each with its own small bar. */
+/* Single-series bars in the accent; the split's second part is neutral, so none of them reads
+   as a part of the composition legend above, whose hues mean system, tools and messages. */
+.context-live-tiles {
+  --live-prompt: var(--accent);
+  --live-output: color-mix(in srgb, var(--text) 38%, transparent);
+  --live-cache: var(--accent);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.context-live-tile {
+  --live-bar: var(--accent);
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-inline-size: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-md);
+  background: var(--raised);
+  overflow-wrap: anywhere;
+}
+.context-live-tile.context-warn {
+  --live-bar: hsl(var(--ws-warning));
+}
+.context-live-tile.context-critical {
+  --live-bar: var(--danger);
+}
+.context-live-tile.is-cache {
+  --live-bar: var(--live-cache);
+}
+.context-live-tile > span:first-child {
+  color: var(--muted);
+  font-size: 11px;
+}
+.context-live-tile > strong {
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.context-live-tile > small {
+  color: var(--subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.context-live-tile > strong > small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.context-live-bar,
+.context-live-split {
+  display: flex;
+  block-size: 5px;
+  overflow: hidden;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+/* The latest request's share of the window, drawn like the bars beside it. */
+.context-live-meter {
+  appearance: none;
+  display: block;
+  inline-size: 100%;
+  block-size: 5px;
+  border: 0;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.context-live-meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.context-live-meter::-webkit-meter-optimum-value {
+  border-radius: var(--corner-pill);
+  background: var(--live-bar);
+}
+.context-live-meter::-moz-meter-bar {
+  border-radius: var(--corner-pill);
+  background: var(--live-bar);
+}
+.context-live-bar > i {
+  display: block;
+  border-radius: inherit;
+  background: var(--live-bar);
+}
+/* Prompt against completion: two segments with a 2px surface gap. */
+.context-live-split {
+  gap: 2px;
+  background: none;
+}
+.context-live-split > i {
+  display: block;
+  min-inline-size: 3px;
+  border-radius: var(--corner-pill);
+  background: var(--live-prompt);
+}
+.context-live-split > i + i {
+  background: var(--live-output);
 }

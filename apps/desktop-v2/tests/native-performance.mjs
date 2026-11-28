@@ -287,6 +287,8 @@ export async function exerciseNativePerformance({
   // The session model picker, then the largest provider catalog the profile offers.
   let start = performance.now();
   await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
+  // The chip opens the quick switcher; the full picker is behind "All models".
+  await page.getByRole('button', { name: 'All models and search…', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Choose a model' });
   const search = picker.getByRole('textbox', { name: 'Search session models' });
   await search.waitFor();

@@ -6570,7 +6570,9 @@
     "section": {
       "system": "Systemanweisungen",
       "tools": "Werkzeugdefinitionen",
-      "messages": "Nachrichten der Unterhaltung"
+      "messages": "Nachrichten der Unterhaltung",
+      "other": "Sonstiges",
+      "free": "Frei"
     },
     "toolFallback": "Werkzeug",
     "messageFallback": "Nachricht",
@@ -6585,7 +6587,8 @@
     "clearTitle": "Diesen Anbieterkontext leeren?",
     "clearBody": "Sitzungsidentität und gespeicherte Unterhaltung bleiben. Die nächste Anfrage beginnt mit einer leeren Unterhaltung für den Anbieter.",
     "keep": "Kontext behalten",
-    "confirmClear": "Leeren des Kontexts bestätigen"
+    "confirmClear": "Leeren des Kontexts bestätigen",
+    "used": "{{percent}} % des Fensters belegt"
   },
   "contextEdit": {
     "summary_one": "{{count}} Nachricht · ~{{tokens}} Tokens in der gesamten Anfrage · {{removed}} zum Entfernen ausgewählt",
@@ -9953,6 +9956,18 @@
     "modelPlaceholder": "Gespeichertes Modell wählen oder Anbieter/Modell eingeben",
     "providerPlaceholder": "Gespeicherten Anbieter wählen",
     "provider": "Anbieter"
+  },
+  "switcher": {
+    "label": "Modell wechseln",
+    "models": "Modelle von {{name}}",
+    "all": "Alle Modelle und Suche…",
+    "needsKey": "Schlüssel nötig",
+    "left": "{{window}} · {{percent}} % übrig",
+    "reached": "Limit erreicht",
+    "reachedAt": "Limit erreicht · {{time}}",
+    "noModels": "Keine Modelle verfügbar.",
+    "agents": "Agenten",
+    "providers": "Anbieter"
   },
   "githubPage": {
     "targetLabel": "Zielkonversation für die GitHub-Übergabe",

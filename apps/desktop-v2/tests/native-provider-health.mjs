@@ -81,7 +81,10 @@ export async function exerciseNativeProviderHealth({
       .getByRole('navigation', { name: 'WrongStack settings sections' })
       .getByRole('button', { name: 'Provider diagnostics', exact: true })
       .click();
-    const health = page.getByRole('region', { name: 'Provider diagnostics' });
+    // The settings page region carries the same name as the panel inside it.
+    const health = page
+      .getByRole('region', { name: 'Provider diagnostics' })
+      .and(page.locator('.provider-health'));
     await health.getByRole('button', { name: 'Refresh account quotas', exact: true }).click();
     const card = health.getByRole('article', {
       name: 'Quota native-quota-good default',

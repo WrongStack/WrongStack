@@ -6570,7 +6570,9 @@
     "section": {
       "system": "Sistem talimatları",
       "tools": "Araç tanımları",
-      "messages": "Konuşma mesajları"
+      "messages": "Konuşma mesajları",
+      "other": "Diğer",
+      "free": "Boş"
     },
     "toolFallback": "Araç",
     "messageFallback": "Mesaj",
@@ -6585,7 +6587,8 @@
     "clearTitle": "Bu sağlayıcı bağlamı temizlensin mi?",
     "clearBody": "Oturum kimliği ve diskteki konuşma kalır. Sonraki istek sağlayıcıya giden boş bir konuşmayla başlar.",
     "keep": "Bağlamı koru",
-    "confirmClear": "Bağlamı temizlemeyi onayla"
+    "confirmClear": "Bağlamı temizlemeyi onayla",
+    "used": "Pencerenin %{{percent}} kadarı dolu"
   },
   "contextEdit": {
     "summary_one": "{{count}} mesaj · tam istekte ~{{tokens}} token · çıkarılmak üzere {{removed}} seçili",
@@ -9953,6 +9956,18 @@
     "modelPlaceholder": "Kayıtlı bir model seç ya da sağlayıcı/model yaz",
     "providerPlaceholder": "Kayıtlı bir sağlayıcı seç",
     "provider": "Sağlayıcı"
+  },
+  "switcher": {
+    "label": "Model değiştir",
+    "models": "{{name}} modelleri",
+    "all": "Tüm modeller ve arama…",
+    "needsKey": "Anahtar gerekli",
+    "left": "{{window}} · %{{percent}} kaldı",
+    "reached": "Limit doldu",
+    "reachedAt": "Limit doldu · {{time}}",
+    "noModels": "Kullanılabilir model yok.",
+    "agents": "Ajanlar",
+    "providers": "Sağlayıcılar"
   },
   "githubPage": {
     "targetLabel": "GitHub devri için hedef konuşma",

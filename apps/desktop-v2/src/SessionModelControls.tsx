@@ -1,6 +1,7 @@
 import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
+import { acpAgentName, isAcpProvider } from '@wrongstack/contracts/types/agent-identity';
 import { Brain, ChevronDown, Fingerprint, TriangleAlert, Zap } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AcpRuntimeSettings, AcpSessionModes } from './AcpRuntimeSettings';
 import { effortNames, sessionEffort, sessionReasoning } from './composer-model';
@@ -9,6 +10,7 @@ import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { identityLabel, sessionIdentity } from './identity-model';
 import { Modal } from './Modal';
+import { ModelQuickSwitcher } from './ModelQuickSwitcher';
 import { ProfileModelPicker } from './ProfileModelPicker';
 
 export function SessionModelControls({
@@ -26,9 +28,17 @@ export function SessionModelControls({
   settingsTarget?: HTMLElement | null | undefined;
 }) {
   const { t } = useDesktopText();
-  const [open, setOpen] = useState(false),
+  // The chip opens the quick switcher; its "All models" opens the full picker.
+  const [open, setOpen] = useState<'' | 'switcher' | 'all'>(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const chip = useRef<HTMLButtonElement>(null);
+  // The full picker opens from the switcher, which is gone when it closes: focus the chip.
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    if (wasOpen.current === 'all' && !open) chip.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
   const [supersededLeader, setSupersededLeader] = useState<unknown>(null);
   const effort = sessionEffort(state, supersededLeader === state.results['leader.effort_changed']);
   const reasoning = sessionReasoning(state);
@@ -223,20 +233,24 @@ export function SessionModelControls({
         aria-label={t('modelControls.choose')}
         disabled={!state.connected || busy}
         title={t('modelControls.title', { provider: state.provider, model: state.model })}
+        ref={chip}
+        aria-expanded={open === 'switcher'}
         onClick={() => {
           if (state.needsSetup) {
             onSettings();
             return;
           }
           setError('');
-          setOpen(true);
+          setOpen(open === 'switcher' ? '' : 'switcher');
         }}
       >
         <span className={`status-dot ${state.connected ? 'running' : 'starting'}`} />
         <span>
           {state.needsSetup
             ? t('modelControls.connect')
-            : state.model || t('modelControls.connecting')}
+            : isAcpProvider(state.provider) && state.model
+              ? acpAgentName(state.model)
+              : state.model || t('modelControls.connecting')}
         </span>
         <ChevronDown size={11} />
       </button>
@@ -250,24 +264,89 @@ export function SessionModelControls({
           {error}
         </p>
       )}
-      {open && (
+      {open === 'switcher' && (
+        <SwitcherPopover
+          chip={chip.current}
+          label={t('switcher.label')}
+          onClose={() => setOpen('')}
+        >
+          <ModelQuickSwitcher
+            session={state}
+            sessionCommand={command}
+            onBusy={setBusy}
+            onClose={() => setOpen('')}
+            onAllModels={() => setOpen('all')}
+            onSettings={() => {
+              setOpen('');
+              onSettings();
+            }}
+          />
+        </SwitcherPopover>
+      )}
+      {open === 'all' && (
         <Modal
           onClose={() => {
-            if (!busy) setOpen(false);
+            if (!busy) setOpen('');
           }}
         >
           <ProfileModelPicker
             session={state}
             sessionCommand={command}
             onBusy={setBusy}
-            onClose={() => setOpen(false)}
+            onClose={() => setOpen('')}
             onSettings={() => {
-              setOpen(false);
+              setOpen('');
               onSettings();
             }}
           />
         </Modal>
       )}
+    </div>
+  );
+}
+
+/**
+ * The switcher's frame above the composer: Escape or a press outside it closes it, and focus
+ * goes back to the model chip that opened it.
+ */
+function SwitcherPopover({
+  chip,
+  label,
+  onClose,
+  children,
+}: {
+  chip: HTMLButtonElement | null;
+  label: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const frame = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!frame.current?.contains(target) && !chip?.contains(target)) close.current();
+    };
+    // Escape closes it wherever focus is, as rows may still be loading when it is pressed.
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      close.current();
+      chip?.focus();
+    };
+    // Keyboard use starts inside the switcher; its rows take focus once they arrive.
+    if (!frame.current?.contains(document.activeElement)) frame.current?.focus();
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [chip]);
+  return (
+    <div ref={frame} className="model-switcher" role="dialog" aria-label={label} tabIndex={-1}>
+      {children}
     </div>
   );
 }

@@ -24,6 +24,8 @@ import './controls.css';
 import './settings-workspace.css';
 // Last: the IDE workbench's own surface treatment overrides the older shell rules.
 import './ide-workbench.css';
+// After the workbench: the tinted canvas and the raised working card.
+import './shell-canvas.css';
 
 applyAppearance(
   cachedAppearance(),

@@ -6570,7 +6570,9 @@
     "section": {
       "system": "Istruzioni di sistema",
       "tools": "Definizioni degli strumenti",
-      "messages": "Messaggi della conversazione"
+      "messages": "Messaggi della conversazione",
+      "other": "Altro",
+      "free": "Libero"
     },
     "toolFallback": "Strumento",
     "messageFallback": "Messaggio",
@@ -6585,7 +6587,8 @@
     "clearTitle": "Svuotare questo contesto del provider?",
     "clearBody": "L’identità della sessione e la conversazione su disco restano. La prossima richiesta parte con una conversazione vuota verso il provider.",
     "keep": "Mantieni il contesto",
-    "confirmClear": "Conferma lo svuotamento del contesto"
+    "confirmClear": "Conferma lo svuotamento del contesto",
+    "used": "{{percent}}% della finestra in uso"
   },
   "contextEdit": {
     "summary_one": "{{count}} messaggio · ~{{tokens}} token nella richiesta completa · {{removed}} selezionati per la rimozione",
@@ -9953,6 +9956,18 @@
     "modelPlaceholder": "Scegli un modello salvato oppure digita provider/modello",
     "providerPlaceholder": "Scegli un provider salvato",
     "provider": "Provider"
+  },
+  "switcher": {
+    "label": "Cambia modello",
+    "models": "Modelli di {{name}}",
+    "all": "Tutti i modelli e ricerca…",
+    "needsKey": "Chiave necessaria",
+    "left": "{{window}} · {{percent}}% rimasto",
+    "reached": "Limite raggiunto",
+    "reachedAt": "Limite raggiunto · {{time}}",
+    "noModels": "Nessun modello disponibile.",
+    "agents": "Agenti",
+    "providers": "Provider"
   },
   "githubPage": {
     "targetLabel": "Conversazione di destinazione per il passaggio GitHub",
