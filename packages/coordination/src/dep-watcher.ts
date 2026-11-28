@@ -155,7 +155,7 @@ async function gitCommittedContent(
   };
   // A repository with a HEAD: a failed `show` then means "not committed".
   const head = await run(['rev-parse', '--verify', '--quiet', 'HEAD']);
-  if (!head || head.code !== 0) return undefined;
+  if (head?.code !== 0) return undefined;
   const shown = await run(['show', `HEAD:${relativePath}`]);
   if (!shown) return undefined;
   return shown.code === 0 ? shown.stdout : null;
