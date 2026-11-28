@@ -119,7 +119,10 @@ export interface GitHubItemDetail extends GitHubItemBase {
     mergeableState: string;
     headRef: string;
     baseRef: string;
-    /** Writes carry this back so GitHub refuses them if the branch moved. */
+    /**
+     * Writes carry this back: a merge, verdict or re-run is refused if the
+     * branch moved since; comments are pinned to the commit the user saw.
+     */
     headSha: string;
     /** The head branch lives in another repository. */
     fromFork: boolean;

@@ -418,24 +418,6 @@ describe('POST /api/github/action', () => {
       {
         kind: 'pull',
         number: 5,
-        action: 'approve',
-        body: 'Ship it',
-        expectedHeadSha: SHA,
-        comments: [{ path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' }],
-      },
-      'POST',
-      'pulls/5/reviews',
-      {
-        event: 'APPROVE',
-        commit_id: SHA,
-        body: 'Ship it',
-        comments: [{ path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' }],
-      },
-    ],
-    [
-      {
-        kind: 'pull',
-        number: 5,
         action: 'line-comment',
         body: 'Rename this',
         expectedHeadSha: SHA,
@@ -448,11 +430,14 @@ describe('POST /api/github/action', () => {
       { body: 'Rename this', commit_id: SHA, path: 'src/boot.ts', line: 12, side: 'LEFT' },
     ],
     [{ kind: 'issue', number: 9, action: 'reopen' }, 'PATCH', 'issues/9', { state: 'open' }],
-  ])('sends %j as one GitHub call', async (request, method, path, payload) => {
-    const github = seams(() => json({}));
+  ])('sends %j as one GitHub write', async (request, method, path, payload) => {
+    // Verdicts read the pull request's head first; that read is not a write.
+    const github = seams(() => json({ head: { sha: SHA } }));
     const { body } = await call('/api/github/action', github, { method: 'POST', body: request });
     expect(body).toEqual({ ok: true, status: 'done' });
-    const calls = (github.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const calls = (github.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (entry) => (entry[1] as RequestInit | undefined)?.method !== 'GET',
+    );
     expect(calls).toHaveLength(1);
     expect(String(calls[0]![0])).toBe(`https://api.github.com/repos/octo/repo/${path}`);
     expect((calls[0]![1] as RequestInit).method).toBe(method);
@@ -528,6 +513,55 @@ describe('POST /api/github/action', () => {
     });
     expect(body).toEqual({ ok: false, status: 'conflict' });
     expect(github.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  // GitHub files a review on any commit of the pull request, so an older head
+  // SHA would record a verdict on code the user never saw.
+  it.each(['approve', 'request-changes'] as const)(
+    'refuses to %s when the branch moved since the pane loaded',
+    async (action) => {
+      const github = seams((url) =>
+        url.endsWith('/repos/octo/repo/pulls/5')
+          ? json({ ...pullRaw, head: { ...pullRaw.head, sha: 'f'.repeat(40) } })
+          : undefined,
+      );
+      const { body } = await call('/api/github/action', github, {
+        method: 'POST',
+        body: { kind: 'pull', number: 5, action, body: 'Looks fine', expectedHeadSha: SHA },
+      });
+      expect(body).toEqual({ ok: false, status: 'conflict' });
+      expect(github.fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('approves with the verdict pinned to the head the pane showed', async () => {
+    const github = seams((url, init) => {
+      if (url.endsWith('/repos/octo/repo/pulls/5') && init.method === 'GET')
+        return json({ ...pullRaw, head: { ...pullRaw.head, sha: SHA } });
+      if (url.endsWith('/repos/octo/repo/pulls/5/reviews') && init.method === 'POST')
+        return json({});
+      return undefined;
+    });
+    const { body } = await call('/api/github/action', github, {
+      method: 'POST',
+      body: {
+        kind: 'pull',
+        number: 5,
+        action: 'approve',
+        body: 'Ship it',
+        expectedHeadSha: SHA,
+        comments: [{ path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' }],
+      },
+    });
+    expect(body).toEqual({ ok: true, status: 'done' });
+    const calls = (github.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(String((calls[1]![1] as RequestInit).body))).toEqual({
+      event: 'APPROVE',
+      commit_id: SHA,
+      body: 'Ship it',
+      comments: [{ path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' }],
+    });
   });
 
   it('reads only the item itself for parts=none', async () => {

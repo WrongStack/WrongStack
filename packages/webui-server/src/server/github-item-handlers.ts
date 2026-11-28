@@ -529,9 +529,15 @@ export async function handleGitHubAction(
   if (target.status !== 'ok') return reply({ ok: false, status: target.status });
   if (!target.token) return reply({ ok: false, status: 'needs-auth' });
   try {
-    if (input.action === 'rerun-failed') {
-      // Bind the re-run to this pull request's current head: a moved branch is
-      // refused, like a merge, instead of restarting an old commit's jobs.
+    // GitHub refuses a moved branch only for a merge: it files a review on any
+    // commit of the pull request and re-runs whatever run it is given. So a
+    // verdict or a re-run first checks the head the pane showed is still the
+    // head, instead of judging or restarting code the user never saw.
+    if (
+      input.action === 'rerun-failed' ||
+      input.action === 'approve' ||
+      input.action === 'request-changes'
+    ) {
       const pullRequest = await githubApi<{ head?: { sha?: unknown } }>(
         seams,
         target.token,
@@ -539,6 +545,8 @@ export async function handleGitHubAction(
       );
       if (pullRequest.data?.head?.sha !== input.expectedHeadSha)
         return reply({ ok: false, status: 'conflict' });
+    }
+    if (input.action === 'rerun-failed') {
       const runs = await failedActionRuns(
         seams,
         target.token,
