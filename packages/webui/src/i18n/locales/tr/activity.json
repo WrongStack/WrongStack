@@ -6002,7 +6002,8 @@
       "close": "#{{number}} kapatıldı.",
       "reopen": "#{{number}} yeniden açıldı.",
       "rerun-failed": "#{{number}} için başarısız kontroller yeniden başlatıldı.",
-      "line-comment": "#{{number}} için yorum gönderildi."
+      "line-comment": "#{{number}} için yorum gönderildi.",
+      "review": "#{{number}} için inceleme gönderildi."
     },
     "result": {
       "needs-auth": "GitHub bu işlem için token'ı reddetti.",
@@ -6029,6 +6030,13 @@
       "count_one": "{{count}} yorum",
       "count_other": "{{count}} yorum",
       "addRemoved": "Silinen {{line}}. satıra yorum yap"
+    },
+    "pending": {
+      "badge": "Bekliyor",
+      "remove": "İncelemeden çıkar",
+      "add": "İncelemeye ekle",
+      "submit_one": "İncelemeyi gönder ({{count}} yorum)",
+      "submit_other": "İncelemeyi gönder ({{count}} yorum)"
     }
   }
 }

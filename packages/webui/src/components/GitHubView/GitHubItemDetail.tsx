@@ -22,6 +22,7 @@ import {
   safeGitHubUrl,
 } from './github-view-model';
 import { PatchView } from './PatchView';
+import { PendingReviewProvider } from './pending-review';
 import { runGitHubAction, useGitHubItem } from './use-github-item';
 
 const TONE_CLASS = {
@@ -302,81 +303,91 @@ export function GitHubItemDetail({
           {t(`activity:github.status.${view.status}`)}
         </p>
       ) : (
-        <div className="space-y-5 p-4">
-          <header className="space-y-2">
-            <h2 className="break-words text-lg font-semibold">
-              {item.title} <span className="font-normal text-muted-foreground">#{item.number}</span>
-            </h2>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {status && (
-                <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
-                  {t(`activity:github.state.${status}`)}
-                </span>
-              )}
-              <span>{item.author ?? t('activity:github.unknownAuthor')}</span>
-              {pull && (
-                <span className="break-all font-mono">
-                  {pull.headRef} → {pull.baseRef}
-                </span>
-              )}
-              {pull?.fromFork && <span>{t('activity:github.fork')}</span>}
-              {pull && !pull.merged && item.state === 'open' && (
-                <span>
-                  {t(
-                    pull.mergeable === null
-                      ? 'activity:github.mergeable.unknown'
-                      : pull.mergeable
-                        ? 'activity:github.mergeable.yes'
-                        : 'activity:github.mergeable.no',
-                  )}
-                </span>
-              )}
-              {pull && (
-                <span>
-                  <span className="text-success">+{pull.additions}</span>{' '}
-                  <span className="text-destructive">−{pull.deletions}</span>
-                </span>
-              )}
-            </p>
-          </header>
-          {intents.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {intents.map((intent) => (
-                <Button key={intent} size="sm" variant="secondary" onClick={() => handOff(intent)}>
-                  <Bot className="h-4 w-4" />
-                  {t(`activity:github.agent.${intent}`)}
-                </Button>
-              ))}
-            </div>
-          )}
-          <Section title={t('activity:github.description')}>
-            {item.body ? (
-              <p className="max-h-80 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
-                {item.body}
+        <PendingReviewProvider>
+          <div className="space-y-5 p-4">
+            <header className="space-y-2">
+              <h2 className="break-words text-lg font-semibold">
+                {item.title}{' '}
+                <span className="font-normal text-muted-foreground">#{item.number}</span>
+              </h2>
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {status && (
+                  <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
+                    {t(`activity:github.state.${status}`)}
+                  </span>
+                )}
+                <span>{item.author ?? t('activity:github.unknownAuthor')}</span>
+                {pull && (
+                  <span className="break-all font-mono">
+                    {pull.headRef} → {pull.baseRef}
+                  </span>
+                )}
+                {pull?.fromFork && <span>{t('activity:github.fork')}</span>}
+                {pull && !pull.merged && item.state === 'open' && (
+                  <span>
+                    {t(
+                      pull.mergeable === null
+                        ? 'activity:github.mergeable.unknown'
+                        : pull.mergeable
+                          ? 'activity:github.mergeable.yes'
+                          : 'activity:github.mergeable.no',
+                    )}
+                  </span>
+                )}
+                {pull && (
+                  <span>
+                    <span className="text-success">+{pull.additions}</span>{' '}
+                    <span className="text-destructive">−{pull.deletions}</span>
+                  </span>
+                )}
               </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">{t('activity:github.noDescription')}</p>
+            </header>
+            {intents.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {intents.map((intent) => (
+                  <Button
+                    key={intent}
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handOff(intent)}
+                  >
+                    <Bot className="h-4 w-4" />
+                    {t(`activity:github.agent.${intent}`)}
+                  </Button>
+                ))}
+              </div>
             )}
-          </Section>
-          {pull && (
-            <PullParts
-              pull={pull}
-              locale={i18n.language}
-              number={item.number}
-              canComment={canWrite && item.state === 'open' && !pull.merged}
-              onCommented={state.reload}
+            <Section title={t('activity:github.description')}>
+              {item.body ? (
+                <p className="max-h-80 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
+                  {item.body}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {t('activity:github.noDescription')}
+                </p>
+              )}
+            </Section>
+            {pull && (
+              <PullParts
+                pull={pull}
+                locale={i18n.language}
+                number={item.number}
+                canComment={canWrite && item.state === 'open' && !pull.merged}
+                onCommented={state.reload}
+              />
+            )}
+            <GitHubItemActions
+              item={item}
+              repository={view.repository ?? ''}
+              canWrite={canWrite}
+              onDone={() => {
+                state.reload();
+                onChanged();
+              }}
             />
-          )}
-          <GitHubItemActions
-            item={item}
-            repository={view.repository ?? ''}
-            canWrite={canWrite}
-            onDone={() => {
-              state.reload();
-              onChanged();
-            }}
-          />
-        </div>
+          </div>
+        </PendingReviewProvider>
       )}
     </article>
   );

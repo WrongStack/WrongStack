@@ -6002,7 +6002,8 @@
       "close": "#{{number}} chiusa.",
       "reopen": "#{{number}} riaperta.",
       "rerun-failed": "Controlli falliti di #{{number}} rieseguiti.",
-      "line-comment": "Commento pubblicato su #{{number}}."
+      "line-comment": "Commento pubblicato su #{{number}}.",
+      "review": "Revisione inviata su #{{number}}."
     },
     "result": {
       "needs-auth": "GitHub ha rifiutato il token per questa azione.",
@@ -6029,6 +6030,13 @@
       "count_one": "{{count}} commento",
       "count_other": "{{count}} commenti",
       "addRemoved": "Commenta la riga rimossa {{line}}"
+    },
+    "pending": {
+      "badge": "In sospeso",
+      "remove": "Rimuovi dalla revisione",
+      "add": "Aggiungi alla revisione",
+      "submit_one": "Invia revisione ({{count}} commento)",
+      "submit_other": "Invia revisione ({{count}} commenti)"
     }
   }
 }

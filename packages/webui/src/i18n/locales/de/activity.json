@@ -6002,7 +6002,8 @@
       "close": "#{{number}} geschlossen.",
       "reopen": "#{{number}} wieder geöffnet.",
       "rerun-failed": "Fehlgeschlagene Checks von #{{number}} neu gestartet.",
-      "line-comment": "#{{number}} kommentiert."
+      "line-comment": "#{{number}} kommentiert.",
+      "review": "Review zu #{{number}} abgesendet."
     },
     "result": {
       "needs-auth": "GitHub hat das Token für diese Aktion abgelehnt.",
@@ -6029,6 +6030,13 @@
       "count_one": "{{count}} Kommentar",
       "count_other": "{{count}} Kommentare",
       "addRemoved": "Gelöschte Zeile {{line}} kommentieren"
+    },
+    "pending": {
+      "badge": "Ausstehend",
+      "remove": "Aus dem Review entfernen",
+      "add": "Zum Review hinzufügen",
+      "submit_one": "Review absenden ({{count}} Kommentar)",
+      "submit_other": "Review absenden ({{count}} Kommentare)"
     }
   }
 }

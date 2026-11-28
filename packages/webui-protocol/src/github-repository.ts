@@ -151,8 +151,18 @@ export type GitHubAction =
   /** Re-run the failed GitHub Actions jobs on the pull request's head. */
   | 'rerun-failed'
   /** A review comment on one diff line (`path`, `line`, `side`, `body`). */
-  | 'line-comment';
+  | 'line-comment'
+  /** A plain review (`body` and/or `comments`) that neither approves nor requests changes. */
+  | 'review';
 export type GitHubMergeMethod = 'merge' | 'squash' | 'rebase';
+
+/** A line comment held back to be sent with a review. */
+export interface GitHubReviewDraftComment {
+  path: string;
+  line: number;
+  side: 'LEFT' | 'RIGHT';
+  body: string;
+}
 
 /** Body of `POST /api/github/action?sessionId=…`. */
 export interface GitHubActionRequest {
@@ -163,6 +173,8 @@ export interface GitHubActionRequest {
   mergeMethod?: GitHubMergeMethod;
   /** Required for approve, request-changes, merge, rerun-failed and line-comment. */
   expectedHeadSha?: string;
+  /** approve, request-changes and review: line comments sent as part of the review. */
+  comments?: GitHubReviewDraftComment[];
   /** line-comment only. */
   path?: string;
   line?: number;

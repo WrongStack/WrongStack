@@ -6002,7 +6002,8 @@
       "close": "Closed #{{number}}.",
       "reopen": "Reopened #{{number}}.",
       "rerun-failed": "Re-ran the failed checks of #{{number}}.",
-      "line-comment": "Commented on #{{number}}."
+      "line-comment": "Commented on #{{number}}.",
+      "review": "Submitted a review on #{{number}}."
     },
     "result": {
       "needs-auth": "GitHub refused the token for this action.",
@@ -6029,6 +6030,13 @@
       "count_one": "{{count}} comment",
       "count_other": "{{count}} comments",
       "addRemoved": "Comment on removed line {{line}}"
+    },
+    "pending": {
+      "badge": "Pending",
+      "remove": "Remove from review",
+      "add": "Add to review",
+      "submit_one": "Submit review ({{count}} comment)",
+      "submit_other": "Submit review ({{count}} comments)"
     }
   }
 }

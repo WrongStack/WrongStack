@@ -9,6 +9,7 @@ import { useAppTranslation } from '@/i18n';
 import { useActiveSessionId } from '@/stores';
 import { Button } from '../ui/button';
 import { checkTone } from './github-view-model';
+import { usePendingReview } from './pending-review';
 import { runGitHubAction } from './use-github-item';
 
 type Confirmable = 'merge' | 'close';
@@ -40,6 +41,10 @@ export function GitHubItemActions({
   );
   const pull = item.pull;
   const open = item.state === 'open';
+  const review = usePendingReview();
+  const pending = review?.comments ?? [];
+  const isReview = (action: GitHubAction) =>
+    action === 'approve' || action === 'request-changes' || action === 'review';
   const run = async (action: GitHubAction) => {
     setConfirming(null);
     setBusy(action);
@@ -53,18 +58,20 @@ export function GitHubItemActions({
           ? { body: text.trim() }
           : {}),
         ...(action === 'merge' ? { mergeMethod: method } : {}),
+        ...(isReview(action) && pending.length ? { comments: pending } : {}),
         ...(pull &&
         (action === 'approve' ||
           action === 'request-changes' ||
           action === 'merge' ||
-          action === 'rerun-failed')
+          action === 'rerun-failed' ||
+          action === 'review')
           ? { expectedHeadSha: pull.headSha }
           : {}),
       });
       setResult({ action, value });
       if (value.ok) {
-        if (action === 'comment' || action === 'approve' || action === 'request-changes')
-          setText('');
+        if (action === 'comment' || isReview(action)) setText('');
+        if (isReview(action)) review?.clear();
         onDone();
       }
     } catch (error) {
@@ -109,6 +116,11 @@ export function GitHubItemActions({
         </Button>
         {pull && open && !pull.merged && (
           <>
+            {pending.length > 0 && (
+              <Button size="sm" disabled={disabled} onClick={() => run('review')}>
+                {t('activity:github.pending.submit', { count: pending.length })}
+              </Button>
+            )}
             <Button size="sm" variant="outline" disabled={disabled} onClick={() => run('approve')}>
               {t('activity:github.action.approve')}
             </Button>

@@ -327,6 +327,9 @@ const lineComment = {
   side: 'RIGHT',
 };
 
+const draftComment = { path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' };
+const review = { kind: 'pull', number: 5, action: 'review', expectedHeadSha: SHA };
+
 describe('POST /api/github/action', () => {
   const merge = {
     kind: 'pull',
@@ -384,6 +387,46 @@ describe('POST /api/github/action', () => {
       { event: 'REQUEST_CHANGES', commit_id: SHA, body: 'Add a test' },
     ],
     [{ kind: 'pull', number: 5, action: 'close' }, 'PATCH', 'pulls/5', { state: 'closed' }],
+    [
+      {
+        kind: 'pull',
+        number: 5,
+        action: 'review',
+        expectedHeadSha: SHA,
+        comments: [
+          { path: 'src/a.ts', line: 3, side: 'RIGHT', body: ' First ' },
+          { path: 'src/b.ts', line: 9, side: 'LEFT', body: 'Second' },
+        ],
+      },
+      'POST',
+      'pulls/5/reviews',
+      {
+        event: 'COMMENT',
+        commit_id: SHA,
+        comments: [
+          { path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'First' },
+          { path: 'src/b.ts', line: 9, side: 'LEFT', body: 'Second' },
+        ],
+      },
+    ],
+    [
+      {
+        kind: 'pull',
+        number: 5,
+        action: 'approve',
+        body: 'Ship it',
+        expectedHeadSha: SHA,
+        comments: [{ path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' }],
+      },
+      'POST',
+      'pulls/5/reviews',
+      {
+        event: 'APPROVE',
+        commit_id: SHA,
+        body: 'Ship it',
+        comments: [{ path: 'src/a.ts', line: 3, side: 'RIGHT', body: 'nit' }],
+      },
+    ],
     [
       {
         kind: 'pull',
@@ -554,6 +597,14 @@ describe('POST /api/github/action', () => {
     { ...lineComment, body: '  ' },
     { ...lineComment, expectedHeadSha: undefined },
     { ...lineComment, kind: 'issue' },
+    { kind: 'pull', number: 5, action: 'review', expectedHeadSha: SHA },
+    { kind: 'pull', number: 5, action: 'review', expectedHeadSha: SHA, comments: 'x' },
+    { ...review, comments: [{ path: '/abs', line: 1, side: 'RIGHT', body: 'x' }] },
+    { ...review, comments: [{ path: 'a.ts', line: 1, side: 'RIGHT', body: ' ' }] },
+    { ...review, comments: [null] },
+    { ...review, comments: Array.from({ length: 51 }, () => draftComment) },
+    { kind: 'pull', number: 5, action: 'comment', body: 'x', comments: [draftComment] },
+    { ...merge, comments: [draftComment] },
     { kind: 'issue', number: 5, action: 'rerun-failed', expectedHeadSha: SHA },
   ])('rejects %j before calling GitHub', async (request) => {
     const github = seams(() => json({}));

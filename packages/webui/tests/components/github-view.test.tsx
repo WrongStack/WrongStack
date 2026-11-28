@@ -255,6 +255,48 @@ describe('GitHubView pull request detail', () => {
     });
   });
 
+  it('holds line comments back and sends them as one review', async () => {
+    const fetcher = routed(detail());
+    await openPull(fetcher);
+    fireEvent.click(screen.getByRole('button', { name: /src\/view\.tsx/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on line 1' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Comment on line 1' }), {
+      target: { value: 'Prefer a const' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to review' }));
+    expect(screen.getByText('Pending')).toBeTruthy();
+    expect(screen.getByText('Prefer a const')).toBeTruthy();
+    const posts = () =>
+      fetcher.mock.calls.filter(([url]) => String(url).startsWith('/api/github/action'));
+    expect(posts()).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit review (1 comment)' }));
+    expect(await screen.findByText('Submitted a review on #12.')).toBeTruthy();
+    expect(JSON.parse(String(posts()[0]?.[1]?.body))).toEqual({
+      kind: 'pull',
+      number: 12,
+      action: 'review',
+      comments: [{ path: 'src/view.tsx', line: 1, side: 'RIGHT', body: 'Prefer a const' }],
+      expectedHeadSha: SHA,
+    });
+    expect(screen.queryByText('Pending')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Submit review/ })).toBeNull();
+  });
+
+  it('lets a pending comment be removed before it is sent', async () => {
+    await openPull(routed(detail()));
+    fireEvent.click(screen.getByRole('button', { name: /src\/view\.tsx/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on removed line 1' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Comment on removed line 1' }), {
+      target: { value: 'Why drop it?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to review' }));
+    expect(screen.getByRole('button', { name: 'Submit review (1 comment)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from review' }));
+    expect(screen.queryByText('Why drop it?')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Submit review/ })).toBeNull();
+  });
+
   it('hands the pull request to the agent by number only', async () => {
     useUIStore.setState({ promptInsertRequest: null, currentView: 'github' });
     await openPull(routed(detail()));

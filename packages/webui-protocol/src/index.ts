@@ -162,6 +162,7 @@ export type {
   GitHubRepositoryStatus,
   GitHubRepositoryView,
   GitHubReview,
+  GitHubReviewDraftComment,
   GitHubTokenSource,
 } from './github-repository.js';
 export type {

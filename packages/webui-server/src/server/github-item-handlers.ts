@@ -48,6 +48,7 @@ const ACTIONS: readonly GitHubAction[] = [
   'reopen',
   'rerun-failed',
   'line-comment',
+  'review',
 ];
 const MERGE_METHODS: readonly GitHubMergeMethod[] = ['merge', 'squash', 'rebase'];
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -279,6 +280,29 @@ async function readActionBody(req: IncomingMessage): Promise<Record<string, unkn
   }
 }
 
+type LineTarget = { path: string; line: number; side: 'LEFT' | 'RIGHT' };
+
+/** A line of the pull request's diff: a repository path, a positive line, a side. */
+function parseLineTarget(raw: Record<string, unknown>): LineTarget | string {
+  const path = raw['path'];
+  const line = raw['line'];
+  // A path inside the repository: no control characters, never absolute.
+  if (
+    typeof path !== 'string' ||
+    !path ||
+    path.length > 500 ||
+    /[\u0000-\u001f]/.test(path) ||
+    path.startsWith('/')
+  )
+    return 'A file path is required';
+  if (typeof line !== 'number' || !Number.isSafeInteger(line) || line < 1 || line > 10_000_000)
+    return 'A positive line number is required';
+  if (raw['side'] !== 'LEFT' && raw['side'] !== 'RIGHT') return 'side must be LEFT or RIGHT';
+  return { path, line, side: raw['side'] };
+}
+
+const MAX_REVIEW_COMMENTS = 50;
+
 interface ValidAction {
   kind: GitHubItemKind;
   number: number;
@@ -289,6 +313,7 @@ interface ValidAction {
   path: string;
   line: number;
   side: 'LEFT' | 'RIGHT';
+  comments: (LineTarget & { body: string })[];
 }
 
 function parseActionRequest(input: Record<string, unknown>): ValidAction | string {
@@ -305,23 +330,37 @@ function parseActionRequest(input: Record<string, unknown>): ValidAction | strin
     action === 'request-changes' ||
     action === 'merge' ||
     action === 'rerun-failed' ||
-    action === 'line-comment';
+    action === 'line-comment' ||
+    action === 'review';
   if (needsHead && kind !== 'pull')
     return 'Reviews, merges and re-runs apply to pull requests only';
   const expectedHeadSha =
     typeof input['expectedHeadSha'] === 'string' ? input['expectedHeadSha'] : '';
   if (needsHead && !SHA.test(expectedHeadSha)) return 'expectedHeadSha is required';
-  const path = typeof input['path'] === 'string' ? input['path'] : '';
-  const line = input['line'];
-  const side = input['side'] === 'LEFT' ? 'LEFT' : 'RIGHT';
+  let target: LineTarget = { path: '', line: 0, side: 'RIGHT' };
   if (action === 'line-comment') {
-    // A path inside the repository: no control characters, never absolute.
-    if (!path || path.length > 500 || /[\u0000-\u001f]/.test(path) || path.startsWith('/'))
-      return 'A file path is required';
-    if (typeof line !== 'number' || !Number.isSafeInteger(line) || line < 1 || line > 10_000_000)
-      return 'A positive line number is required';
-    if (input['side'] !== 'LEFT' && input['side'] !== 'RIGHT') return 'side must be LEFT or RIGHT';
+    const parsed = parseLineTarget(input);
+    if (typeof parsed === 'string') return parsed;
+    target = parsed;
   }
+  const comments: ValidAction['comments'] = [];
+  if (input['comments'] !== undefined) {
+    const isReview = action === 'approve' || action === 'request-changes' || action === 'review';
+    if (!isReview || !Array.isArray(input['comments']))
+      return 'comments go with approve, request-changes or review';
+    if (input['comments'].length > MAX_REVIEW_COMMENTS) return 'Too many review comments';
+    for (const raw of input['comments']) {
+      if (!raw || typeof raw !== 'object') return 'A review comment must be an object';
+      const record = raw as Record<string, unknown>;
+      const parsed = parseLineTarget(record);
+      if (typeof parsed === 'string') return parsed;
+      const text = typeof record['body'] === 'string' ? record['body'].trim() : '';
+      if (!text || text.length > ACTION_BODY_CAP) return 'Every review comment needs a text';
+      comments.push({ ...parsed, body: text });
+    }
+  }
+  if (action === 'review' && !body && comments.length === 0)
+    return 'A review needs a text or line comments';
   const mergeMethod = input['mergeMethod'] ?? 'merge';
   if (!MERGE_METHODS.includes(mergeMethod as GitHubMergeMethod)) return 'Unknown merge method';
   return {
@@ -331,9 +370,8 @@ function parseActionRequest(input: Record<string, unknown>): ValidAction | strin
     body,
     mergeMethod: mergeMethod as GitHubMergeMethod,
     expectedHeadSha,
-    path,
-    line: typeof line === 'number' ? line : 0,
-    side,
+    ...target,
+    comments,
   };
 }
 
@@ -386,13 +424,30 @@ function actionCall(repository: string, input: ValidAction) {
       };
     case 'approve':
     case 'request-changes':
+    case 'review':
+      // One review: its line comments land together, against the head shown.
       return {
         method: 'POST' as const,
         path: `${item}/reviews`,
         body: {
-          event: input.action === 'approve' ? 'APPROVE' : 'REQUEST_CHANGES',
+          event:
+            input.action === 'approve'
+              ? 'APPROVE'
+              : input.action === 'request-changes'
+                ? 'REQUEST_CHANGES'
+                : 'COMMENT',
           commit_id: input.expectedHeadSha,
           ...(input.body ? { body: input.body } : {}),
+          ...(input.comments.length
+            ? {
+                comments: input.comments.map(({ path, line, side, body }) => ({
+                  path,
+                  line,
+                  side,
+                  body,
+                })),
+              }
+            : {}),
         },
       };
     case 'merge':

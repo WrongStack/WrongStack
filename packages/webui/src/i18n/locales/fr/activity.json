@@ -6002,7 +6002,8 @@
       "close": "#{{number}} fermée.",
       "reopen": "#{{number}} rouverte.",
       "rerun-failed": "Vérifications échouées de #{{number}} relancées.",
-      "line-comment": "Commentaire publié sur #{{number}}."
+      "line-comment": "Commentaire publié sur #{{number}}.",
+      "review": "Revue envoyée sur #{{number}}."
     },
     "result": {
       "needs-auth": "GitHub a refusé le jeton pour cette action.",
@@ -6029,6 +6030,13 @@
       "count_one": "{{count}} commentaire",
       "count_other": "{{count}} commentaires",
       "addRemoved": "Commenter la ligne supprimée {{line}}"
+    },
+    "pending": {
+      "badge": "En attente",
+      "remove": "Retirer de la revue",
+      "add": "Ajouter à la revue",
+      "submit_one": "Envoyer la revue ({{count}} commentaire)",
+      "submit_other": "Envoyer la revue ({{count}} commentaires)"
     }
   }
 }

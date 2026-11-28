@@ -3,12 +3,13 @@ import type {
   GitHubLineComment,
   GitHubPullFile,
 } from '@wrongstack/webui-protocol';
-import { MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus, X } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { anchorKey, numberPatch, rowAnchor } from './github-view-model';
+import { usePendingReview } from './pending-review';
 
 type Anchor = { line: number; side: 'LEFT' | 'RIGHT' };
 
@@ -48,6 +49,7 @@ export function PatchView({
 }) {
   const { t } = useAppTranslation();
   const rows = useMemo(() => numberPatch(file.patch), [file.patch]);
+  const review = usePendingReview();
   // A removed and an added line can share a number; the side keeps the names apart.
   const lineLabel = (anchor: Anchor) =>
     t(
@@ -133,6 +135,30 @@ export function PatchView({
                 </span>
               </div>
               {here && <CommentList comments={here} />}
+              {anchor &&
+                review?.comments.map((comment, at) =>
+                  comment.path === file.path && anchorKey(comment) === key ? (
+                    <div
+                      key={`pending:${at}`}
+                      className="flex items-start gap-2 border-y border-primary/30 bg-primary/5 px-3 py-2 font-sans text-xs"
+                    >
+                      <span className="shrink-0 rounded-full border border-primary/40 px-2 py-0.5 text-[11px] text-primary">
+                        {t('activity:github.pending.badge')}
+                      </span>
+                      <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+                        {comment.body}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => review.remove(at)}
+                        aria-label={t('activity:github.pending.remove')}
+                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <X className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ) : null,
+                )}
               {drafting && (
                 <div className="space-y-2 border-y border-border/60 bg-muted/20 p-2 font-sans">
                   <textarea
@@ -150,6 +176,24 @@ export function PatchView({
                     <Button size="sm" disabled={busy || !draft.text.trim()} onClick={send}>
                       {t('activity:github.lineComment.send')}
                     </Button>
+                    {review && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy || !draft.text.trim()}
+                        onClick={() => {
+                          review.add({
+                            path: file.path,
+                            line: draft.anchor.line,
+                            side: draft.anchor.side,
+                            body: draft.text.trim(),
+                          });
+                          setDraft(null);
+                        }}
+                      >
+                        {t('activity:github.pending.add')}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"

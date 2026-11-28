@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-27T23:37:25.341Z",
+  "generatedAt": "2026-11-28T00:02:54.360Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6638,
+    "sourceFiles": 6639,
     "testFiles": 6569,
-    "sourceLines": 1363001,
+    "sourceLines": 1363172,
     "workspaceEdges": 267,
-    "moduleEdges": 19464,
+    "moduleEdges": 19467,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1199,7 +1199,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 810,
+      "sourceFiles": 811,
       "testFiles": 603,
       "workspaceDependencies": [
         "@wrongstack/contracts",
