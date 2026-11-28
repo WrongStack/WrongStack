@@ -70,6 +70,17 @@ export function Metric({
               ))}
         </span>
       )}
+      {total > 0 && (
+        <span className="metric-legend" aria-hidden="true">
+          {segments
+            ?.filter((segment) => segment.value > 0)
+            .map((segment) => (
+              <span key={segment.label} className={`tone-${segment.tone}`}>
+                {segment.label} <b>{segment.value}</b>
+              </span>
+            ))}
+        </span>
+      )}
       <p>{note}</p>
       {onOpen && <ArrowUpRight size={14} className="metric-open" aria-hidden="true" />}
     </>

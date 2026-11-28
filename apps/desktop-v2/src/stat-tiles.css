@@ -29,30 +29,30 @@
     var(--raised);
 }
 .metric.tone-info,
-.metric-bar > .tone-info {
+:is(.metric-bar, .metric-legend) > .tone-info {
   --tone: hsl(var(--ws-info));
 }
 .metric.tone-success,
-.metric-bar > .tone-success {
+:is(.metric-bar, .metric-legend) > .tone-success {
   --tone: hsl(var(--ws-success));
 }
 .metric.tone-warning,
-.metric-bar > .tone-warning {
+:is(.metric-bar, .metric-legend) > .tone-warning {
   --tone: hsl(var(--ws-warning));
 }
 .metric.tone-danger,
-.metric-bar > .tone-danger {
+:is(.metric-bar, .metric-legend) > .tone-danger {
   --tone: var(--danger);
 }
 .metric.tone-violet,
-.metric-bar > .tone-violet {
+:is(.metric-bar, .metric-legend) > .tone-violet {
   --tone: oklch(0.68 0.16 300);
 }
 .metric.tone-muted,
-.metric-bar > .tone-muted {
+:is(.metric-bar, .metric-legend) > .tone-muted {
   --tone: var(--subtle);
 }
-.metric-bar > .tone-accent {
+:is(.metric-bar, .metric-legend) > .tone-accent {
   --tone: var(--accent);
 }
 .metric-label {
@@ -119,6 +119,32 @@
   flex-basis: 0;
   min-width: 4px;
   background: var(--tone);
+}
+/* The bar's key: each part's colour, name and count, so the colours are not left to guess. */
+.metric-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.metric-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.metric-legend > span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: var(--corner-pill);
+  background: var(--tone);
+}
+.metric-legend b {
+  color: var(--text);
+  font-weight: 600;
 }
 .metric p {
   margin: 0;
