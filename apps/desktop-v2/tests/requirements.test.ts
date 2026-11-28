@@ -100,7 +100,12 @@ describe('project requirements contracts', () => {
       ),
     ).toBe('Record version changed.');
     expect(engineHttpError({ error: 'Request refused' }, 403)).toBe('Request refused');
-    expect(engineHttpError({ error: {} }, 500)).toContain('(500)');
+    // Without a message of its own, the failure is said in words, never as a status code.
+    expect(engineHttpError({ error: {} }, 500)).toBe(
+      'The engine hit an error doing this. Try again.',
+    );
+    expect(engineHttpError(null, 200)).toBe('The engine gave no usable answer. Try again.');
+    expect(engineHttpError(null, 404)).not.toMatch(/\d/);
   });
   it('rejects a stale-write HTTP response with the server message', async () => {
     nativeRequest.mockResolvedValueOnce({

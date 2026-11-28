@@ -199,13 +199,12 @@ export function ProjectKit({
                 </div>
               </button>
             ))
-          ) : (
+          ) : rows.length ? (
             <div className="kit-empty">
               <Box size={25} />
-              <h3>{rows.length ? t('projectKit.noMatch') : t('projectKit.home')}</h3>
-              <p>{t('projectKit.homeBody')}</p>
+              <h3>{t('projectKit.noMatch')}</h3>
             </div>
-          )}
+          ) : null}
           {invalid.length > 0 && (
             <details className="kit-invalid">
               <summary>{t('projectKit.invalid', { number: invalid.length })}</summary>
@@ -440,11 +439,18 @@ export function ProjectKit({
                 </div>
               </details>
             </>
-          ) : (
+          ) : rows.length ? (
             <div className="kit-empty">
               <Box size={34} />
               <h2>{t('projectKit.emptyTitle')}</h2>
               <p>{t('projectKit.emptyBody')}</p>
+            </div>
+          ) : (
+            // No kits yet: one empty state, here, instead of one in each column.
+            <div className="kit-empty">
+              <Box size={34} />
+              <h2>{t('projectKit.home')}</h2>
+              <p>{t('projectKit.homeBody')}</p>
             </div>
           )}
         </article>

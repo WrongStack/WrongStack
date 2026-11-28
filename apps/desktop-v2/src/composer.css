@@ -12,17 +12,16 @@
   font-size: 11px;
   color: var(--muted);
 }
-.composer-error,
 .composer-notice {
   font-size: 12px;
   line-height: 1.7;
-  margin: 8px var(--composer-inline);
+  margin: 8px 0;
   overflow-wrap: anywhere;
 }
-.composer-error {
-  color: var(--danger, var(--text));
-  border-left: 2px solid var(--ws-destructive);
-  padding-left: 10px;
+/* In a session the notes line up with the composer and the transcript. Everywhere else (project
+   pages, dialogs) the composer's centring margin floated an error in the middle of the page. */
+.engine-workspace :is(.composer-error, .composer-notice) {
+  margin-inline: var(--composer-inline);
 }
 .composer-notice {
   color: var(--muted);

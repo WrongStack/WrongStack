@@ -1961,6 +1961,22 @@ h1 {
   padding-left: 32px;
 }
 
+/* One inline alert for a failed action, on every page that reports one this way (21 screens use
+   the class). It lives here, not in the composer's lazily loaded sheet: a project page opened
+   before any session showed the message as plain text, and after one with the composer's
+   centring margin. */
+.composer-error {
+  margin: 8px 0;
+  padding: 7px 12px;
+  border-left: 2px solid var(--danger);
+  border-radius: var(--corner-sm);
+  background: var(--danger-soft);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 /* One thin, themed scrollbar for the whole window (the WebUI's look). Without it every desktop
    page and nested list used the classic OS bar with arrow buttons. It applies only where no
    element sets `scrollbar-width` or `scrollbar-color`: either one makes Chromium draw the plain
