@@ -134,7 +134,11 @@ export function useTranscriptFollowHandlers(
  * back to the end, as a chat does. Prompts arriving from another window never move the reader.
  * The wrappers are stable while `send` and `command` are, so the composer's effects do not rerun.
  */
-export function useFollowOnSend(send: EngineSend, command: EngineCommand, resume: () => void) {
+export function useFollowOnSend(
+  send: EngineSend,
+  command: EngineCommand,
+  resume: () => void,
+): { send: EngineSend; command: EngineCommand } {
   const latest = useRef(resume);
   latest.current = resume;
   return useMemo(() => {
@@ -142,14 +146,14 @@ export function useFollowOnSend(send: EngineSend, command: EngineCommand, resume
       if (type === 'user_message') latest.current();
     };
     return {
-      send: ((type, payload) => {
+      send: (type, payload) => {
         follow(type);
         return send(type, payload);
-      }) satisfies EngineSend,
-      command: ((type, payload, replies, options) => {
+      },
+      command: (type, payload, replies, options) => {
         follow(type);
         return command(type, payload, replies, options);
-      }) satisfies EngineCommand,
+      },
     };
   }, [send, command]);
 }
