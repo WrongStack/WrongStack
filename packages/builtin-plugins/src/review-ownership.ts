@@ -20,6 +20,8 @@
  * reviewed, as before.
  */
 
+import * as fsp from 'node:fs/promises';
+import * as path from 'node:path';
 import type { Plugin } from '@wrongstack/contracts/types/plugin';
 
 type PluginApi = Parameters<NonNullable<Plugin['setup']>>[0];
@@ -32,6 +34,8 @@ const MAX_WINDOWS = 4000;
 export interface ToolCallOwnership {
   /** True when a change at `mtimeMs` belongs to this host (or cannot be judged). */
   owns(mtimeMs: number | undefined): boolean;
+  /** Stop listening. */
+  dispose(): void;
 }
 
 export function trackToolCallOwnership(
@@ -72,8 +76,10 @@ export function trackToolCallOwnership(
     const agent = (event as { subagentId?: unknown } | undefined)?.subagentId;
     return callId ? `sub:${typeof agent === 'string' ? agent : ''}:${callId}` : undefined;
   };
+  const offs: Array<() => void> = [];
   const on = (name: string, handler: (event: unknown) => void): void => {
-    (api.onEvent as (n: string, h: (event: unknown) => void) => unknown)(name, handler);
+    const off = (api.onEvent as (n: string, h: (event: unknown) => void) => unknown)(name, handler);
+    if (typeof off === 'function') offs.push(off as () => void);
   };
   on('tool.started', (event) => {
     const key = id(event);
@@ -107,5 +113,32 @@ export function trackToolCallOwnership(
       }
       return false;
     },
+    dispose() {
+      for (const off of offs.splice(0)) {
+        try {
+          off();
+        } catch {
+          // The host may already have torn its bus down.
+        }
+      }
+    },
   };
+}
+
+/** The `paths` (relative to `cwd`) whose current mtime `ownership` claims. */
+export async function ownedPaths(
+  cwd: string,
+  paths: readonly string[],
+  ownership: ToolCallOwnership,
+): Promise<string[]> {
+  const mtimes = await Promise.all(
+    paths.map((p) =>
+      fsp.stat(path.join(cwd, p)).then(
+        (stat) => stat.mtimeMs,
+        // Deleted or unreadable: nothing to date it by, so it is not filtered.
+        () => undefined,
+      ),
+    ),
+  );
+  return paths.filter((_, i) => ownership.owns(mtimes[i]));
 }

@@ -151,6 +151,51 @@ describe('specialist trigger plugin', () => {
     expect(needs(emitCustom)[0]?.paths).toEqual(['db/migrations/002_new.sql']);
   });
 
+  describe("only this session's changes", () => {
+    const toolCall = async (
+      handlers: Record<string, (event?: unknown) => Promise<void> | void>,
+      id: string,
+      edit: () => Promise<void>,
+    ): Promise<void> => {
+      await handlers['tool.started']?.({ id, name: 'bash' });
+      await edit();
+      await handlers['tool.completed']?.({ id, name: 'bash', durationMs: 1 });
+    };
+
+    it("wakes no specialist for a peer's change or for what was dirty before the session", async () => {
+      // Dirty before the session began: an hour old.
+      await fs.mkdir(path.join(tmp, 'locales'), { recursive: true });
+      await fs.writeFile(path.join(tmp, 'locales', 'en.json'), '{}\n');
+      const earlier = new Date(Date.now() - 3_600_000);
+      await fs.utimes(path.join(tmp, 'locales', 'en.json'), earlier, earlier);
+      const { api, handlers, emitCustom } = makeApi();
+      createSpecialistTriggerPlugin().setup?.(api);
+      await toolCall(handlers, 't1', () =>
+        fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n'),
+      );
+      // A peer session's migration, written outside this host's tool calls.
+      await fs.writeFile(path.join(tmp, 'db', 'migrations', '001_init.sql'), 'select 2;\n');
+      const later = new Date(Date.now() + 60_000);
+      await fs.utimes(path.join(tmp, 'db', 'migrations', '001_init.sql'), later, later);
+
+      await settle(handlers, emitCustom);
+      expect(needs(emitCustom)).toEqual([]);
+    });
+
+    it('wakes the role for a file this session wrote in a tool call', async () => {
+      const { api, handlers, emitCustom } = makeApi();
+      createSpecialistTriggerPlugin().setup?.(api);
+      await toolCall(handlers, 't1', () =>
+        fs.writeFile(path.join(tmp, 'db', 'migrations', '002_mine.sql'), 'select 3;\n'),
+      );
+
+      await settle(handlers, emitCustom, 1);
+      expect(needs(emitCustom).map((n) => [n.role, n.paths])).toEqual([
+        ['database', ['db/migrations/002_mine.sql']],
+      ]);
+    });
+  });
+
   it('stays quiet for a change no rule claims', async () => {
     const { api, handlers, emitCustom } = makeApi();
     createSpecialistTriggerPlugin().setup?.(api);

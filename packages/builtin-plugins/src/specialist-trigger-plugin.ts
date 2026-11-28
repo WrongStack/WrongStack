@@ -16,6 +16,7 @@ import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { areSubagentsAllowed } from '@wrongstack/core/security';
 import { isGitRepo, runGit } from './auto-review-git.js';
 import { parsePorcelainStatusZ } from './review-context-builder.js';
+import { ownedPaths, trackToolCallOwnership } from './review-ownership.js';
 import {
   matchSpecialistTriggers,
   type ResolvedSpecialistTriggerConfig,
@@ -149,6 +150,10 @@ export function createSpecialistTriggerPlugin(): Plugin {
 
       let offIteration: (() => void) | null = null;
       let offSessionEnded: (() => void) | null = null;
+      // The tree's changes include a peer session's work and what was dirty
+      // before this one began; only this host's own edits wake a specialist
+      // on its account (see review-ownership).
+      const ownership = trackToolCallOwnership(api);
 
       const clearTimers = (): void => {
         if (settleTimer) clearTimeout(settleTimer);
@@ -271,8 +276,12 @@ export function createSpecialistTriggerPlugin(): Plugin {
         try {
           const cwd = api.config.cwd ?? process.cwd();
           if (!(await isGitRepo(cwd))) return;
-          const paths = (await changedPathsIncludingNew(cwd)).filter(
-            (filePath) => !filePath.startsWith('.wrongstack/'),
+          const paths = await ownedPaths(
+            cwd,
+            (await changedPathsIncludingNew(cwd)).filter(
+              (filePath) => !filePath.startsWith('.wrongstack/'),
+            ),
+            ownership,
           );
           const matches = matchSpecialistTriggers(paths, resolved.rules);
           if (matches.length === 0) {
@@ -312,6 +321,7 @@ export function createSpecialistTriggerPlugin(): Plugin {
       cleanupListeners = () => {
         sessionEnded = true;
         clearTimers();
+        ownership.dispose();
         try {
           offConfig();
         } catch {}
