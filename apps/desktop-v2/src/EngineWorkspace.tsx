@@ -337,6 +337,7 @@ export function EngineWorkspace({
           onSelect={setTab}
           onTools={() => setToolsOpen(true)}
           onSettings={onSettings}
+          git={{ command, connected: state.connected }}
         />,
       )}
       {toolsOpen && (

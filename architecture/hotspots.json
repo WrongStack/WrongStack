@@ -295,7 +295,7 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 792,
+      "lines": 793,
       "relativeImports": 61
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {

@@ -7,7 +7,9 @@ import {
   Settings2,
 } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
+import type { EngineCommand } from './engine-operations';
 import type { EngineTab } from './engine-workspace-tabs';
+import { GitChip } from './GitChip';
 
 /** Navigation stays outside the independently scrolling leader and agent transcripts. */
 export function WorkspaceNavigation({
@@ -16,12 +18,15 @@ export function WorkspaceNavigation({
   onSelect,
   onTools,
   onSettings,
+  git,
 }: {
   tab: EngineTab;
   pending: number;
   onSelect: (tab: EngineTab) => void;
   onTools: () => void;
   onSettings: () => void;
+  /** The conversation's repository line at the strip's end; it opens the Changes view. */
+  git?: { command: EngineCommand; connected: boolean } | undefined;
 }) {
   const { t } = useDesktopText();
   return (
@@ -78,6 +83,7 @@ export function WorkspaceNavigation({
       >
         <Settings2 size={15} />
       </button>
+      {git && <GitChip {...git} onOpen={() => onSelect('changes')} />}
     </nav>
   );
 }

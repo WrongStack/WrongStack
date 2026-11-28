@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T11:38:25.774Z",
+  "generatedAt": "2026-11-28T11:40:41.786Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6668,
-    "testFiles": 6582,
-    "sourceLines": 1367618,
+    "sourceFiles": 6671,
+    "testFiles": 6584,
+    "sourceLines": 1367840,
     "workspaceEdges": 268,
-    "moduleEdges": 19567,
+    "moduleEdges": 19577,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 588,
-      "testFiles": 418,
+      "sourceFiles": 591,
+      "testFiles": 420,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 418
+          "testFiles": 420
         }
       ]
     },
@@ -1418,6 +1418,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/activity-timestamps.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/agent-facts.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2642,6 +2648,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/mailbox-unread.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/mark-hue.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41280,6 +41292,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ComposerAccessChip.tsx",
+      "specifier": "./composer-access.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ComposerAttachments.tsx",
       "specifier": "./composer-attachments.css",
       "syntax": "import"
@@ -42450,7 +42467,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 792,
+      "lines": 793,
       "relativeImports": 61
     },
     {
@@ -42677,7 +42694,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 792,
+      "lines": 793,
       "relativeImports": 61
     },
     {

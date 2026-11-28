@@ -117,7 +117,13 @@
     "cancel": "Cancelar",
     "olderHost": "O host de sessões em execução é mais antigo que este desktop. Pare as sessões dele e reinicie o desktop para remover sessões.",
     "showSessions": "Mostrar as sessões de {{name}}",
-    "hideSessions": "Ocultar as sessões de {{name}}"
+    "hideSessions": "Ocultar as sessões de {{name}}",
+    "age": {
+      "now": "agora",
+      "minutes": "{{count}} min",
+      "hours": "{{count}} h",
+      "days": "{{count}} d"
+    }
   },
   "topbar": {
     "live": "{{count}} ativas",
@@ -7055,7 +7061,15 @@
       "timeout": "Tempo esgotado",
       "stopped": "Parado",
       "cancelled": "Cancelado"
-    }
+    },
+    "tokens": "{{value}} tok",
+    "tools_one": "{{count}} ferramenta",
+    "tools_other": "{{count}} ferramentas",
+    "context": "Contexto {{percent}}% cheio",
+    "working_one": "{{count}} trabalhando",
+    "working_other": "{{count}} trabalhando",
+    "settled_one": "{{count}} concluído",
+    "settled_other": "{{count}} concluídos"
   },
   "shortcutsView": {
     "title": "Atalhos de teclado",
