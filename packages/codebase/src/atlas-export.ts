@@ -34,6 +34,21 @@ const CANVAS = { width: 1000, height: 700 };
 /** Smallest and largest package circle radius, mapped from rank. */
 const RADIUS = { min: 14, max: 46 };
 
+/** WCAG 2.2 SC 2.5.8 minimum target size, in CSS pixels. */
+const MIN_TARGET_CSS_PX = 24;
+
+/**
+ * Lowest stroke opacity that keeps an accent-coloured dependency line at
+ * 3:1 against the panel in both themes (WCAG 2.2 SC 1.4.11).
+ */
+const MIN_EDGE_OPACITY = 0.7;
+
+/**
+ * Width at which even the smallest circle reaches that target size. Below it
+ * the figure scrolls rather than shrinking the interactive packages further.
+ */
+const SVG_MIN_WIDTH = Math.ceil((MIN_TARGET_CSS_PX / (RADIUS.min * 2)) * CANVAS.width);
+
 const ESCAPES: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',
@@ -115,7 +130,9 @@ function renderSvg(document: AtlasDocument): string {
   const maxWeight = document.edges.reduce((max, edge) => Math.max(max, edge.weight), 0) || 1;
 
   const lines: string[] = [
-    `<svg viewBox="0 0 ${CANVAS.width} ${CANVAS.height}" role="img" aria-label="Package dependency map">`,
+    // A group, not an img: role="img" makes descendants presentational, which
+    // would hide the package buttons from assistive technology.
+    `<svg viewBox="0 0 ${CANVAS.width} ${CANVAS.height}" role="group" aria-label="Package dependency map">`,
   ];
 
   for (const edge of document.edges) {
@@ -125,7 +142,8 @@ function renderSvg(document: AtlasDocument): string {
     const strength = Math.min(1, edge.weight / maxWeight);
     lines.push(
       `<line x1="${unit(from.x)}" y1="${unit(from.y)}" x2="${unit(to.x)}" y2="${unit(to.y)}" ` +
-        `stroke-width="${(0.5 + strength * 2.5).toFixed(2)}" stroke-opacity="${(0.12 + strength * 0.4).toFixed(2)}" />`,
+        `stroke-width="${(0.5 + strength * 2.5).toFixed(2)}" ` +
+        `stroke-opacity="${(MIN_EDGE_OPACITY + strength * (1 - MIN_EDGE_OPACITY)).toFixed(2)}" />`,
     );
   }
 
@@ -138,7 +156,7 @@ function renderSvg(document: AtlasDocument): string {
       }`,
     );
     lines.push(
-      `<g class="pkg" data-package="${name}" tabindex="0">`,
+      `<g class="pkg" data-package="${name}" role="button" aria-label="${name}" aria-pressed="false" tabindex="0">`,
       `<title>${title}</title>`,
       `<circle cx="${unit(entry.x)}" cy="${unit(entry.y)}" r="${unit(entry.radius)}" />`,
       `<text x="${unit(entry.x)}" y="${unit(entry.y + entry.radius + 13)}">${name}</text>`,
@@ -198,6 +216,7 @@ export function renderAtlasHtml(document: AtlasDocument, options: AtlasExportOpt
   color-scheme: light dark;
   --bg: #ffffff; --fg: #16181d; --muted: #61656e; --line: #d9dce2;
   --accent: #3b5bdb; --panel: #f6f7f9;
+  --copy-size: 16px;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #101216; --fg: #e6e8ec; --muted: #9aa0ab; --line: #2a2e36;
@@ -205,22 +224,24 @@ export function renderAtlasHtml(document: AtlasDocument, options: AtlasExportOpt
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg);
-       font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+       font: var(--copy-size)/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 header { padding: 24px 28px 12px; border-bottom: 1px solid var(--line); }
 h1 { margin: 0 0 4px; font-size: 20px; }
 h2 { margin: 28px 0 10px; font-size: 15px; text-transform: uppercase;
      letter-spacing: .12em; color: var(--muted); }
 main { padding: 8px 28px 48px; max-width: 1180px; margin: 0 auto; }
-.counts { color: var(--muted); font-size: 12px; }
+.counts { color: var(--muted); font-size: var(--copy-size); }
 figure { margin: 16px 0 0; border: 1px solid var(--line); background: var(--panel); }
-svg { display: block; width: 100%; height: auto; }
+svg { display: block; width: 100%; min-width: ${SVG_MIN_WIDTH}px; height: auto; }
 svg line { stroke: var(--accent); }
 svg circle { fill: var(--accent); fill-opacity: .22; stroke: var(--accent); stroke-width: 1.5; }
 svg text { fill: var(--fg); font-size: 10px; text-anchor: middle; font-family: ui-monospace, monospace; }
 svg .pkg { cursor: pointer; }
+/* Filtered-out packages stay focusable, so dim only the circle: group opacity
+   would also composite their labels below the 4.5:1 text contrast minimum. */
+svg .pkg.muted circle { fill-opacity: .06; }
 svg .pkg:hover circle, svg .pkg:focus circle { fill-opacity: .5; outline: none; }
-svg .pkg.muted { opacity: .25; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: var(--copy-size); }
 th, td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left;
          vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase;
@@ -232,12 +253,12 @@ tr[hidden] { display: none; }
 ul.subsystems { list-style: none; padding: 0; margin: 0; }
 ul.subsystems li { padding: 6px 0; border-bottom: 1px solid var(--line); }
 ul.subsystems b { font-family: ui-monospace, monospace; }
-.filter { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.filter { margin: 10px 0 0; font-size: var(--copy-size); color: var(--muted); }
 .filter button { font: inherit; color: var(--accent); background: none; border: 0;
                  cursor: pointer; padding: 0; text-decoration: underline; }
 .empty { color: var(--muted); }
 .wrap { overflow-x: auto; }
-footer { color: var(--muted); font-size: 11px; padding: 0 28px 32px; max-width: 1180px;
+footer { color: var(--muted); font-size: var(--copy-size); padding: 0 28px 32px; max-width: 1180px;
          margin: 0 auto; }
 </style>
 </head>
@@ -248,8 +269,8 @@ footer { color: var(--muted); font-size: 11px; padding: 0 28px 32px; max-width: 
 </header>
 <main>
   <h2>Package map</h2>
-  <figure>${renderSvg(document)}</figure>
-  <p class="filter" id="filter">Click a package to filter the table. <button type="button" id="clear" hidden>Clear filter</button></p>
+  <figure class="wrap">${renderSvg(document)}</figure>
+  <p class="filter" id="filter"${document.packages.length === 0 ? ' hidden' : ''}>Click a package to filter the table. <button type="button" id="clear" hidden>Clear filter</button> <span role="status" id="filter-status"></span></p>
 ${
   described.length === 0
     ? ''
@@ -279,7 +300,31 @@ ${renderFileRows(document)}
   var rows = Array.prototype.slice.call(document.querySelectorAll('#files tr'));
   var groups = Array.prototype.slice.call(document.querySelectorAll('svg .pkg'));
   var clear = document.getElementById('clear');
+  var status = document.getElementById('filter-status');
+  var map = document.querySelector('figure');
   var active = null;
+
+  // A narrow figure scrolls horizontally. It needs a tab stop so keyboard
+  // users can pan it, and it is centred in its viewBox, so start with the
+  // drawn packages in view rather than empty canvas. Re-evaluate on resize:
+  // a map opened wide can become scrollable when the window narrows.
+  var mapScrollable = false;
+  function syncMapScroll() {
+    if (map === null) return;
+    var scrollable = map.scrollWidth > map.clientWidth;
+    if (scrollable === mapScrollable) return;
+    mapScrollable = scrollable;
+    if (scrollable) {
+      map.tabIndex = 0;
+      map.setAttribute('aria-label', 'Package map');
+      map.scrollLeft = (map.scrollWidth - map.clientWidth) / 2;
+    } else {
+      map.removeAttribute('tabindex');
+      map.removeAttribute('aria-label');
+    }
+  }
+  syncMapScroll();
+  window.addEventListener('resize', syncMapScroll);
 
   function apply(name) {
     active = name;
@@ -287,9 +332,15 @@ ${renderFileRows(document)}
       row.hidden = name !== null && row.getAttribute('data-package') !== name;
     });
     groups.forEach(function (group) {
-      group.classList.toggle('muted', name !== null && group.getAttribute('data-package') !== name);
+      var selected = name !== null && group.getAttribute('data-package') === name;
+      group.classList.toggle('muted', name !== null && !selected);
+      group.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
     clear.hidden = name === null;
+    var shown = rows.filter(function (row) { return !row.hidden; }).length;
+    status.textContent = name === null
+      ? 'Showing all ' + rows.length + ' files.'
+      : 'Showing ' + shown + ' of ' + rows.length + ' files for ' + name + '.';
   }
 
   groups.forEach(function (group) {
@@ -300,7 +351,17 @@ ${renderFileRows(document)}
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
     });
   });
-  clear.addEventListener('click', function () { apply(null); });
+  clear.addEventListener('click', function () {
+    // The button hides itself, which would otherwise drop focus to <body>.
+    // Return focus to the package whose filter was cleared.
+    var previous = active;
+    apply(null);
+    if (previous !== null) {
+      groups.forEach(function (group) {
+        if (group.getAttribute('data-package') === previous) group.focus();
+      });
+    }
+  });
 })();
 </script>
 </body>
