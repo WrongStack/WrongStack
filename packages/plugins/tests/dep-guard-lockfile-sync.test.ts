@@ -12,6 +12,20 @@ import {
   registerLockfileSync,
 } from '../src/dep-guard/lockfile-sync.js';
 
+// Pass-through spy: the real isolation probe still runs, but its calls are
+// counted so a judgement's cost does not depend on timing.
+const isolationProbes = vi.hoisted(() => ({ count: 0 }));
+vi.mock('@wrongstack/primitives', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wrongstack/primitives')>();
+  return {
+    ...actual,
+    gitIsolationEnv: (...args: Parameters<typeof actual.gitIsolationEnv>) => {
+      isolationProbes.count += 1;
+      return actual.gitIsolationEnv(...args);
+    },
+  };
+});
+
 // These integration cases start several real Git processes. Match the root
 // suite's spawn-heavy timeout policy when this package config runs them directly.
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -194,6 +208,30 @@ describe('findLockfileDrift', () => {
     // The same HEAD again (a refused follow-up commit) is not noted twice.
     expect(await hook?.(call)).toBeUndefined();
     expect(api.metrics.counter).toHaveBeenCalledTimes(1);
+  });
+
+  it('judges a commit across many workspace manifests with one isolation probe per directory', async () => {
+    // Probing the repository's config before EVERY git call made each call
+    // cost ~450ms on Windows: a commit touching six manifests outlasted the
+    // 5s hook budget and the note was dropped.
+    for (let i = 0; i < 6; i++) await write(`packages/p${i}/package.json`, pkg({ zod: '3' }));
+    commit('add six workspace packages without the lockfile');
+    isolationProbes.count = 0;
+    const result = await findLockfileDrift(dir);
+    expect(result?.findings.map((f) => f.manifest)).toEqual(
+      Array.from({ length: 6 }, (_, i) => `packages/p${i}/package.json`),
+    );
+    // The session cwd and the repository root may be spelled differently.
+    expect(isolationProbes.count).toBeLessThanOrEqual(2);
+  });
+
+  it('gives the after-commit hook more than the default 5s budget', () => {
+    const api = {
+      registerHook: vi.fn((..._args: unknown[]) => () => undefined),
+      metrics: { counter: vi.fn() },
+    };
+    registerLockfileSync(api as never);
+    expect(api.registerHook.mock.calls[0]?.[3]).toMatchObject({ timeoutMs: 30_000 });
   });
 
   it('flags a newly added workspace package.json with dependencies when the lockfile is untouched', async () => {

@@ -67,8 +67,31 @@ export const runGit: GitRunner = async (cwd, args) => {
   // (fsmonitor, `.gitattributes` filters); when they cannot be switched off,
   // git does not run.
   const isolation = await gitIsolationEnv(cwd, { baseEnv: buildChildEnv() });
-  if (!isolation) return null;
-  return new Promise((resolve) => {
+  return isolation ? execGit(cwd, args, isolation) : null;
+};
+
+/**
+ * A runner for ONE judgement: the isolation env is worked out once per
+ * directory and reused. `runGit` probes the repository's config before every
+ * call, which made each git call cost ~450ms on Windows; a monorepo commit
+ * touching six manifests then outlasted the 5s hook budget and the drift note
+ * it exists to deliver was dropped (the 53-manifest release commit took 50s).
+ */
+export function isolatedGitRunner(): GitRunner {
+  const isolation = new Map<string, Promise<Record<string, string> | undefined>>();
+  return async (cwd, args) => {
+    let pending = isolation.get(cwd);
+    if (!pending) {
+      pending = gitIsolationEnv(cwd, { baseEnv: buildChildEnv() });
+      isolation.set(cwd, pending);
+    }
+    const env = await pending;
+    return env ? execGit(cwd, args, env) : null;
+  };
+}
+
+function execGit(cwd: string, args: string[], isolation: Record<string, string>) {
+  return new Promise<string | null>((resolve) => {
     execFile(
       'git',
       args,
@@ -82,7 +105,7 @@ export const runGit: GitRunner = async (cwd, args) => {
       (err, stdout) => resolve(err ? null : stdout),
     );
   });
-};
+}
 
 // ---------------------------------------------------------------------------
 // Commit detection
@@ -261,18 +284,50 @@ async function trackedLockfileFor(
   kind: ManifestKind,
   manifest: string,
   git: GitRunner,
+  seen: Map<string, Promise<string | null>> = new Map(),
 ): Promise<string | null> {
-  let dir = dirOf(manifest);
-  for (;;) {
-    const candidates = LOCKFILES[kind].map((name) => (dir ? `${dir}/${name}` : name));
-    const tracked = await git(root, ['ls-files', '-z', '--', ...candidates]);
-    const first = tracked?.split('\0').find((p) => p.length > 0);
-    if (first) return first;
-    // go.sum lives beside its go.mod; a module has no ancestor lockfile.
-    if (kind === 'go' || dir === '') return null;
-    dir = dirOf(dir);
-  }
+  const lookup = (dir: string): Promise<string | null> => {
+    // Sibling manifests share their ancestors' answers: one ls-files per
+    // directory per judgement, not one per manifest per level.
+    const key = `${kind}:${dir}`;
+    let pending = seen.get(key);
+    if (!pending) {
+      pending = (async () => {
+        const candidates = LOCKFILES[kind].map((name) => (dir ? `${dir}/${name}` : name));
+        const tracked = await git(root, ['ls-files', '-z', '--', ...candidates]);
+        const first = tracked?.split('\0').find((p) => p.length > 0);
+        if (first) return first;
+        // go.sum lives beside its go.mod; a module has no ancestor lockfile.
+        if (kind === 'go' || dir === '') return null;
+        return lookup(dirOf(dir));
+      })();
+      seen.set(key, pending);
+    }
+    return pending;
+  };
+  return lookup(dirOf(manifest));
 }
+
+/** `fn` over `items` with at most `limit` running at once; results keep their order. */
+async function mapLimited<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const index = next++;
+      out[index] = await fn(items[index] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/** Git processes one judgement runs at once. */
+const GIT_CONCURRENCY = 8;
 
 /**
  * Manifests whose dependencies the HEAD commit changed without their tracked
@@ -281,7 +336,7 @@ async function trackedLockfileFor(
  */
 export async function findLockfileDrift(
   cwd: string,
-  git: GitRunner = runGit,
+  git: GitRunner = isolatedGitRunner(),
 ): Promise<{ commit: string; findings: LockfileDrift[] } | null> {
   const root = (await git(cwd, ['rev-parse', '--show-toplevel']))?.trim();
   if (!root) return null;
@@ -298,20 +353,30 @@ export async function findLockfileDrift(
     .filter((p) => p.length > 0);
   if (!files) return null;
   const inCommit = new Set(files);
-  const findings: LockfileDrift[] = [];
-  for (const manifest of files) {
+  const lockfiles = new Map<string, Promise<string | null>>();
+  const manifests = files.flatMap((manifest) => {
     const kind = MANIFESTS[manifest.slice(manifest.lastIndexOf('/') + 1)];
-    if (!kind) continue;
-    const after = await git(root, ['show', `${commit}:${manifest}`]);
-    if (after === null) continue; // deleted
-    const before = (await git(root, ['show', `${parent}:${manifest}`])) ?? '';
-    const summary = dependencyChange(kind, before, after);
-    if (!summary) continue;
-    const lockfile = await trackedLockfileFor(root, kind, manifest, git);
-    if (!lockfile || inCommit.has(lockfile)) continue;
-    findings.push({ manifest, lockfile, summary });
-  }
-  return { commit, findings };
+    return kind ? [{ manifest, kind }] : [];
+  });
+  // Read concurrently: a dependency sweep or release commit touches dozens of
+  // manifests, and one after another they outlasted the hook's budget.
+  const judged = await mapLimited(
+    manifests,
+    GIT_CONCURRENCY,
+    async ({ manifest, kind }): Promise<LockfileDrift | null> => {
+      const [after, before] = await Promise.all([
+        git(root, ['show', `${commit}:${manifest}`]),
+        git(root, ['show', `${parent}:${manifest}`]),
+      ]);
+      if (after === null) return null; // deleted
+      const summary = dependencyChange(kind, before ?? '', after);
+      if (!summary) return null;
+      const lockfile = await trackedLockfileFor(root, kind, manifest, git, lockfiles);
+      if (!lockfile || inCommit.has(lockfile)) return null;
+      return { manifest, lockfile, summary };
+    },
+  );
+  return { commit, findings: judged.filter((f): f is LockfileDrift => f !== null) };
 }
 
 /** The note the model gets: what drifted and the command that refreshes it. */
@@ -335,7 +400,7 @@ export function lockfileDriftNote(commit: string, findings: readonly LockfileDri
  */
 export function registerLockfileSync(
   api: Pick<PluginAPI, 'registerHook' | 'metrics'>,
-  git: GitRunner = runGit,
+  git?: GitRunner,
 ): () => void {
   let lastJudged: string | null = null;
   return api.registerHook(
@@ -350,7 +415,7 @@ export function registerLockfileSync(
               (input.toolInput ?? {}) as Record<string, unknown>,
             ).lines.join('\n');
       if (!isCommitCall(input.toolName, input.toolInput, shell)) return;
-      const result = await findLockfileDrift(input.cwd, git);
+      const result = await findLockfileDrift(input.cwd, git ?? isolatedGitRunner());
       // A commit the hooks refused leaves HEAD where it was: judge each commit once.
       if (!result || result.commit === lastJudged) return;
       lastJudged = result.commit;
@@ -358,6 +423,10 @@ export function registerLockfileSync(
       api.metrics.counter('lockfile_drift_notes');
       return { additionalContext: lockfileDriftNote(result.commit, result.findings) };
     }) as never,
-    { name: 'dep-guard:lockfile-sync' },
+    // Work happens only after a commit call (everything else returns at
+    // `isCommitCall`), and reading a monorepo's manifests on a large
+    // repository takes seconds: the default 5s budget dropped the note on
+    // exactly the commits it is for.
+    { name: 'dep-guard:lockfile-sync', timeoutMs: 30_000 },
   );
 }
