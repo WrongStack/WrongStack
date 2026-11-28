@@ -160,9 +160,17 @@ const FILE_LANGUAGES: Record<string, string> = Object.assign(
   },
 );
 
+/** Files that are not text: called by their format ("PNG"), never "Plain text". */
+const BINARY_FORMATS = new Set(
+  'png jpg jpeg gif webp avif bmp ico svg pdf woff woff2 ttf otf zip gz tgz tar 7z exe dll wasm mp3 mp4 wav webm mov'.split(
+    ' ',
+  ),
+);
+
 /** The file's language by extension; `plain` names any other file, in the display language. */
 export function fileLanguage(path: string, plain = 'Plain text') {
   const extension = path.split('.').at(-1)?.toLowerCase() ?? '';
+  if (BINARY_FORMATS.has(extension)) return extension.toUpperCase();
   return FILE_LANGUAGES[extension] ?? plain;
 }
 export interface DiffLine {

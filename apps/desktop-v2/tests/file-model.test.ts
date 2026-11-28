@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   fileErrorText,
+  fileLanguage,
   fileTree,
   flattenFiles,
   lineDiff,
@@ -25,6 +26,12 @@ describe('desktop file and review models', () => {
     expect(flattenFiles(tree).map((n) => n.path)).toEqual(['src', 'src/a.ts', 'empty']);
     expect(tree[0]?.children[0]?.size).toBe(42);
     expect(parentPath('src/a.ts')).toBe('src');
+  });
+  it('names an image or other binary by its format, never as plain text', () => {
+    expect(fileLanguage('assets/logo.png')).toBe('PNG');
+    expect(fileLanguage('docs/Spec.PDF')).toBe('PDF');
+    expect(fileLanguage('src/a.ts')).toBe('TypeScript');
+    expect(fileLanguage('notes.txt')).toBe('Plain text');
   });
   it('keeps exact before/after lines, line numbers, additions, deletions and trailing newlines', () => {
     for (const [a, b] of [
