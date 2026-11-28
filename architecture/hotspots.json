@@ -150,6 +150,10 @@
       "lines": 787,
       "relativeImports": 1
     },
+    "packages/plugins/src/template-engine/index.ts": {
+      "lines": 701,
+      "relativeImports": 1
+    },
     "packages/project-surfaces/src/analytics/AnalyticsDashboard.tsx": {
       "lines": 741,
       "relativeImports": 6

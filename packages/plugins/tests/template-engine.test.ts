@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -135,6 +135,25 @@ describe('template-engine plugin', () => {
       ).rejects.toThrow(/protected path/);
       // Belt and braces: nothing reached the filesystem either.
       expect(existsSync(path.join(sandbox, target))).toBe(false);
+    });
+
+    it('template_expand refuses a nested checkout .git/hooks write (F2734)', async () => {
+      // The sink is the VCS hook, not the spelling depth: a checkout nested
+      // inside the project executes its own hooks on commit just the same.
+      mkdirSync(path.join(sandbox, 'nested', '.git', 'hooks'), { recursive: true });
+      templateEnginePlugin.setup(mockApi as any);
+      const tool = mockApi.tools.register.mock.calls.find(
+        ([tool]: any[]) => tool.name === 'template_expand',
+      )?.[0];
+      await expect(
+        tool.execute({
+          template: '#!/bin/sh\necho pwned',
+          variables: {},
+          raw: true,
+          output_path: 'nested/.git/hooks/pre-commit',
+        }),
+      ).rejects.toThrow(/protected path/);
+      expect(existsSync(path.join(sandbox, 'nested/.git/hooks/pre-commit'))).toBe(false);
     });
   });
 

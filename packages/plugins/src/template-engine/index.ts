@@ -101,50 +101,68 @@ function expandConditionals(template: string, variables: Record<string, string>)
   );
 }
 
-function expandLoops(
+function expandLoopBody(
+  key: string,
+  content: string,
+  variables: Record<string, string>,
+  escapeValue: (value: string) => string,
+): string {
+  const val = Object.hasOwn(variables, key) ? variables[key] : undefined;
+  if (!val) return '';
+  // If the variable value is a comma-separated list, expand each
+  if (typeof val === 'string' && val.includes(',')) {
+    const items = val.split(',').map((s) => s.trim());
+    return items
+      .map((item) => expandTemplate(content, { ...variables, [key]: item, item }, escapeValue))
+      .join('\n');
+  }
+  // A newline-separated list (LF or CRLF — the natural shape of pasted
+  // multi-line output) iterates once per line, binding both the loop
+  // variable and {{item}} like the comma branch. Trailing separators and
+  // blank lines separate items, they are not items: a value ending in
+  // `\n` must not gain a phantom empty iteration. Comma-separated values
+  // keep precedence (the branch above).
+  if (typeof val === 'string' && val.includes('\n')) {
+    const items = val
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    return items
+      .map((item) => expandTemplate(content, { ...variables, [key]: item, item }, escapeValue))
+      .join('\n');
+  }
+  // A one-element list iterates once: bind the iteration variable the
+  // same way the comma branch does, so the documented block syntax
+  // `{{#each items}}...{{item}}...{{/each}}` (see the comment above)
+  // resolves for a single value too. `{{items}}` keeps resolving to the
+  // whole value — `variables[key]` already is `val`, so nothing pinned
+  // changes.
+  return expandTemplate(content, { ...variables, [key]: val, item: val }, escapeValue);
+}
+
+function expandLoopsAndVariables(
   template: string,
   variables: Record<string, string>,
   escapeValue: (value: string) => string = identity,
 ): string {
-  // Handle {{#each items}}...{{item}}...{{/each}}
-  // A list-valued variable repeats the block once per item, whether the
-  // items are comma-separated or newline-separated.
-  return template.replace(
-    /\{\{#each\s+([\w.-]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g,
-    (_, key, content) => {
-      const val = Object.hasOwn(variables, key) ? variables[key] : undefined;
-      if (!val) return '';
-      // If the variable value is a comma-separated list, expand each
-      if (typeof val === 'string' && val.includes(',')) {
-        const items = val.split(',').map((s) => s.trim());
-        return items
-          .map((item) => expandTemplate(content, { ...variables, [key]: item, item }, escapeValue))
-          .join('\n');
-      }
-      // A newline-separated list (LF or CRLF — the natural shape of pasted
-      // multi-line output) iterates once per line, binding both the loop
-      // variable and {{item}} like the comma branch. Trailing separators and
-      // blank lines separate items, they are not items: a value ending in
-      // `\n` must not gain a phantom empty iteration. Comma-separated values
-      // keep precedence (the branch above).
-      if (typeof val === 'string' && val.includes('\n')) {
-        const items = val
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0);
-        return items
-          .map((item) => expandTemplate(content, { ...variables, [key]: item, item }, escapeValue))
-          .join('\n');
-      }
-      // A one-element list iterates once: bind the iteration variable the
-      // same way the comma branch does, so the documented block syntax
-      // `{{#each items}}...{{item}}...{{/each}}` (see the comment above)
-      // resolves for a single value too. `{{items}}` keeps resolving to the
-      // whole value — `variables[key]` already is `val`, so nothing pinned
-      // changes.
-      return expandTemplate(content, { ...variables, [key]: val, item: val }, escapeValue);
-    },
-  );
+  // Expand {{#each}} blocks and top-level {{var}} placeholders in one pass so
+  // substituted loop items containing `{{...}}` are never re-interpolated by
+  // a second outer expandTemplate pass.
+  const eachRe = /\{\{#each\s+([\w.-]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g;
+  let out = '';
+  let lastIndex = 0;
+  for (const match of template.matchAll(eachRe)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      out += expandTemplate(template.slice(lastIndex, index), variables, escapeValue);
+    }
+    out += expandLoopBody(match[1]!, match[2]!, variables, escapeValue);
+    lastIndex = index + match[0].length;
+  }
+  if (lastIndex < template.length) {
+    out += expandTemplate(template.slice(lastIndex), variables, escapeValue);
+  }
+  return out;
 }
 
 function renderTemplate(
@@ -157,28 +175,12 @@ function renderTemplate(
   // template's own text, so `<div>{{name}}</div>` or a code scaffold with
   // `Array<string>` came out as `&lt;div&gt;…` / `Array&lt;string&gt;`.
   const escapeValue = escapeHtml ? escapeHtmlValue : identity;
-  let result = template;
-
-  // Process conditionals first
-  result = expandConditionals(result, variables);
-
-  // Process loops
-  result = expandLoops(result, variables, escapeValue);
-
-  // Process simple variable substitution
-  result = expandTemplate(result, variables, escapeValue);
-
-  return result;
+  const withConditionals = expandConditionals(template, variables);
+  return expandLoopsAndVariables(withConditionals, variables, escapeValue);
 }
 
 function renderTemplateRaw(template: string, variables: Record<string, string>): string {
-  let result = template;
-
-  result = expandConditionals(result, variables);
-  result = expandLoops(result, variables);
-  result = expandTemplate(result, variables);
-
-  return result;
+  return renderTemplate(template, variables, false);
 }
 
 function validateRelativeTemplatePath(field: string, value: string): string | null {
@@ -240,7 +242,7 @@ function validateWritableTemplateTarget(field: string, value: string): string | 
     .toLowerCase();
   const base = norm.slice(norm.lastIndexOf('/') + 1);
   if (
-    PROTECTED_WRITE_PREFIXES.some((p) => norm.startsWith(p)) ||
+    PROTECTED_WRITE_PREFIXES.some((p) => norm.startsWith(p) || norm.includes(`/${p}`)) ||
     PROTECTED_WRITE_FILES.has(base) ||
     base === '.env' ||
     base.startsWith('.env.')

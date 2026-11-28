@@ -199,6 +199,35 @@ describe('template_expand', () => {
     );
   });
 
+  it('does not double-interpolate placeholders inside expanded {{#each}} item values', async () => {
+    const tools = setup();
+    const rawRes = await tools.template_expand!.execute({
+      template: '{{head}}:{{#each items}}- {{prefix}} {{item}}{{/each}}\nDone: {{secret}}',
+      variables: {
+        head: 'List',
+        prefix: 'item',
+        items: 'alpha,{{secret}},{{item}}',
+        item: 'OUTER_ITEM',
+        secret: 'TOP_SECRET',
+      },
+      raw: true,
+    });
+    expect(rawRes.result).toBe(
+      'List:- item alpha\n- item {{secret}}\n- item {{item}}\nDone: TOP_SECRET',
+    );
+
+    const escapedRes = await tools.template_expand!.execute({
+      template: '{{#each items}}<li>{{item}}</li>{{/each}}<span>{{secret}}</span>',
+      variables: {
+        items: '<b>ok</b>,{{secret}}',
+        secret: '<TOP_SECRET>',
+      },
+    });
+    expect(escapedRes.result).toBe(
+      '<li>&lt;b&gt;ok&lt;/b&gt;</li>\n<li>{{secret}}</li><span>&lt;TOP_SECRET&gt;</span>',
+    );
+  });
+
   it('writes to a relative output_path', async () => {
     const tools = setup();
     const res = await tools.template_expand!.execute({
