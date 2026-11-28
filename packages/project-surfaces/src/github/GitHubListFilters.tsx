@@ -50,10 +50,13 @@ const splitLabels = (value: string) =>
 export function GitHubListFilters({
   tab,
   filter,
+  canAskMine,
   onChange,
 }: {
   tab: GitHubTab;
   filter: GitHubListFilter;
+  /** "Me" is the token's owner: offered only when there is a token. */
+  canAskMine: boolean;
   onChange: (next: GitHubListFilter) => void;
 }) {
   const { t } = useAppTranslation();
@@ -63,6 +66,8 @@ export function GitHubListFilters({
   const picked = new Set(splitLabels(labels).map((label) => label.toLowerCase()));
   const offered = choices.filter((label) => !picked.has(label.name.toLowerCase()));
   const dirty = labels !== filter.labels || assignee !== filter.assignee;
+  const mineChoices: GitHubListFilter['mine'][] =
+    tab === 'pulls' ? ['', 'authored', 'review-requested'] : ['', 'assigned', 'authored'];
   return (
     <form
       className="flex flex-wrap items-center gap-2"
@@ -85,6 +90,25 @@ export function GitHubListFilters({
           </option>
         ))}
       </select>
+      {canAskMine && (
+        <select
+          aria-label={t('activity:github.mineFilter')}
+          value={filter.mine}
+          onChange={(event) => {
+            const mine = event.target.value as GitHubListFilter['mine'];
+            // "Assigned to me" names the assignee itself.
+            if (mine === 'assigned') setAssignee('');
+            onChange({ ...filter, mine, ...(mine === 'assigned' ? { assignee: '' } : {}) });
+          }}
+          className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+        >
+          {mineChoices.map((value) => (
+            <option key={value || 'all'} value={value}>
+              {t(`activity:github.mine.${value || 'all'}`)}
+            </option>
+          ))}
+        </select>
+      )}
       {tab === 'issues' && (
         <>
           <input
@@ -118,6 +142,7 @@ export function GitHubListFilters({
             placeholder={t('activity:github.assigneeFilter')}
             value={assignee}
             maxLength={39}
+            disabled={filter.mine === 'assigned'}
             onChange={(event) => setAssignee(event.target.value)}
             className={cn(field, 'w-40')}
           />

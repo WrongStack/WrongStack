@@ -344,6 +344,13 @@
   flex: none;
   color: var(--accent);
 }
+.composer-settings > summary > .composer-settings-flag.is-yolo,
+.composer-settings > summary[data-yolo] {
+  color: var(--danger);
+}
+.composer-settings > summary[data-yolo] {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
 .session-model-controls {
   display: flex;
   align-items: center;

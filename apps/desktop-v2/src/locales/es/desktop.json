@@ -117,13 +117,7 @@
     "cancel": "Cancelar",
     "olderHost": "El host de sesiones en ejecución es más antiguo que este escritorio. Detén sus sesiones y reinicia el escritorio para quitar sesiones.",
     "showSessions": "Mostrar las sesiones de {{name}}",
-    "hideSessions": "Ocultar las sesiones de {{name}}",
-    "age": {
-      "now": "ahora",
-      "minutes": "{{count}} min",
-      "hours": "{{count}} h",
-      "days": "{{count}} d"
-    }
+    "hideSessions": "Ocultar las sesiones de {{name}}"
   },
   "topbar": {
     "live": "{{count}} en vivo",
@@ -7061,15 +7055,7 @@
       "timeout": "Tiempo agotado",
       "stopped": "Detenido",
       "cancelled": "Cancelado"
-    },
-    "tokens": "{{value}} tok",
-    "tools_one": "{{count}} herramienta",
-    "tools_other": "{{count}} herramientas",
-    "context": "Contexto al {{percent}} %",
-    "working_one": "{{count}} trabajando",
-    "working_other": "{{count}} trabajando",
-    "settled_one": "{{count}} terminado",
-    "settled_other": "{{count}} terminados"
+    }
   },
   "shortcutsView": {
     "title": "Atajos de teclado",

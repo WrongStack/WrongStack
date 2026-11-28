@@ -6,6 +6,7 @@ import {
   Gauge,
   RefreshCw,
   Repeat,
+  ShieldAlert,
   SlidersHorizontal,
   Sparkles,
   Split,
@@ -15,7 +16,6 @@ import {
 import type { MouseEvent, ReactNode } from 'react';
 import { AgentModeControl } from './AgentModeControl';
 import { AutonomyControl, autonomyControlInputs } from './AutonomyControl';
-import { ComposerAccessChip } from './ComposerAccessChip';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -48,58 +48,64 @@ export function ComposerSettingsMenu({
   const { t } = useDesktopText();
   const dismiss = useDetailsDismiss();
   const prefs = state.results['prefs.updated'];
-  // What the closed popover must still show: turns that continue on their own. The YOLO level
-  // has its own chip beside it.
+  // What the closed popover must still show: approvals off, or turns that continue on their own.
+  const yolo = prefs?.['yoloPlus'] === true ? 'plus' : prefs?.['yolo'] === true ? 'on' : '';
   const autonomy = String(prefs?.['autonomy'] ?? '');
   const continues = ['auto', 'eternal', 'eternal-parallel'].includes(autonomy);
   return (
-    <>
-      <details className="composer-settings" ref={dismiss}>
-        <summary aria-label={t('composer.settings.label')} title={t('composer.settings.label')}>
-          <SlidersHorizontal size={14} />
-          {summary && <span className="composer-settings-summary">{summary}</span>}
-          {continues && (
-            <Repeat
-              size={12}
-              className="composer-settings-flag"
-              role="img"
-              aria-label={t('composer.settings.continuation')}
-            />
-          )}
-        </summary>
-        <div className="composer-settings-panel">
-          <p className="composer-settings-heading">{t('composer.settings.model')}</p>
-          <div className="composer-settings-slot" ref={slot} />
-          <p className="composer-settings-heading">{t('composer.settings.run')}</p>
-          <AutonomyControl
-            {...autonomyControlInputs(state.results)}
-            command={command}
-            disabled={!state.connected || state.needsSetup}
+    <details className="composer-settings" ref={dismiss}>
+      <summary
+        aria-label={t('composer.settings.label')}
+        title={t('composer.settings.label')}
+        data-yolo={yolo || undefined}
+      >
+        <SlidersHorizontal size={14} />
+        {summary && <span className="composer-settings-summary">{summary}</span>}
+        {continues && (
+          <Repeat
+            size={12}
+            className="composer-settings-flag"
+            role="img"
+            aria-label={t('composer.settings.continuation')}
           />
-          <AgentModeControl
-            command={command}
-            announced={String(state.results['session.start']?.['mode'] ?? '')}
-            disabled={!state.connected || state.running}
+        )}
+        {yolo && (
+          <ShieldAlert
+            size={12}
+            className="composer-settings-flag is-yolo"
+            role="img"
+            aria-label={yolo === 'plus' ? 'YOLO+' : 'YOLO'}
           />
-          <label className="composer-chip effort-control composer-setting-toggle">
-            <Wand2 size={12} />
-            <span className="composer-setting-name">{t('composer.refineBeforeSend')}</span>
-            <input
-              type="checkbox"
-              checked={refineBeforeSend}
-              disabled={preferenceBusy || !state.connected}
-              onChange={(e) => onRefineBeforeSend(e.target.checked)}
-            />
-          </label>
-          {preferenceBusy && <small role="status">{t('composer.savingPreference')}</small>}
-        </div>
-      </details>
-      <ComposerAccessChip
-        prefs={prefs}
-        command={command}
-        disabled={!state.connected || state.needsSetup}
-      />
-    </>
+        )}
+      </summary>
+      <div className="composer-settings-panel">
+        <p className="composer-settings-heading">{t('composer.settings.model')}</p>
+        <div className="composer-settings-slot" ref={slot} />
+        <p className="composer-settings-heading">{t('composer.settings.run')}</p>
+        <AutonomyControl
+          {...autonomyControlInputs(state.results)}
+          command={command}
+          disabled={!state.connected || state.needsSetup}
+          showYolo={state.provider !== 'acp'}
+        />
+        <AgentModeControl
+          command={command}
+          announced={String(state.results['session.start']?.['mode'] ?? '')}
+          disabled={!state.connected || state.running}
+        />
+        <label className="composer-chip effort-control composer-setting-toggle">
+          <Wand2 size={12} />
+          <span className="composer-setting-name">{t('composer.refineBeforeSend')}</span>
+          <input
+            type="checkbox"
+            checked={refineBeforeSend}
+            disabled={preferenceBusy || !state.connected}
+            onChange={(e) => onRefineBeforeSend(e.target.checked)}
+          />
+        </label>
+        {preferenceBusy && <small role="status">{t('composer.savingPreference')}</small>}
+      </div>
+    </details>
   );
 }
 

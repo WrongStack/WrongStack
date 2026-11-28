@@ -6078,6 +6078,13 @@
     "clearSearch": "Aramayı temizle",
     "searchingFor": "“{{query}}” GitHub’da aranıyor…",
     "searchResults_one": "“{{query}}” için GitHub’da {{count}} sonuç",
-    "searchResults_other": "“{{query}}” için GitHub’da {{count}} sonuç"
+    "searchResults_other": "“{{query}}” için GitHub’da {{count}} sonuç",
+    "mineFilter": "Göster",
+    "mine": {
+      "all": "Herkesinki",
+      "authored": "Benim açtıklarım",
+      "assigned": "Bana atananlar",
+      "review-requested": "İncelememi bekleyenler"
+    }
   }
 }

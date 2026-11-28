@@ -15,6 +15,7 @@ export function AutonomyControl({
   sessionStart,
   command,
   disabled,
+  showYolo = true,
 }: {
   /** The conversation's preferences as the engine last reported them (`prefs.updated`). */
   prefs: Record<string, unknown> | undefined;
@@ -22,6 +23,7 @@ export function AutonomyControl({
   sessionStart?: unknown;
   command: EngineCommand;
   disabled: boolean;
+  showYolo?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
   const { mode } = sessionAutonomy(prefs);
@@ -71,7 +73,7 @@ export function AutonomyControl({
           })}
         </select>
       </label>
-      <YoloControl prefs={prefs ?? {}} command={command} disabled={disabled} />
+      {showYolo && <YoloControl prefs={prefs ?? {}} command={command} disabled={disabled} />}
     </>
   );
 }

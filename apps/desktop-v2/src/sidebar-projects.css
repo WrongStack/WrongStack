@@ -306,17 +306,3 @@
     padding-inline-start: 10px;
   }
 }
-/* A project's monogram, tinted by its name like the model switcher's marks. */
-.app-shell .explorer .project-item > .project-mark {
-  background: color-mix(in oklch, oklch(0.7 0.13 var(--mark-hue, 250)) 20%, transparent);
-  color: oklch(0.78 0.13 var(--mark-hue, 250));
-  font-size: 12px;
-  font-weight: 700;
-}
-:root:not([data-mode="dark"]) .app-shell .explorer .project-item > .project-mark {
-  color: oklch(0.45 0.14 var(--mark-hue, 250));
-}
-.app-shell .explorer .project-branch-heading[data-selected="true"] .project-item > .project-mark {
-  background: oklch(0.6 0.14 var(--mark-hue, 250));
-  color: white;
-}

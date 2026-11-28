@@ -17,6 +17,7 @@ import { inlineUsageEstimate } from './session-usage-model';
 import './session-status.css';
 import { DesktopSessionBranchAndPlugins } from './DesktopSessionBranchAndPlugins';
 import { displayDecimal, displayLocale } from './display-dates';
+import { GitChip } from './GitChip';
 
 const number = (value: unknown) => (typeof value === 'number' ? value : null);
 
@@ -132,6 +133,7 @@ export function SessionStatusBar({
             : t('statusBar.iteration', { number: index + 1 })}
         </span>
       )}
+      <GitChip command={command} connected={state.connected} />
       <DesktopSessionBranchAndPlugins state={state} command={command} refresh={refresh} />
       {input !== null && (
         <span data-chip="tokens">{t('statusBar.in', { tokens: formatTokens(input) })}</span>

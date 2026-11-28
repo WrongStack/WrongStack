@@ -29,15 +29,10 @@ function gitInfo(reply: Record<string, unknown>): GitInfo | null {
 }
 
 /** The repository line of the WebUI's dock: branch, commits ahead/behind, changed lines, new files. */
-function GitSummary({ info, onOpen }: { info: GitInfo; onOpen?: (() => void) | undefined }) {
+function GitSummary({ info }: { info: GitInfo }) {
   const { t } = useDesktopText();
-  const Chip = onOpen ? 'button' : 'span';
   return (
-    <Chip
-      {...(onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
-      className="git-chip"
-      title={t('shellText.git.branch', { name: info.branch })}
-    >
+    <span className="git-chip" title={t('shellText.git.branch', { name: info.branch })}>
       <GitBranch size={11} />
       <strong>{info.branch}</strong>
       {info.ahead > 0 && (
@@ -61,7 +56,7 @@ function GitSummary({ info, onOpen }: { info: GitInfo; onOpen?: (() => void) | u
           {info.untracked}?
         </span>
       )}
-    </Chip>
+    </span>
   );
 }
 
@@ -70,16 +65,7 @@ function GitSummary({ info, onOpen }: { info: GitInfo; onOpen?: (() => void) | u
  * visible. The WebUI polls every 30 seconds; here every reply is also written to the
  * conversation's journal, so the desktop asks half as often and not while hidden.
  */
-export function GitChip({
-  command,
-  connected,
-  onOpen,
-}: {
-  command: EngineCommand;
-  connected: boolean;
-  /** Makes the chip a button, e.g. to the Changes view. */
-  onOpen?: (() => void) | undefined;
-}) {
+export function GitChip({ command, connected }: { command: EngineCommand; connected: boolean }) {
   const [info, setInfo] = useState<GitInfo | null>(null);
   useEffect(() => {
     if (!connected) return;
@@ -105,5 +91,5 @@ export function GitChip({
       clearInterval(timer);
     };
   }, [command, connected]);
-  return info ? <GitSummary info={info} onOpen={onOpen} /> : null;
+  return info ? <GitSummary info={info} /> : null;
 }

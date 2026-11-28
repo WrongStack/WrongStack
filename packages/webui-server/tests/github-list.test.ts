@@ -301,6 +301,47 @@ describe('GET /api/github/list with q (GitHub search)', () => {
   });
 });
 
+describe('GET /api/github/list with mine (the token owner)', () => {
+  const SEARCH = 'https://api.github.com/search/issues?q=';
+  const searched = (github: GitHubSeams) =>
+    decodeURIComponent(urls(github)[0]!.slice(SEARCH.length).split('&')[0]!);
+
+  it.each([
+    ['pulls', 'authored', 'repo:octo/repo is:pr is:open author:@me'],
+    ['pulls', 'review-requested', 'repo:octo/repo is:pr is:open review-requested:@me'],
+    ['issues', 'assigned', 'repo:octo/repo is:issue is:open assignee:@me'],
+  ])('lists %s %s through search, without any text', async (kind, mine, query) => {
+    const github = seams(() => json({ total_count: 0, items: [] }));
+    await get(`/api/github/list?kind=${kind}&mine=${mine}`, github);
+    expect(searched(github)).toBe(query);
+  });
+
+  it('adds the text after the qualifiers', async () => {
+    const github = seams(() => json({ total_count: 0, items: [] }));
+    await get('/api/github/list?kind=issues&state=all&mine=authored&q=boot', github);
+    expect(searched(github)).toBe('repo:octo/repo is:issue author:@me boot');
+  });
+
+  it('needs a token to know who "me" is', async () => {
+    const github = { ...seams(() => json([])), resolveToken: vi.fn(async () => null) };
+    const { body } = await get('/api/github/list?kind=pulls&mine=authored', github);
+    expect(body).toEqual({ status: 'needs-auth', kind: 'pulls', items: [], nextPage: null });
+    expect(github.fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'kind=pulls&mine=everyone',
+    'kind=issues&mine=review-requested',
+    'kind=issues&mine=assigned&assignee=octocat',
+    'kind=pulls&mine=authored&page=21',
+  ])('refuses %s without calling GitHub', async (query) => {
+    const github = seams(() => json({ total_count: 0, items: [] }));
+    const { status } = await get(`/api/github/list?${query}`, github);
+    expect(status).toBe(400);
+    expect(github.fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('GET /api/github/labels', () => {
   it("lists the repository's labels for the issue filter", async () => {
     const github = seams(() =>

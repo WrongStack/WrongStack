@@ -22,7 +22,6 @@ import { providerChoices } from './provider-settings-model';
 import { RuntimeGate } from './RuntimeGate';
 import { useProfileEngine } from './useEngine';
 import './model-switcher.css';
-import { markHue } from './mark-hue';
 
 interface Props {
   session: EngineState;
@@ -47,6 +46,11 @@ export function ModelQuickSwitcher(props: Props) {
 }
 
 /** A provider's monogram hue, the same for the same name everywhere. */
+function markHue(name: string): number {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 360;
+  return hash;
+}
 
 function LiveSwitcher({
   session,

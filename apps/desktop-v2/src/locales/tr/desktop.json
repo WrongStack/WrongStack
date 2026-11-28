@@ -117,13 +117,7 @@
     "cancel": "Vazgeç",
     "olderHost": "Çalışan oturum sunucusu bu masaüstünden eski. Oturum kaldırmak için oturumlarını durdurup masaüstünü yeniden başlat.",
     "showSessions": "{{name}} oturumlarını göster",
-    "hideSessions": "{{name}} oturumlarını gizle",
-    "age": {
-      "now": "şimdi",
-      "minutes": "{{count}} dk",
-      "hours": "{{count}} sa",
-      "days": "{{count}} g"
-    }
+    "hideSessions": "{{name}} oturumlarını gizle"
   },
   "topbar": {
     "live": "{{count}} canlı",
@@ -7061,15 +7055,7 @@
       "timeout": "Zaman aşımı",
       "stopped": "Durduruldu",
       "cancelled": "İptal edildi"
-    },
-    "tokens": "{{value}} tok",
-    "tools_one": "{{count}} araç",
-    "tools_other": "{{count}} araç",
-    "context": "Bağlam %{{percent}} dolu",
-    "working_one": "{{count}} çalışıyor",
-    "working_other": "{{count}} çalışıyor",
-    "settled_one": "{{count}} bitti",
-    "settled_other": "{{count}} bitti"
+    }
   },
   "shortcutsView": {
     "title": "Klavye kısayolları",

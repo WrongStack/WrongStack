@@ -161,6 +161,7 @@ export type {
   GitHubLabel,
   GitHubLabelsView,
   GitHubLineComment,
+  GitHubListMine,
   GitHubListPage,
   GitHubListState,
   GitHubMergeMethod,

@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import type {
   GitHubLabelsView,
+  GitHubListMine,
   GitHubListPage,
   GitHubListState,
   GitHubPullSummary,
@@ -45,7 +46,15 @@ interface ListQuery {
   assignee: string | null;
   /** Text for GitHub's search; null lists instead. */
   q: string | null;
+  /** Items of the token's owner, through search's `@me`; null for everyone's. */
+  mine: GitHubListMine | null;
 }
+
+const MINE: Record<GitHubListMine, string> = {
+  assigned: 'assignee:@me',
+  authored: 'author:@me',
+  'review-requested': 'review-requested:@me',
+};
 
 function parseListQuery(params: URLSearchParams): ListQuery | string {
   const kind = params.get('kind');
@@ -55,7 +64,15 @@ function parseListQuery(params: URLSearchParams): ListQuery | string {
   const q = params.get('q')?.trim() || null;
   if (q && (q.length > QUERY_CAP || /[\u0000-\u001f\u007f]/.test(q)))
     return `The search text must be one line of at most ${QUERY_CAP} characters`;
-  const maxPage = q ? MAX_SEARCH_PAGE : MAX_PAGE;
+  const rawMine = params.get('mine');
+  const mine =
+    rawMine === null
+      ? null
+      : (Object.keys(MINE) as GitHubListMine[]).find((value) => value === rawMine);
+  if (mine === undefined) return 'mine must be assigned, authored or review-requested';
+  if (mine === 'review-requested' && kind !== 'pulls')
+    return 'Review requests apply to pull requests only';
+  const maxPage = q || mine ? MAX_SEARCH_PAGE : MAX_PAGE;
   const rawPage = params.get('page') ?? '1';
   const page = /^\d{1,3}$/.test(rawPage) ? Number(rawPage) : 0;
   if (page < 1 || page > maxPage) return `page must be 1 to ${maxPage}`;
@@ -74,10 +91,12 @@ function parseListQuery(params: URLSearchParams): ListQuery | string {
   if (assignee && assignee !== 'none' && assignee !== '*' && !LOGIN.test(assignee))
     return 'assignee must be a GitHub login, none or *';
   // Search has no "any assignee" qualifier, and a label is quoted there.
-  if (q && assignee === '*') return 'Search cannot filter by any assignee; use a login or none';
-  if (q && labels.some((label) => label.includes('"')))
+  if (mine === 'assigned' && assignee) return 'Assigned to me already names the assignee';
+  if ((q || mine) && assignee === '*')
+    return 'Search cannot filter by any assignee; use a login or none';
+  if ((q || mine) && labels.some((label) => label.includes('"')))
     return 'Search cannot filter by a label that holds a quote';
-  return { kind, state, page, labels, assignee, q };
+  return { kind, state, page, labels, assignee, q, mine };
 }
 
 /** GitHub's next page number from a `Link` header, or null on the last page. */
@@ -120,7 +139,7 @@ function toSearchPull(raw: Record<string, unknown>, repository: string): GitHubP
  * has a far smaller rate limit than listing.
  */
 async function searchPage(
-  query: ListQuery & { q: string },
+  query: ListQuery,
   target: Extract<RepositoryTarget, { status: 'ok' }>,
   seams: GitHubSeams,
 ): Promise<GitHubListPage> {
@@ -134,11 +153,12 @@ async function searchPage(
       : query.assignee
         ? [`assignee:${query.assignee}`]
         : []),
+    ...(query.mine ? [MINE[query.mine]] : []),
   ];
   const result = await githubApi<{ total_count?: unknown; items?: unknown }>(
     seams,
     target.token,
-    `search/issues?q=${encodeURIComponent(`${qualifiers.join(' ')} ${query.q}`)}&sort=updated&order=desc&per_page=${PAGE_SIZE}&page=${query.page}`,
+    `search/issues?q=${encodeURIComponent([...qualifiers, query.q ?? ''].filter(Boolean).join(' '))}&sort=updated&order=desc&per_page=${PAGE_SIZE}&page=${query.page}`,
   );
   const raw = result.data?.items;
   if (!Array.isArray(raw)) throw new GitHubStatusError('unavailable');
@@ -183,9 +203,11 @@ export async function handleGitHubListRead(
     ({ status: 'ok', kind: query.kind, items: [], nextPage: null, ...patch }) as GitHubListPage;
   const target = await resolveRepository(seams, projectRoot);
   if (target.status !== 'ok') return replyJson(res, 200, page({ status: target.status }));
-  if (query.q) {
+  if (query.q || query.mine) {
+    // "Me" is the token's owner: without a token there is nobody to ask about.
+    if (query.mine && !target.token) return replyJson(res, 200, page({ status: 'needs-auth' }));
     try {
-      return replyJson(res, 200, await searchPage({ ...query, q: query.q }, target, seams));
+      return replyJson(res, 200, await searchPage(query, target, seams));
     } catch (error) {
       if (error instanceof GitHubStatusError)
         return replyJson(res, 200, page({ status: error.status }));

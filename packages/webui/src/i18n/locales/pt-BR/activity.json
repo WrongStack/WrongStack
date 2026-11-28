@@ -6078,6 +6078,13 @@
     "clearSearch": "Limpar busca",
     "searchingFor": "Buscando “{{query}}” no GitHub…",
     "searchResults_one": "{{count}} resultado no GitHub para “{{query}}”",
-    "searchResults_other": "{{count}} resultados no GitHub para “{{query}}”"
+    "searchResults_other": "{{count}} resultados no GitHub para “{{query}}”",
+    "mineFilter": "Mostrar",
+    "mine": {
+      "all": "De todos",
+      "authored": "Criados por mim",
+      "assigned": "Atribuídos a mim",
+      "review-requested": "Aguardando minha revisão"
+    }
   }
 }

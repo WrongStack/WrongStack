@@ -1,5 +1,6 @@
 import type {
   GitHubIssueSummary,
+  GitHubListMine,
   GitHubListPage,
   GitHubListState,
   GitHubPullSummary,
@@ -20,6 +21,8 @@ export interface GitHubListFilter {
   assignee: string;
   /** Text searched on GitHub (empty: list instead). */
   q: string;
+  /** The token owner's items only (empty: everyone's). */
+  mine: GitHubListMine | '';
 }
 
 export const DEFAULT_GITHUB_FILTER: GitHubListFilter = {
@@ -27,6 +30,7 @@ export const DEFAULT_GITHUB_FILTER: GitHubListFilter = {
   labels: '',
   assignee: '',
   q: '',
+  mine: '',
 };
 
 /** The open, unfiltered list is the one `/api/github` already read. */
@@ -34,6 +38,7 @@ export function isDefaultGitHubFilter(tab: GitHubTab, filter: GitHubListFilter):
   return (
     filter.state === 'open' &&
     !filter.q.trim() &&
+    !filter.mine &&
     (tab === 'pulls' || (!filter.labels.trim() && !filter.assignee.trim()))
   );
 }
@@ -72,6 +77,7 @@ export function useGitHubList({
     issues ? filter.labels.trim() : '',
     issues ? filter.assignee.trim() : '',
     filter.q.trim(),
+    filter.mine,
     seed?.fetchedAt ?? 'own',
     round,
   ]);
@@ -97,6 +103,7 @@ export function useGitHubList({
     if (issues && filter.labels.trim()) query['labels'] = filter.labels.trim();
     if (issues && filter.assignee.trim()) query['assignee'] = filter.assignee.trim();
     if (filter.q.trim()) query['q'] = filter.q.trim();
+    if (filter.mine) query['mine'] = filter.mine;
     surfaceFetch(withGitHubSession('/api/github/list', sessionId, query), {
       ...(signal ? { signal } : {}),
       credentials: 'same-origin',

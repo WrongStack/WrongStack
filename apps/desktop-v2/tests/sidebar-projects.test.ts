@@ -176,12 +176,11 @@ describe('sidebar project management', () => {
     await drag(button('Reorder Alpha'), 'dragstart', data);
     await drag(button('Beta'), 'drop', data);
     expect(errors.map(String)).toEqual(['Error: Write failed']);
-    // The project's name; its monogram is decorative.
-    expect(
-      Array.from(host.querySelectorAll('.project-item > span:last-child')).map(
-        (b) => b.textContent,
-      ),
-    ).toEqual(['Alpha', 'Beta', 'Gamma']);
+    expect(Array.from(host.querySelectorAll('.project-item')).map((b) => b.textContent)).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ]);
   });
   it('supports keyboard reordering, honors boundaries, and disables changes while saving', async () => {
     const key = async (name: string, key: string) =>

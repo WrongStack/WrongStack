@@ -63,6 +63,9 @@ export interface GitHubRepositoryView {
 
 export type GitHubListState = 'open' | 'closed' | 'all';
 
+/** The token owner's items, from `mine=` on `/api/github/list` (search's `@me`). */
+export type GitHubListMine = 'assigned' | 'authored' | 'review-requested';
+
 /**
  * One page of a list, served by `GET /api/github/list?sessionId=…&kind=…
  * &state=…&page=…` (issues also take `labels` and `assignee`). `nextPage` is

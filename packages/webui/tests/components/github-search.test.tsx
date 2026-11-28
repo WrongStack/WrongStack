@@ -163,3 +163,57 @@ describe('GitHubView label picker', () => {
     await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Add label' })).toBeNull());
   });
 });
+
+describe('GitHubView mine filter', () => {
+  it("lists pull requests awaiting the token owner's review", async () => {
+    const fetcher = routed({ status: 'ok', kind: 'pulls', total: 0, nextPage: null, items: [] });
+    vi.stubGlobal('fetch', fetcher);
+    render(<GitHubView />);
+    await screen.findByRole('button', { name: /Add the GitHub view/ });
+    const show = screen.getByRole('combobox', { name: 'Show' });
+    expect([...show.querySelectorAll('option')].map((option) => option.textContent)).toEqual([
+      "Everyone's",
+      'Created by me',
+      'Awaiting my review',
+    ]);
+    fireEvent.change(show, { target: { value: 'review-requested' } });
+    await waitFor(() =>
+      expect(urls(fetcher)).toContain(
+        '/api/github/list?kind=pulls&state=open&page=1&mine=review-requested&sessionId=s1',
+      ),
+    );
+    expect(screen.queryByRole('button', { name: /Add the GitHub view/ })).toBeNull();
+  });
+
+  it('takes the assignee field out of play for issues assigned to me', async () => {
+    const fetcher = routed({ status: 'ok', kind: 'issues', nextPage: null, items: [] });
+    vi.stubGlobal('fetch', fetcher);
+    render(<GitHubView />);
+    fireEvent.click(await screen.findByRole('tab', { name: /Issues/ }));
+    const show = screen.getByRole('combobox', { name: 'Show' });
+    expect([...show.querySelectorAll('option')].map((option) => option.value)).toEqual([
+      '',
+      'assigned',
+      'authored',
+    ]);
+    fireEvent.change(show, { target: { value: 'assigned' } });
+    expect((screen.getByRole('textbox', { name: /Assignee/ }) as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    await waitFor(() =>
+      expect(urls(fetcher)).toContain(
+        '/api/github/list?kind=issues&state=open&page=1&mine=assigned&sessionId=s1',
+      ),
+    );
+  });
+
+  it('offers no mine filter without a token', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => reply({ ...view, tokenSource: 'none' })),
+    );
+    render(<GitHubView />);
+    await screen.findByRole('button', { name: /Add the GitHub view/ });
+    expect(screen.queryByRole('combobox', { name: 'Show' })).toBeNull();
+  });
+});

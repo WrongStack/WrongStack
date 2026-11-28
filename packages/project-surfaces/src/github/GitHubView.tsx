@@ -380,7 +380,13 @@ export function GitHubView() {
                   </Button>
                 )}
               </form>
-              <GitHubListFilters key={tab} tab={tab} filter={filter} onChange={setFilter} />
+              <GitHubListFilters
+                key={tab}
+                tab={tab}
+                filter={filter}
+                canAskMine={view.tokenSource !== 'none'}
+                onChange={setFilter}
+              />
             </div>
             {searching && (
               <div

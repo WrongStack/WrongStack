@@ -20,9 +20,9 @@
   flex: 1;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 4px 6px;
-  gap: 9px;
+  min-height: 30px;
+  padding: 3px 6px;
+  gap: 8px;
   border-radius: var(--corner-md);
   background: var(--row-surface);
   color: var(--muted);
@@ -118,28 +118,4 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-/* Two lines: the name, then its state and how long ago it last changed. */
-.tree-session-text {
-  display: grid;
-  flex: 1;
-  gap: 1px;
-  min-width: 0;
-}
-.tree-session-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--subtle);
-  font-size: 11px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-/* The state word stays muted: the status dot on the icon carries its colour. */
-/* On the chosen row's tint the muted grey falls short of AA; lean it toward the text. */
-.tree-session.chosen .tree-session-meta {
-  color: color-mix(in srgb, var(--text) 78%, var(--row-surface));
 }

@@ -117,13 +117,7 @@
     "cancel": "Abbrechen",
     "olderHost": "Der laufende Sitzungs-Host ist älter als dieser Desktop. Stoppe seine Sitzungen und starte den Desktop neu, um Sitzungen zu entfernen.",
     "showSessions": "Sitzungen von {{name}} anzeigen",
-    "hideSessions": "Sitzungen von {{name}} ausblenden",
-    "age": {
-      "now": "jetzt",
-      "minutes": "{{count}} Min.",
-      "hours": "{{count}} Std.",
-      "days": "{{count}} T."
-    }
+    "hideSessions": "Sitzungen von {{name}} ausblenden"
   },
   "topbar": {
     "live": "{{count}} aktiv",
@@ -7061,15 +7055,7 @@
       "timeout": "Zeitüberschreitung",
       "stopped": "Gestoppt",
       "cancelled": "Abgebrochen"
-    },
-    "tokens": "{{value}} Tok.",
-    "tools_one": "{{count}} Werkzeug",
-    "tools_other": "{{count}} Werkzeuge",
-    "context": "Kontext zu {{percent}} % voll",
-    "working_one": "{{count}} arbeitet",
-    "working_other": "{{count}} arbeiten",
-    "settled_one": "{{count}} fertig",
-    "settled_other": "{{count}} fertig"
+    }
   },
   "shortcutsView": {
     "title": "Tastenkürzel",
