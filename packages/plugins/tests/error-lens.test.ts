@@ -105,6 +105,21 @@ describe('extractErrorLine / extractFrames', () => {
     expect(extractFrames(tsc, 5)).toEqual(['src/a.ts:1', 'src/b.ts:10']);
     expect(extractErrorLine('Found 2 errors in 1 file.')).toBeNull();
   });
+
+  it("keeps vitest's summary clock out of the frames", () => {
+    // Tail of a real `vitest run` failure: "Start at  HH:MM:SS" reads like a
+    // V8 `at …:N` frame and used to lead every vitest digest as `13:54`.
+    const vitest =
+      ' FAIL  .temp_files/failing.test.ts > parses\n' +
+      'AssertionError: expected 4 to be 5 // Object.is equality\n' +
+      ' ❯ .temp_files/failing.test.ts:3:54\n' +
+      "      1|  import { expect, it } from 'vitest';\n" +
+      ' Test Files  1 failed (1)\n' +
+      '      Tests  1 failed (1)\n' +
+      '   Start at  13:54:12\n' +
+      '   Duration  412ms (transform 31ms, setup 0ms)\n';
+    expect(extractFrames(vitest, 5)).toEqual(['.temp_files/failing.test.ts:3']);
+  });
 });
 
 describe('error-lens plugin', () => {
@@ -129,6 +144,24 @@ describe('error-lens plugin', () => {
     expect(result?.additionalContext).toContain('error-lens digest');
     expect(result?.additionalContext).toContain('TypeError');
     expect(result?.additionalContext).toContain('src/lib/compute.ts:42');
+  });
+
+  it('does not repeat an error line that already says error', async () => {
+    const api = makeApi();
+    errorLensPlugin.setup(api as never);
+    const hook = getHook(api);
+    // Real Bun output for a missing entry file, under the executor's header.
+    const content =
+      'bash: node packages/missing/index.js (exit_code=1 timed_out=false pid=1)\n\n' +
+      "output:\nerror: Module not found 'D:\\\\repo\\\\packages\\\\missing\\\\index.js'\n" +
+      'Bun v1.4.5 (Windows x64)\n'.repeat(8);
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'node packages/missing/index.js' },
+      toolResult: { content, isError: false },
+    });
+    expect(result?.additionalContext).toContain("\n  error: Module not found 'D:");
+    expect(result?.additionalContext).not.toContain('error: error:');
   });
 
   it('flags a repeated identical failure', async () => {

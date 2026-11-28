@@ -185,7 +185,10 @@ export function extractFrames(output: string, maxFrames: number): string[] {
         .replace(/^file:\/\/\/?/i, '')
         .replace(/\\/g, '/')
         .trim();
-      if (cleaned && !seen.has(cleaned)) {
+      // A file names something: `13:54` from vitest's "Start at 13:54:12"
+      // matches the V8 `at …:N` shape but holds no letter at all.
+      const named = /[A-Za-z]/.test(cleaned.replace(/:\d+$/, ''));
+      if (cleaned && named && !seen.has(cleaned)) {
         seen.add(cleaned);
         const isVendor =
           cleaned.includes('node_modules/') ||
@@ -342,7 +345,9 @@ const plugin: Plugin = {
       api.metrics.counter('digests');
 
       const parts: string[] = ['error-lens digest:'];
-      if (errorLine) parts.push(`  error: ${errorLine}`);
+      // Compiler and Bun lines already start with "error" ("error TS2322: …").
+      if (errorLine)
+        parts.push(/^error\b/i.test(errorLine) ? `  ${errorLine}` : `  error: ${errorLine}`);
       if (frames.length > 0) parts.push(`  frames: ${frames.join('  ')}`);
       if (repeats > 1) {
         parts.push(
