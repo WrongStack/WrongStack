@@ -54,7 +54,7 @@ function TabFallback({ label }: { label: string }) {
       className="flex h-full min-h-0 items-center justify-center bg-background text-xs text-muted-foreground"
       aria-busy="true"
     >
-      <span className="font-mono uppercase tracking-wide">{label}…</span>
+      <span>{label}…</span>
     </div>
   );
 }
@@ -143,17 +143,17 @@ export function SageTabs({
             <TabsTrigger
               key={value}
               value={value}
+              // What the lens is for is its tooltip: inline, a monospace line in every tab made
+              // these tabs unlike every other tab row.
+              title={t(hint)}
               className={cn(
-                'h-7 gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide',
+                'h-7 gap-2 px-3 text-xs font-medium',
                 'data-[state=active]:bg-background data-[state=active]:text-foreground',
                 'data-[state=active]:shadow-[0_0_0_1px_hsl(var(--border)/0.7)]',
               )}
             >
               <Icon className="size-3.5" />
               <span>{t(label)}</span>
-              <span className="hidden font-mono text-[9px] font-normal normal-case text-muted-foreground sm:inline">
-                {t(hint)}
-              </span>
             </TabsTrigger>
           ))}
         </TabsList>
