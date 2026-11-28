@@ -27,6 +27,7 @@ export type { ReviewerModelAssignment };
 import {
   type ChangedFile,
   type ChangedFileSnapshot,
+  generatedPaths,
   getChangedFilesWithMetaIfRepo,
   snapshotChangedFilesIfRepo,
   snapshotChangedFilesWithMetaIfRepo,
@@ -319,12 +320,16 @@ export function createAutoReviewPlugin(): Plugin {
       const resolveProjectDir = (cwd: string): string =>
         path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
 
-      const refreshPendingFiles = (snapshots: ChangedFileSnapshot[]): boolean => {
+      const refreshPendingFiles = (
+        snapshots: ChangedFileSnapshot[],
+        generated: ReadonlySet<string>,
+      ): boolean => {
         let pendingChanged = false;
         const observedPaths = new Set<string>();
         for (const file of snapshots) {
           if (file.path.startsWith('.wrongstack/')) continue;
-          const noiseReason = isIgnoredReviewNoisePath(file.path);
+          const noiseReason =
+            isIgnoredReviewNoisePath(file.path) ?? (generated.has(file.path) ? 'generated' : null);
           if (noiseReason) {
             skippedNoisePaths.set(file.path, noiseReason);
             if (pendingFiles.delete(file.path)) pendingChanged = true;
@@ -385,7 +390,12 @@ export function createAutoReviewPlugin(): Plugin {
           if (sessionEnded) return;
           const now = Date.now();
 
-          const pendingChanged = refreshPendingFiles(snapshots);
+          const generated = await generatedPaths(
+            cwd,
+            snapshots.map((file) => file.path),
+            iterGitIsolation,
+          );
+          const pendingChanged = refreshPendingFiles(snapshots, generated);
 
           if (pendingFiles.size === 0) {
             cancelPendingReviewTimer();
@@ -553,11 +563,17 @@ export function createAutoReviewPlugin(): Plugin {
             const repoMeta = await getChangedFilesWithMetaIfRepo(cwd);
             if (!repoMeta) return;
             const allChanged = repoMeta.files;
+            const generated = await generatedPaths(
+              cwd,
+              allChanged.map((f) => f.path),
+              repoMeta.isolation,
+            );
             const existing: ChangedFile[] = [];
             const sessionEndSkipped: ReviewSkippedFile[] = [];
             for (const f of allChanged) {
               if (f.path.startsWith('.wrongstack/')) continue;
-              const noiseDetail = isIgnoredReviewNoisePath(f.path);
+              const noiseDetail =
+                isIgnoredReviewNoisePath(f.path) ?? (generated.has(f.path) ? 'generated' : null);
               if (noiseDetail) {
                 sessionEndSkipped.push({
                   path: f.path,

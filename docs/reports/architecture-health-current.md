@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T17:08:50.355Z
+**Generated:** 2026-11-28T17:13:57.551Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6675 |
-| Production source lines | 1369246 |
+| Production source lines | 1369296 |
 | Test files | 6607 |
 | Workspace dependency edges | 268 |
 | Relative module edges | 19590 |
@@ -125,12 +125,12 @@ None.
 | 787 | `packages/plugins/src/branch-guard/index.ts` |
 | 786 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
+| 781 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/mailbox-mcp/src/adapter.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 770 | `packages/webui-server/src/server/provider-routes.ts` |
 | 767 | `apps/desktop-v2/src/useFileWorkspace.ts` |
-| 765 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 762 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 761 | `packages/coordination/src/agent-monitor.ts` |

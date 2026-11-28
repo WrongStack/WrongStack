@@ -19,7 +19,7 @@
       "relativeImports": 9
     },
     "packages/builtin-plugins/src/auto-review-plugin.ts": {
-      "lines": 765,
+      "lines": 781,
       "relativeImports": 8
     },
     "packages/builtin-plugins/src/review-claim-registry.ts": {

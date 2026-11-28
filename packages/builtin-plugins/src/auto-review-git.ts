@@ -89,6 +89,7 @@ export async function runGit(
   args: string[],
   cwd: string,
   preResolvedIsolation?: Record<string, string> | null,
+  input?: string,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   // The repository's config names programs git runs (fsmonitor, filters);
   // when they cannot be switched off, git does not run.
@@ -103,13 +104,17 @@ export async function runGit(
       child = spawn('git', args, {
         cwd,
         env: { ...process.env, ...isolation },
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
         signal: AbortSignal.timeout(15_000),
         windowsHide: true,
       });
     } catch (err) {
       reject(err);
       return;
+    }
+    if (input !== undefined) {
+      child.stdin?.on('error', () => undefined);
+      child.stdin?.end(input);
     }
     let stdout = '';
     let stderr = '';
@@ -127,6 +132,35 @@ export async function runGit(
     // `code` is null only when git was killed by a signal — never a success.
     child.on('close', (code) => resolve({ stdout, stderr, code: code ?? 1 }));
   });
+}
+
+/**
+ * The paths the repository marks `linguist-generated` in `.gitattributes`:
+ * written by a tool, so a finding on one is fixed in its generator, and
+ * reviewing it spends tokens on output nobody edits. One `git check-attr`
+ * for the whole set; any failure marks nothing.
+ */
+export async function generatedPaths(
+  cwd: string,
+  paths: readonly string[],
+  isolation?: Record<string, string> | null,
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (paths.length === 0) return out;
+  const result = await runGit(
+    ['check-attr', '-z', '--stdin', 'linguist-generated'],
+    cwd,
+    isolation,
+    `${paths.join('\0')}\0`,
+  );
+  if (result.code !== 0) return out;
+  // -z output: <path> NUL <attribute> NUL <value> NUL, per path.
+  const fields = result.stdout.split('\0');
+  for (let i = 0; i + 2 < fields.length; i += 3) {
+    const value = fields[i + 2];
+    if (value === 'set' || value === 'true') out.add(fields[i] as string);
+  }
+  return out;
 }
 
 export async function isGitRepo(cwd: string): Promise<boolean> {

@@ -347,6 +347,55 @@ describe('auto-review change detection', () => {
     });
   });
 
+  describe('files the repository marks linguist-generated', () => {
+    beforeEach(async () => {
+      await fs.writeFile(
+        path.join(tmp, '.gitattributes'),
+        'gen.ts linguist-generated\nreport.json linguist-generated=true\nkept.ts -linguist-generated\n',
+      );
+      for (const name of ['gen.ts', 'report.json', 'kept.ts']) {
+        await fs.writeFile(path.join(tmp, name), '// v1\n');
+      }
+      commitAll(tmp, 'add generated files');
+    });
+
+    it('leaves them out of a mid-session review and says why', async () => {
+      const { api, events, emitCustom } = makeApi();
+      createAutoReviewPlugin().setup!(api);
+      await events['agent.run.started']!();
+      for (const name of ['gen.ts', 'report.json', 'kept.ts', 'tracked.ts']) {
+        await fs.writeFile(path.join(tmp, name), '// v2\n');
+      }
+      await events['iteration.completed']!();
+
+      const [payload] = reviewPayloads(emitCustom);
+      expect(payload?.files.map((file) => file.path).sort()).toEqual(['kept.ts', 'tracked.ts']);
+      for (const name of ['gen.ts', 'report.json']) {
+        expect(payload?.skippedFiles).toContainEqual({
+          path: name,
+          reason: 'ignored_non_source',
+          detail: 'generated',
+        });
+      }
+    });
+
+    it('leaves them out of the session-end review', async () => {
+      const { api, events, emitCustom } = makeApi();
+      createAutoReviewPlugin().setup!(api);
+      await fs.writeFile(path.join(tmp, 'gen.ts'), '// v3\n');
+      await fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 7;\n');
+      await events['session.ended']!();
+
+      const [payload] = reviewPayloads(emitCustom);
+      expect(payload?.files.map((file) => file.path)).toEqual(['tracked.ts']);
+      expect(payload?.skippedFiles).toContainEqual({
+        path: 'gen.ts',
+        reason: 'ignored_non_source',
+        detail: 'generated',
+      });
+    });
+  });
+
   it('does not repeat an unchanged mid-session review at session end', async () => {
     const { api, events, emitCustom, log } = makeApi();
     createAutoReviewPlugin().setup!(api);
