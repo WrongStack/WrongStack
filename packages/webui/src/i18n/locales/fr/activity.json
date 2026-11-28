@@ -3357,7 +3357,7 @@
     "unsupportedNote": "au mieux"
   },
   "codeMap": {
-    "snapshotUnavailable": "Graphe CodeMap indisponible — démarrez le serveur WebUI pour le charger.",
+    "snapshotUnavailable": "La carte du code n'a pas pu être chargée. Vérifiez que le moteur est en marche, puis réessayez.",
     "codeAtlas": "Atlas du code",
     "mapView": "Carte",
     "mapViewHint": "Explorer le code et les références",

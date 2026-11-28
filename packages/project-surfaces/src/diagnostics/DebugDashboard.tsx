@@ -79,7 +79,11 @@ export function DebugDashboard({
       if (!mountedRef.current || fetchSeqRef.current !== seq) return;
       setData((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : t('activity:debug.fetchFailed'),
+        // A body that is not JSON says nothing a reader can act on ("Unexpected end of input").
+        error:
+          err instanceof Error && !(err instanceof SyntaxError)
+            ? err.message
+            : t('activity:debug.fetchFailed'),
       }));
     } finally {
       if (mountedRef.current && fetchSeqRef.current === seq) setIsLoading(false);
@@ -187,395 +191,415 @@ export function DebugDashboard({
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
             <div>
               <p className="font-medium">{t('activity:debug.fetchFailed')}</p>
-              <p className="text-sm opacity-80">{data.error}</p>
+              {data.error !== t('activity:debug.fetchFailed') && (
+                <p className="text-sm opacity-80">{data.error}</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* File Watcher Section */}
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Eye className="h-4 w-4 text-primary" />
-            {t('activity:debug.fileWatcher')}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard
-              title={t('activity:debug.watcherStatus')}
-              value={watcherStatus}
-              icon={Server}
-              color={watcherStatusColor}
-            />
-            <MetricCard
-              title={t('activity:debug.activeProjects')}
-              value={watcherValue(watcher?.activeProjects)}
-              subtitle={t('activity:debug.projectsWatched')}
-              icon={FileWarning}
-              color={watcherValueColor('text-primary')}
-            />
-            <MetricCard
-              title={t('activity:debug.fileChanges')}
-              value={watcherValue(watcher?.fileChangesDetected)}
-              subtitle={t('activity:debug.totalDetected')}
-              icon={Activity}
-              color={watcherValueColor('text-primary')}
-              trend={watcher ? 'neutral' : undefined}
-            />
-            <MetricCard
-              title={t('activity:debug.filesProcessed')}
-              value={watcherValue(watcher?.filesProcessed)}
-              subtitle={t('activity:debug.afterHash')}
-              icon={Gauge}
-              color={watcherValueColor('text-success')}
-            />
-          </div>
+        {/* Nothing read yet: every card would be "Unavailable" or an invented zero. */}
+        {!data.system && !data.fileWatcher ? null : (
+          <>
+            {/* File Watcher Section */}
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Eye className="h-4 w-4 text-primary" />
+                {t('activity:debug.fileWatcher')}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <MetricCard
+                  title={t('activity:debug.watcherStatus')}
+                  value={watcherStatus}
+                  icon={Server}
+                  color={watcherStatusColor}
+                />
+                <MetricCard
+                  title={t('activity:debug.activeProjects')}
+                  value={watcherValue(watcher?.activeProjects)}
+                  subtitle={t('activity:debug.projectsWatched')}
+                  icon={FileWarning}
+                  color={watcherValueColor('text-primary')}
+                />
+                <MetricCard
+                  title={t('activity:debug.fileChanges')}
+                  value={watcherValue(watcher?.fileChangesDetected)}
+                  subtitle={t('activity:debug.totalDetected')}
+                  icon={Activity}
+                  color={watcherValueColor('text-primary')}
+                  trend={watcher ? 'neutral' : undefined}
+                />
+                <MetricCard
+                  title={t('activity:debug.filesProcessed')}
+                  value={watcherValue(watcher?.filesProcessed)}
+                  subtitle={t('activity:debug.afterHash')}
+                  icon={Gauge}
+                  color={watcherValueColor('text-success')}
+                />
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-            <MetricCard
-              title={t('activity:debug.broadcastsSent')}
-              value={data.fileWatcher?.broadcastsSent ?? 0}
-              subtitle={t('activity:debug.toClients')}
-              icon={TrendingUp}
-              color="text-success"
-            />
-            <MetricCard
-              title={t('activity:debug.debounceResets')}
-              value={data.fileWatcher?.debounceResets ?? 0}
-              subtitle={t('activity:debug.rapidWrites')}
-              icon={RefreshCw}
-              color="text-warning"
-            />
-            <MetricCard
-              title={t('activity:debug.avgDebounce')}
-              value={`${displayDecimal(data.fileWatcher?.averageDebounceDelayMs ?? 0, 1)}ms`}
-              subtitle={t('activity:debug.actualDelay')}
-              icon={Clock}
-              color="text-warning"
-            />
-            <MetricCard
-              title={t('activity:debug.totalDelay')}
-              value={`${displayDecimal(data.fileWatcher?.totalDebounceDelayMs ?? 0, 0)}ms`}
-              subtitle={t('activity:debug.sumDelays')}
-              icon={BarChart3}
-              color="text-primary"
-            />
-          </div>
-        </section>
+              {/* Without watcher metrics these counters have no reading; zeros would claim one. */}
+              {watcher && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                  <MetricCard
+                    title={t('activity:debug.broadcastsSent')}
+                    value={data.fileWatcher?.broadcastsSent ?? 0}
+                    subtitle={t('activity:debug.toClients')}
+                    icon={TrendingUp}
+                    color="text-success"
+                  />
+                  <MetricCard
+                    title={t('activity:debug.debounceResets')}
+                    value={data.fileWatcher?.debounceResets ?? 0}
+                    subtitle={t('activity:debug.rapidWrites')}
+                    icon={RefreshCw}
+                    color="text-warning"
+                  />
+                  <MetricCard
+                    title={t('activity:debug.avgDebounce')}
+                    value={`${displayDecimal(data.fileWatcher?.averageDebounceDelayMs ?? 0, 1)}ms`}
+                    subtitle={t('activity:debug.actualDelay')}
+                    icon={Clock}
+                    color="text-warning"
+                  />
+                  <MetricCard
+                    title={t('activity:debug.totalDelay')}
+                    value={`${displayDecimal(data.fileWatcher?.totalDebounceDelayMs ?? 0, 0)}ms`}
+                    subtitle={t('activity:debug.sumDelays')}
+                    icon={BarChart3}
+                    color="text-primary"
+                  />
+                </div>
+              )}
+            </section>
 
-        {/* WebUI server process section */}
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Gauge className="h-4 w-4 text-primary" />
-            {t('activity:debugDash.webuiServerProcess')}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard
-              title={t('activity:debugDash.processRamRss')}
-              value={formatBytes(data.system?.memoryUsage?.rss ?? 0)}
-              subtitle={data.system ? `PID ${data.system.pid}` : undefined}
-              icon={Server}
-              color="text-primary"
-            />
-            <MetricCard
-              title={t('activity:debug.heapUsed')}
-              value={formatBytes(data.system?.memoryUsage?.heapUsed ?? 0)}
-              subtitle={t('activity:debug.jsHeap')}
-              icon={BarChart3}
-              color="text-primary"
-            />
-            <MetricCard
-              title={t('activity:debug.heapTotal')}
-              value={formatBytes(data.system?.memoryUsage?.heapTotal ?? 0)}
-              subtitle={t('activity:debug.totalHeap')}
-              icon={BarChart3}
-              color="text-success"
-            />
-            <MetricCard
-              title={t('activity:debugDash.v8HeapLimit')}
-              value={formatBytes(data.system?.heapLimit ?? 0)}
-              subtitle={t('activity:debugDash.oldSpaceCeiling')}
-              icon={Gauge}
-              color="text-warning"
-            />
-            <MetricCard
-              title={t('activity:debugDash.serverUptime')}
-              value={formatUptime(data.system?.uptime ?? 0)}
-              subtitle={t('activity:debugDash.sinceProcessStart')}
-              icon={Clock}
-              color="text-primary"
-            />
-          </div>
-        </section>
+            {/* WebUI server process section */}
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Gauge className="h-4 w-4 text-primary" />
+                {t('activity:debugDash.webuiServerProcess')}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <MetricCard
+                  title={t('activity:debugDash.processRamRss')}
+                  value={formatBytes(data.system?.memoryUsage?.rss ?? 0)}
+                  subtitle={data.system ? `PID ${data.system.pid}` : undefined}
+                  icon={Server}
+                  color="text-primary"
+                />
+                <MetricCard
+                  title={t('activity:debug.heapUsed')}
+                  value={formatBytes(data.system?.memoryUsage?.heapUsed ?? 0)}
+                  subtitle={t('activity:debug.jsHeap')}
+                  icon={BarChart3}
+                  color="text-primary"
+                />
+                <MetricCard
+                  title={t('activity:debug.heapTotal')}
+                  value={formatBytes(data.system?.memoryUsage?.heapTotal ?? 0)}
+                  subtitle={t('activity:debug.totalHeap')}
+                  icon={BarChart3}
+                  color="text-success"
+                />
+                <MetricCard
+                  title={t('activity:debugDash.v8HeapLimit')}
+                  value={formatBytes(data.system?.heapLimit ?? 0)}
+                  subtitle={t('activity:debugDash.oldSpaceCeiling')}
+                  icon={Gauge}
+                  color="text-warning"
+                />
+                <MetricCard
+                  title={t('activity:debugDash.serverUptime')}
+                  value={formatUptime(data.system?.uptime ?? 0)}
+                  subtitle={t('activity:debugDash.sinceProcessStart')}
+                  icon={Clock}
+                  color="text-primary"
+                />
+              </div>
+            </section>
 
-        {/* Cross-process flight recorder: newest heap sample per PID. */}
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Activity className="h-4 w-4 text-primary" />
-            {t('activity:debugDash.liveWrongstackProcesses')}
-          </h2>
-          <div className="overflow-x-auto rounded-xl border border-border/70 bg-card/75 shadow-sm">
-            <table className="w-full min-w-[980px] text-left text-xs">
-              <thead className="border-b border-border/70 bg-muted/35 text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.surface')}</th>
-                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.memory')}</th>
-                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.growthSignal')}</th>
-                  <th className="px-3 py-2 font-medium">{t('activity:debugDash.workload')}</th>
-                  <th className="px-3 py-2 font-medium">
-                    {t('activity:debugDash.hqOfflineQueue')}
-                  </th>
-                  <th className="px-3 py-2 font-medium">
-                    {t('activity:debugDash.resourcesHotspot')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.system?.processes ?? []).map((processSample) => {
-                  const workload = [
-                    processSample.workload.messages !== undefined
-                      ? `${processSample.workload.messages} msgs`
-                      : undefined,
-                    processSample.workload.messageEstimatedTokens !== undefined
-                      ? `${processSample.workload.messageEstimatedTokens.toLocaleString(displayLocale())} ctx tokens`
-                      : undefined,
-                    processSample.workload.historyEntries !== undefined
-                      ? `${processSample.workload.historyMountedEntries ?? 0}/${processSample.workload.historyEntries} history mounted`
-                      : undefined,
-                    processSample.workload.appRenders !== undefined
-                      ? `${processSample.workload.appRenders} renders`
-                      : undefined,
-                    processSample.workload.metricsDroppedObservations
-                      ? `${processSample.workload.metricsDroppedObservations} metric drops`
-                      : undefined,
-                    processSample.workload.kanbanSyncActive ? 'kanban sync active' : undefined,
-                    processSample.workload.kanbanSyncPendingBoards
-                      ? `${processSample.workload.kanbanSyncPendingBoards} kanban pending`
-                      : undefined,
-                    processSample.workload.kanbanSyncFullRescanPending
-                      ? 'kanban full rescan pending'
-                      : undefined,
-                    processSample.workload.kanbanSyncRemoteApplyQueued
-                      ? `${processSample.workload.kanbanSyncPendingRemoteBoards ?? 0} remote boards queued`
-                      : undefined,
-                    processSample.workload.kanbanSyncCoalescedRefreshes
-                      ? `${processSample.workload.kanbanSyncCoalescedRefreshes} kanban coalesced`
-                      : undefined,
-                    processSample.workload.kanbanSupervisorSnapshots
-                      ? `${processSample.workload.kanbanSupervisorSnapshots} supervised boards`
-                      : undefined,
-                    processSample.workload.kanbanSupervisorScheduledBoards
-                      ? `${processSample.workload.kanbanSupervisorScheduledBoards} supervisor schedules`
-                      : undefined,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
-                  return (
-                    <tr
-                      key={processSample.pid}
-                      className="border-b border-border/50 align-top last:border-b-0"
-                    >
-                      <td className="px-3 py-3">
-                        <div className="font-medium text-foreground">{processSample.surface}</div>
-                        <div className="mt-1 text-muted-foreground">PID {processSample.pid}</div>
-                        <div className="text-muted-foreground">
-                          {new Date(processSample.ts).toLocaleTimeString(displayLocale())}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 tabular-nums">
-                        <div>RSS {formatBytes(processSample.memory.rss)}</div>
-                        <div className="text-muted-foreground">
-                          heap {formatBytes(processSample.memory.heapUsed)}
-                          {processSample.memory.retainedHeapUsed !== undefined
-                            ? ` · retained ${formatBytes(processSample.memory.retainedHeapUsed)}`
-                            : ''}
-                        </div>
-                        {processSample.memory.nativeResidual !== undefined ? (
-                          <div className="text-muted-foreground">
-                            native {formatBytes(processSample.memory.nativeResidual)}
-                          </div>
-                        ) : null}
-                        {processSample.memory.external !== undefined ? (
-                          <div className="text-muted-foreground">
-                            external {formatBytes(processSample.memory.external)}
-                            {processSample.memory.arrayBuffers !== undefined
-                              ? ` · buffers ${formatBytes(processSample.memory.arrayBuffers)}`
-                              : ''}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-3 tabular-nums">
-                        <div
-                          className={
-                            processSample.signal === 'stable'
-                              ? 'text-success'
-                              : processSample.signal
-                                ? 'text-warning'
-                                : 'text-muted-foreground'
-                          }
+            {/* Cross-process flight recorder: newest heap sample per PID. */}
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Activity className="h-4 w-4 text-primary" />
+                {t('activity:debugDash.liveWrongstackProcesses')}
+              </h2>
+              <div className="overflow-x-auto rounded-xl border border-border/70 bg-card/75 shadow-sm">
+                <table className="w-full min-w-[980px] text-left text-xs">
+                  <thead className="border-b border-border/70 bg-muted/35 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">{t('activity:debugDash.surface')}</th>
+                      <th className="px-3 py-2 font-medium">{t('activity:debugDash.memory')}</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t('activity:debugDash.growthSignal')}
+                      </th>
+                      <th className="px-3 py-2 font-medium">{t('activity:debugDash.workload')}</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t('activity:debugDash.hqOfflineQueue')}
+                      </th>
+                      <th className="px-3 py-2 font-medium">
+                        {t('activity:debugDash.resourcesHotspot')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data.system?.processes ?? []).map((processSample) => {
+                      const workload = [
+                        processSample.workload.messages !== undefined
+                          ? `${processSample.workload.messages} msgs`
+                          : undefined,
+                        processSample.workload.messageEstimatedTokens !== undefined
+                          ? `${processSample.workload.messageEstimatedTokens.toLocaleString(displayLocale())} ctx tokens`
+                          : undefined,
+                        processSample.workload.historyEntries !== undefined
+                          ? `${processSample.workload.historyMountedEntries ?? 0}/${processSample.workload.historyEntries} history mounted`
+                          : undefined,
+                        processSample.workload.appRenders !== undefined
+                          ? `${processSample.workload.appRenders} renders`
+                          : undefined,
+                        processSample.workload.metricsDroppedObservations
+                          ? `${processSample.workload.metricsDroppedObservations} metric drops`
+                          : undefined,
+                        processSample.workload.kanbanSyncActive ? 'kanban sync active' : undefined,
+                        processSample.workload.kanbanSyncPendingBoards
+                          ? `${processSample.workload.kanbanSyncPendingBoards} kanban pending`
+                          : undefined,
+                        processSample.workload.kanbanSyncFullRescanPending
+                          ? 'kanban full rescan pending'
+                          : undefined,
+                        processSample.workload.kanbanSyncRemoteApplyQueued
+                          ? `${processSample.workload.kanbanSyncPendingRemoteBoards ?? 0} remote boards queued`
+                          : undefined,
+                        processSample.workload.kanbanSyncCoalescedRefreshes
+                          ? `${processSample.workload.kanbanSyncCoalescedRefreshes} kanban coalesced`
+                          : undefined,
+                        processSample.workload.kanbanSupervisorSnapshots
+                          ? `${processSample.workload.kanbanSupervisorSnapshots} supervised boards`
+                          : undefined,
+                        processSample.workload.kanbanSupervisorScheduledBoards
+                          ? `${processSample.workload.kanbanSupervisorScheduledBoards} supervisor schedules`
+                          : undefined,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
+                      return (
+                        <tr
+                          key={processSample.pid}
+                          className="border-b border-border/50 align-top last:border-b-0"
                         >
-                          {processSample.signal ?? 'sampling'}
-                        </div>
-                        <div className="mt-1 text-muted-foreground">
-                          heap {formatByteRate(processSample.heapGrowthBytesPerHour)}
-                        </div>
-                        <div className="text-muted-foreground">
-                          RSS {formatByteRate(processSample.rssGrowthBytesPerHour)}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">{workload || '—'}</td>
-                      <td className="px-3 py-3 tabular-nums">
-                        {processSample.hqQueue ? (
-                          <>
-                            <div>
-                              {processSample.hqQueue.entries} frames ·{' '}
-                              {formatBytes(processSample.hqQueue.bytes)} /{' '}
-                              {formatBytes(processSample.hqQueue.maxBytes)}
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-foreground">
+                              {processSample.surface}
                             </div>
                             <div className="mt-1 text-muted-foreground">
-                              {processSample.hqQueue.coalescedFrames} coalesced ·{' '}
-                              {processSample.hqQueue.droppedFrames} dropped
+                              PID {processSample.pid}
                             </div>
-                            {processSample.hqSnapshot ? (
-                              <>
-                                <div className="text-muted-foreground">
-                                  snapshot{' '}
-                                  {processSample.hqSnapshot.inFlight
-                                    ? 'in-flight'
-                                    : processSample.hqSnapshot.pending
-                                      ? 'pending'
-                                      : processSample.hqSnapshot.timerScheduled
-                                        ? 'scheduled'
-                                        : 'idle'}
-                                </div>
-                                <div className="text-muted-foreground">
-                                  events{' '}
-                                  {processSample.hqSnapshot.eventInFlight ? 'in-flight' : 'idle'} ·{' '}
-                                  {processSample.hqSnapshot.pendingEvents} pending ·{' '}
-                                  {processSample.hqSnapshot.coalescedEvents} coalesced ·{' '}
-                                  {processSample.hqSnapshot.droppedEvents} dropped
-                                </div>
-                              </>
+                            <div className="text-muted-foreground">
+                              {new Date(processSample.ts).toLocaleTimeString(displayLocale())}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 tabular-nums">
+                            <div>RSS {formatBytes(processSample.memory.rss)}</div>
+                            <div className="text-muted-foreground">
+                              heap {formatBytes(processSample.memory.heapUsed)}
+                              {processSample.memory.retainedHeapUsed !== undefined
+                                ? ` · retained ${formatBytes(processSample.memory.retainedHeapUsed)}`
+                                : ''}
+                            </div>
+                            {processSample.memory.nativeResidual !== undefined ? (
+                              <div className="text-muted-foreground">
+                                native {formatBytes(processSample.memory.nativeResidual)}
+                              </div>
                             ) : null}
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="max-w-[360px] px-3 py-3 text-muted-foreground">
-                        <div>
-                          {processSample.resources.active ?? 0} active
-                          {processSample.resources.types
-                            ? ` · ${processSample.resources.types}`
-                            : ''}
-                        </div>
-                        {processSample.profileTopStack ? (
-                          <div className="mt-1 truncate" title={processSample.profileTopStack}>
-                            {processSample.profileTopStackBytes !== undefined
-                              ? `${formatBytes(processSample.profileTopStackBytes)} · `
-                              : ''}
-                            {processSample.profileTopStack}
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {(data.system?.processes?.length ?? 0) === 0 ? (
-                  <tr>
-                    <td className="px-3 py-5 text-muted-foreground" colSpan={6}>
-                      {t('activity:debugDash.waitingForHeapFlightRecorderSamples')}
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                            {processSample.memory.external !== undefined ? (
+                              <div className="text-muted-foreground">
+                                external {formatBytes(processSample.memory.external)}
+                                {processSample.memory.arrayBuffers !== undefined
+                                  ? ` · buffers ${formatBytes(processSample.memory.arrayBuffers)}`
+                                  : ''}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-3 py-3 tabular-nums">
+                            <div
+                              className={
+                                processSample.signal === 'stable'
+                                  ? 'text-success'
+                                  : processSample.signal
+                                    ? 'text-warning'
+                                    : 'text-muted-foreground'
+                              }
+                            >
+                              {processSample.signal ?? 'sampling'}
+                            </div>
+                            <div className="mt-1 text-muted-foreground">
+                              heap {formatByteRate(processSample.heapGrowthBytesPerHour)}
+                            </div>
+                            <div className="text-muted-foreground">
+                              RSS {formatByteRate(processSample.rssGrowthBytesPerHour)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground">{workload || '—'}</td>
+                          <td className="px-3 py-3 tabular-nums">
+                            {processSample.hqQueue ? (
+                              <>
+                                <div>
+                                  {processSample.hqQueue.entries} frames ·{' '}
+                                  {formatBytes(processSample.hqQueue.bytes)} /{' '}
+                                  {formatBytes(processSample.hqQueue.maxBytes)}
+                                </div>
+                                <div className="mt-1 text-muted-foreground">
+                                  {processSample.hqQueue.coalescedFrames} coalesced ·{' '}
+                                  {processSample.hqQueue.droppedFrames} dropped
+                                </div>
+                                {processSample.hqSnapshot ? (
+                                  <>
+                                    <div className="text-muted-foreground">
+                                      snapshot{' '}
+                                      {processSample.hqSnapshot.inFlight
+                                        ? 'in-flight'
+                                        : processSample.hqSnapshot.pending
+                                          ? 'pending'
+                                          : processSample.hqSnapshot.timerScheduled
+                                            ? 'scheduled'
+                                            : 'idle'}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      events{' '}
+                                      {processSample.hqSnapshot.eventInFlight
+                                        ? 'in-flight'
+                                        : 'idle'}{' '}
+                                      · {processSample.hqSnapshot.pendingEvents} pending ·{' '}
+                                      {processSample.hqSnapshot.coalescedEvents} coalesced ·{' '}
+                                      {processSample.hqSnapshot.droppedEvents} dropped
+                                    </div>
+                                  </>
+                                ) : null}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="max-w-[360px] px-3 py-3 text-muted-foreground">
+                            <div>
+                              {processSample.resources.active ?? 0} active
+                              {processSample.resources.types
+                                ? ` · ${processSample.resources.types}`
+                                : ''}
+                            </div>
+                            {processSample.profileTopStack ? (
+                              <div className="mt-1 truncate" title={processSample.profileTopStack}>
+                                {processSample.profileTopStackBytes !== undefined
+                                  ? `${formatBytes(processSample.profileTopStackBytes)} · `
+                                  : ''}
+                                {processSample.profileTopStack}
+                              </div>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(data.system?.processes?.length ?? 0) === 0 ? (
+                      <tr>
+                        <td className="px-3 py-5 text-muted-foreground" colSpan={6}>
+                          {t('activity:debugDash.waitingForHeapFlightRecorderSamples')}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-        {/* Detached codebase-index process section */}
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Server className="h-4 w-4 text-primary" />
-            {t('activity:debugDash.codebaseIndexServer')}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard
-              title={t('activity:debugDash.connection')}
-              value={
-                data.system?.codebaseIndexServer?.health?.status ??
-                data.system?.codebaseIndexServer?.status ??
-                'unknown'
-              }
-              subtitle={
-                data.system?.codebaseIndexServer?.pid
-                  ? `PID ${data.system.codebaseIndexServer.pid} · RTT ${data.system.codebaseIndexServer.health?.latencyMs ?? '—'}ms`
-                  : 'No connected project server'
-              }
-              icon={Activity}
-              color={
-                data.system?.codebaseIndexServer?.health?.status === 'healthy'
-                  ? 'text-success'
-                  : data.system?.codebaseIndexServer?.status === 'unresponsive' ||
-                      data.system?.codebaseIndexServer?.status === 'error'
-                    ? 'text-destructive'
-                    : 'text-warning'
-              }
-            />
-            <MetricCard
-              title={t('activity:debugDash.indexRamRss')}
-              value={formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.rss ?? 0)}
-              subtitle={`Heap ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapUsed ?? 0)} / ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapTotal ?? 0)}`}
-              icon={BarChart3}
-              color="text-primary"
-            />
-            <MetricCard
-              title={t('activity:debugDash.indexWorkload')}
-              value={`${data.system?.codebaseIndexServer?.health?.server?.activeRequests ?? 0} requests`}
-              subtitle={`${data.system?.codebaseIndexServer?.health?.server?.activeWrites ?? 0} writes · ${data.system?.codebaseIndexServer?.health?.server?.queuedWrites ?? 0} queued`}
-              icon={Gauge}
-              color="text-primary"
-            />
-            <MetricCard
-              title={t('activity:debugDash.indexWatcher')}
-              value={
-                data.system?.codebaseIndexServer?.health?.server?.watchingExternal
-                  ? 'Active'
-                  : 'Off'
-              }
-              subtitle={`${data.system?.codebaseIndexServer?.health?.server?.watchingClients ?? 0} owners · ${data.system?.codebaseIndexServer?.health?.server?.pendingExternalFiles ?? 0} pending`}
-              icon={Eye}
-              color={
-                data.system?.codebaseIndexServer?.health?.server?.watchingExternal
-                  ? 'text-success'
-                  : 'text-muted-foreground'
-              }
-            />
-          </div>
-        </section>
+            {/* Detached codebase-index process section */}
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Server className="h-4 w-4 text-primary" />
+                {t('activity:debugDash.codebaseIndexServer')}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <MetricCard
+                  title={t('activity:debugDash.connection')}
+                  value={
+                    data.system?.codebaseIndexServer?.health?.status ??
+                    data.system?.codebaseIndexServer?.status ??
+                    'unknown'
+                  }
+                  subtitle={
+                    data.system?.codebaseIndexServer?.pid
+                      ? `PID ${data.system.codebaseIndexServer.pid} · RTT ${data.system.codebaseIndexServer.health?.latencyMs ?? '—'}ms`
+                      : 'No connected project server'
+                  }
+                  icon={Activity}
+                  color={
+                    data.system?.codebaseIndexServer?.health?.status === 'healthy'
+                      ? 'text-success'
+                      : data.system?.codebaseIndexServer?.status === 'unresponsive' ||
+                          data.system?.codebaseIndexServer?.status === 'error'
+                        ? 'text-destructive'
+                        : 'text-warning'
+                  }
+                />
+                <MetricCard
+                  title={t('activity:debugDash.indexRamRss')}
+                  value={formatBytes(
+                    data.system?.codebaseIndexServer?.health?.server?.memory.rss ?? 0,
+                  )}
+                  subtitle={`Heap ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapUsed ?? 0)} / ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapTotal ?? 0)}`}
+                  icon={BarChart3}
+                  color="text-primary"
+                />
+                <MetricCard
+                  title={t('activity:debugDash.indexWorkload')}
+                  value={`${data.system?.codebaseIndexServer?.health?.server?.activeRequests ?? 0} requests`}
+                  subtitle={`${data.system?.codebaseIndexServer?.health?.server?.activeWrites ?? 0} writes · ${data.system?.codebaseIndexServer?.health?.server?.queuedWrites ?? 0} queued`}
+                  icon={Gauge}
+                  color="text-primary"
+                />
+                <MetricCard
+                  title={t('activity:debugDash.indexWatcher')}
+                  value={
+                    data.system?.codebaseIndexServer?.health?.server?.watchingExternal
+                      ? 'Active'
+                      : 'Off'
+                  }
+                  subtitle={`${data.system?.codebaseIndexServer?.health?.server?.watchingClients ?? 0} owners · ${data.system?.codebaseIndexServer?.health?.server?.pendingExternalFiles ?? 0} pending`}
+                  icon={Eye}
+                  color={
+                    data.system?.codebaseIndexServer?.health?.server?.watchingExternal
+                      ? 'text-success'
+                      : 'text-muted-foreground'
+                  }
+                />
+              </div>
+            </section>
 
-        {/* Raw JSON Section */}
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Activity className="h-4 w-4 text-primary" />
-            {t('activity:debug.rawData')}
-          </h2>
-          <div className="ws-panel rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
-            <pre className="overflow-x-auto text-xs font-mono text-muted-foreground">
-              {JSON.stringify(
-                {
-                  fileWatcher: data.fileWatcher,
-                  serverPid: data.system?.pid,
-                  serverMemory: data.system?.memoryUsage,
-                  serverHeapLimit: data.system?.heapLimit,
-                  serverUptime: data.system?.uptime,
-                  processes: data.system?.processes,
-                  codebaseIndexServer: data.system?.codebaseIndexServer,
-                },
-                null,
-                2,
-              )}
-            </pre>
-          </div>
-        </section>
+            {/* Raw JSON Section */}
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Activity className="h-4 w-4 text-primary" />
+                {t('activity:debug.rawData')}
+              </h2>
+              <div className="ws-panel rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+                <pre className="overflow-x-auto text-xs font-mono text-muted-foreground">
+                  {JSON.stringify(
+                    {
+                      fileWatcher: data.fileWatcher,
+                      serverPid: data.system?.pid,
+                      serverMemory: data.system?.memoryUsage,
+                      serverHeapLimit: data.system?.heapLimit,
+                      serverUptime: data.system?.uptime,
+                      processes: data.system?.processes,
+                      codebaseIndexServer: data.system?.codebaseIndexServer,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </div>
+            </section>
+          </>
+        )}
         {after}
       </div>
     </div>

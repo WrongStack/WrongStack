@@ -70,7 +70,7 @@ export function useCodeMapGraphLoader({
       const nextGraph = await fetchCodeMapGraph(
         scopeUrl(targetScope),
         t('activity:codeMap.snapshotUnavailable', {
-          defaultValue: 'CodeMap graph unavailable — start the WebUI server to load it.',
+          defaultValue: 'The code map could not load. Check that the engine is running, then retry.',
         }),
         undefined,
         cancelled,

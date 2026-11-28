@@ -283,4 +283,43 @@ describe('DebugDashboard codebase index health', () => {
     expect(screen.getByText('7')).toBeTruthy();
     expect(screen.queryByText('Unavailable')).toBeNull();
   });
+
+  // A failed read used to leave sixteen cards of "Unavailable" and invented zeros under the
+  // alert, with the JSON parser's own words as its detail.
+  it('shows only the failure when nothing could be read, without the parser message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => {
+          throw new SyntaxError('Unexpected end of input');
+        },
+      })),
+    );
+
+    render(<DebugDashboard />);
+
+    await waitFor(() => expect(screen.getByText('Failed to fetch metrics')).toBeTruthy());
+    expect(screen.queryByText('Unexpected end of input')).toBeNull();
+    expect(screen.queryByText('File Watcher')).toBeNull();
+    expect(screen.queryByText('Unavailable')).toBeNull();
+  });
+
+  it('leaves out the watcher counters when watcher metrics are missing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes('/debug/watcher-metrics')) {
+          return { ok: false, status: 503, headers: { get: () => 'application/json' } };
+        }
+        return { ok: true, json: async () => systemPayload() };
+      }),
+    );
+
+    render(<DebugDashboard />);
+
+    await waitFor(() => expect(screen.getAllByText('Unavailable')).toHaveLength(4));
+    expect(screen.queryByText('Broadcasts Sent')).toBeNull();
+  });
 });

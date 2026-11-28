@@ -3419,7 +3419,7 @@
     "unsupportedNote": "best-effort"
   },
   "codeMap": {
-    "snapshotUnavailable": "CodeMap graph unavailable — start the WebUI server to load it.",
+    "snapshotUnavailable": "The code map could not load. Check that the engine is running, then retry.",
     "codeAtlas": "Code Atlas",
     "mapView": "Map",
     "mapViewHint": "Explore code and references",
