@@ -122,8 +122,9 @@ function AtlasIndexControls() {
             }
           }
         }
-      } catch (cause) {
-        if (!stopped) setError(cause instanceof Error ? cause.message : String(cause));
+      } catch {
+        // An unreachable status route is the engine's failure, which the map and the code tree
+        // already report; a third copy here only repeated it. The poll keeps retrying.
       }
       if (!stopped) timer = setTimeout(poll, STATUS_POLL_MS);
     };
