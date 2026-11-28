@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import { applyModelSwitch } from '@/lib/apply-model-switch';
 import { registerOpenModal } from '@/lib/open-modal-registry';
 import {
   AUTO_EFFORT,
@@ -17,7 +18,6 @@ import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import { memorySessionSnapshots } from '@/stores/session-store';
 import type { WSServerMessage } from '@/types';
 import { SessionAcpRuntime } from './ChatInput/session-acp-runtime';
 import { buildModelCandidates } from './QuickModelSwitcher.filter';
@@ -229,33 +229,12 @@ export function QuickModelSwitcher() {
     setSwitchingTarget(target);
     const result = await switchModel(pick.provider, pick.model);
     if (result.success) {
-      const cur = useSessionStore.getState().session;
-      if (cur) {
-        useSessionStore.getState().setSession({
-          ...cur,
-          provider: pick.provider,
-          model: pick.model,
-        });
-        // Seed the picked model's effort vocabulary + tri-state support flag
-        // right away: the route-change reset in setSession cleared the
-        // previous model's values, and the authoritative snapshot only
-        // arrives later.
-        if (pick.reasoningEffortLevels || pick.effortSupported !== undefined) {
-          useSessionStore.getState().setEnv({
-            reasoningEffortLevels: pick.reasoningEffortLevels,
-            effortSupported: pick.effortSupported,
-          });
-        }
-        const snap = memorySessionSnapshots.get(cur.id);
-        if (snap) {
-          snap.provider = pick.provider;
-          snap.model = pick.model;
-          if (snap.session) {
-            snap.session.provider = pick.provider;
-            snap.session.model = pick.model;
-          }
-        }
-      }
+      applyModelSwitch({
+        provider: pick.provider,
+        model: pick.model,
+        reasoningEffortLevels: pick.reasoningEffortLevels,
+        effortSupported: pick.effortSupported,
+      });
     }
     // Suppress toast notifications if the dialog was closed while switching
     if (openRef.current) {

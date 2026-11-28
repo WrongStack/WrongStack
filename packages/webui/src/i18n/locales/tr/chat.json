@@ -115,5 +115,34 @@
     "average": "Ort."
   },
   "branchFromHere": "Buradan dallan",
-  "branchFromHereTitle": "Bu asistan yanıtından sonra yeni bir oturum dalı oluştur"
+  "branchFromHereTitle": "Bu asistan yanıtından sonra yeni bir oturum dalı oluştur",
+  "composerChips": {
+    "acpDefault": "Ajan varsayılanı",
+    "acpTitle": "{{agent}} modeli ve efor",
+    "agentMode": "{{agent}} modu",
+    "agentModeManaged": "WrongStack bu moda geçemez.",
+    "agentModeNone": "Bu ajan mod bildirmiyor.",
+    "agentModeUnread": "ajan modu okunmadı",
+    "agents": "Ajanlar",
+    "allModels": "Tüm modeller ve arama…",
+    "approvals": "WrongStack onayları",
+    "approvalsAsk": "Sor",
+    "approvalsAskHint": "Riskli çağrılar onayını bekler.",
+    "approvalsPlus": "YOLO+",
+    "approvalsPlusHint": "Hiçbir şey sorulmaz. Yasak kuralları yine reddeder.",
+    "approvalsYolo": "YOLO",
+    "approvalsYoloHint": "Sormadan çalışır; zarar verebilecek türler yine sorar.",
+    "fewerPrompts": "Daha az soru",
+    "limitReached": "Limit doldu",
+    "limitReachedAt": "Limit doldu · {{time}}",
+    "modelCount_one": "{{count}} model",
+    "modelCount_other": "{{count}} model",
+    "moreModels": "+{{count}} tane daha…",
+    "noModels": "Kullanılabilir model yok.",
+    "permissions": "İzinler",
+    "providers": "Sağlayıcılar",
+    "quotaLeft": "{{window}} · %{{percent}} kaldı",
+    "skipsPrompts": "Soru sormaz",
+    "switchModel": "Model değiştir"
+  }
 }

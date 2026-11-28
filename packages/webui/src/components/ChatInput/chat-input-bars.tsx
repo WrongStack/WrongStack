@@ -1,5 +1,4 @@
-import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
-import { BookOpen, ChevronDown, Cpu, FileText, History, SlidersHorizontal } from 'lucide-react';
+import { BookOpen, ChevronDown, FileText, History, SlidersHorizontal } from 'lucide-react';
 import { useIsFullChrome } from '@/hooks/useChromeLevel';
 import { cn } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
@@ -13,8 +12,10 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu.js';
 import { CompanionsButton } from './companions-button.js';
+import { ComposerAcpChip } from './composer-acp-chip.js';
+import { ComposerModelChip } from './composer-model-chip.js';
+import { ComposerPermissionChip } from './composer-permission-chip.js';
 import { type ImageAttachment, isPdfAttachment } from './image-attachments.js';
-import { SessionAcpRuntime } from './session-acp-runtime.js';
 import { SessionEffortSelect } from './session-effort-select.js';
 import { SubagentModelsButton } from './subagent-models-button.js';
 import type { PasteHintState } from './use-paste-drop.js';
@@ -202,6 +203,10 @@ export function ModelAndPromptBar({
   t: (key: string) => string;
 }) {
   const fullChrome = useIsFullChrome();
+  const acpAgentId =
+    (sessionProvider ?? fallbackProvider) === 'acp'
+      ? (sessionModel ?? fallbackModel ?? '')
+      : undefined;
   return (
     <div className="ws-composer-options flex min-w-0 flex-wrap items-center gap-1.5">
       {fullChrome ? (
@@ -252,31 +257,14 @@ export function ModelAndPromptBar({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <button
-        type="button"
-        onClick={onOpenModelSwitcher}
-        className="inline-flex min-w-0 max-w-full items-center gap-1.5 border border-border/50 bg-card/50 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent/50 transition-colors duration-150"
-        title={t('chat:header.changeModelTitle')}
-      >
-        <Cpu className="h-3.5 w-3.5 shrink-0" />
-        <AgentRuntimeBadge
-          provider={sessionProvider ?? fallbackProvider}
-          model={sessionModel ?? fallbackModel}
-          executionRole="leader"
-          showName={false}
-        />
-        <span className="truncate font-mono">
-          {(sessionProvider ?? fallbackProvider) || t('chat:header.noProvider')}
-          {' / '}
-          {(sessionModel ?? fallbackModel) || t('chat:header.noModel')}
-        </span>
-      </button>
+      <ComposerModelChip
+        provider={(sessionProvider ?? fallbackProvider) || ''}
+        model={(sessionModel ?? fallbackModel) || ''}
+        onOpenAll={onOpenModelSwitcher}
+      />
       <div className="hidden md:contents">
-        {(sessionProvider ?? fallbackProvider) === 'acp' ? (
-          <SessionAcpRuntime agentId={sessionModel ?? fallbackModel ?? ''} />
-        ) : (
-          <SessionEffortSelect />
-        )}
+        {acpAgentId ? <ComposerAcpChip agentId={acpAgentId} /> : <SessionEffortSelect />}
+        <ComposerPermissionChip acpAgentId={acpAgentId} />
         <SubagentModelsButton />
         <CompanionsButton />
       </div>
@@ -298,11 +286,8 @@ export function ModelAndPromptBar({
         >
           <DialogTitle className="text-base">{t('chat:input.runSettings')}</DialogTitle>
           <div className="ws-mobile-run-settings grid gap-3">
-            {(sessionProvider ?? fallbackProvider) === 'acp' ? (
-              <SessionAcpRuntime agentId={sessionModel ?? fallbackModel ?? ''} />
-            ) : (
-              <SessionEffortSelect />
-            )}
+            {acpAgentId ? <ComposerAcpChip agentId={acpAgentId} inline /> : <SessionEffortSelect />}
+            <ComposerPermissionChip acpAgentId={acpAgentId} inline />
             <SubagentModelsButton />
             <CompanionsButton />
           </div>

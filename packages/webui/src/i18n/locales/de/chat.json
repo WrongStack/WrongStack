@@ -115,5 +115,34 @@
     "average": "Ø"
   },
   "branchFromHere": "Hier abzweigen",
-  "branchFromHereTitle": "Nach dieser Assistentenantwort einen neuen Sitzungszweig abzweigen"
+  "branchFromHereTitle": "Nach dieser Assistentenantwort einen neuen Sitzungszweig abzweigen",
+  "composerChips": {
+    "acpDefault": "Agent-Standard",
+    "acpTitle": "{{agent}}: Modell und Aufwand",
+    "agentMode": "{{agent}}-Modus",
+    "agentModeManaged": "WrongStack kann nicht in diesen Modus wechseln.",
+    "agentModeNone": "Dieser Agent meldet keine Modi.",
+    "agentModeUnread": "Agent-Modus nicht gelesen",
+    "agents": "Agenten",
+    "allModels": "Alle Modelle und Suche…",
+    "approvals": "WrongStack-Freigaben",
+    "approvalsAsk": "Fragen",
+    "approvalsAskHint": "Riskante Aufrufe warten auf deine Freigabe.",
+    "approvalsPlus": "YOLO+",
+    "approvalsPlusHint": "Nichts fragt nach. Verbotsregeln lehnen weiterhin ab.",
+    "approvalsYolo": "YOLO",
+    "approvalsYoloHint": "Läuft ohne Rückfrage; schädliche Arten fragen weiterhin.",
+    "fewerPrompts": "Weniger Rückfragen",
+    "limitReached": "Limit erreicht",
+    "limitReachedAt": "Limit erreicht · {{time}}",
+    "modelCount_one": "{{count}} Modell",
+    "modelCount_other": "{{count}} Modelle",
+    "moreModels": "+{{count}} weitere…",
+    "noModels": "Keine Modelle verfügbar.",
+    "permissions": "Berechtigungen",
+    "providers": "Anbieter",
+    "quotaLeft": "{{window}} · {{percent}} % übrig",
+    "skipsPrompts": "Ohne Rückfragen",
+    "switchModel": "Modell wechseln"
+  }
 }

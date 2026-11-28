@@ -115,5 +115,34 @@
     "average": "Moy."
   },
   "branchFromHere": "Créer une branche ici",
-  "branchFromHereTitle": "Créer une nouvelle branche de session après cette réponse de l'assistant"
+  "branchFromHereTitle": "Créer une nouvelle branche de session après cette réponse de l'assistant",
+  "composerChips": {
+    "acpDefault": "Valeur par défaut de l'agent",
+    "acpTitle": "Modèle et effort de {{agent}}",
+    "agentMode": "Mode de {{agent}}",
+    "agentModeManaged": "WrongStack ne peut pas passer à ce mode.",
+    "agentModeNone": "Cet agent ne signale aucun mode.",
+    "agentModeUnread": "mode de l'agent non lu",
+    "agents": "Agents",
+    "allModels": "Tous les modèles et recherche…",
+    "approvals": "Approbations WrongStack",
+    "approvalsAsk": "Demander",
+    "approvalsAskHint": "Les appels risqués attendent votre approbation.",
+    "approvalsPlus": "YOLO+",
+    "approvalsPlusHint": "Rien ne demande. Les règles de refus refusent toujours.",
+    "approvalsYolo": "YOLO",
+    "approvalsYoloHint": "Exécute sans demander ; les types dangereux demandent toujours.",
+    "fewerPrompts": "Moins de demandes",
+    "limitReached": "Limite atteinte",
+    "limitReachedAt": "Limite atteinte · {{time}}",
+    "modelCount_one": "{{count}} modèle",
+    "modelCount_other": "{{count}} modèles",
+    "moreModels": "+{{count}} de plus…",
+    "noModels": "Aucun modèle disponible.",
+    "permissions": "Autorisations",
+    "providers": "Fournisseurs",
+    "quotaLeft": "{{window}} · {{percent}} % restant",
+    "skipsPrompts": "Sans demande",
+    "switchModel": "Changer de modèle"
+  }
 }

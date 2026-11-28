@@ -1,96 +1,14 @@
-import type {
-  AcpNativeModeChoice,
-  AcpNativeModeSelector,
-  AcpRuntimeOption,
-  AcpRuntimeOptionsResult,
-  AcpRuntimeValues,
-} from '@wrongstack/contracts/types/acp-runtime';
-import { toErrorMessage } from '@wrongstack/core/utils/error';
-import { useEffect, useRef, useState } from 'react';
+import type { AcpRuntimeValues } from '@wrongstack/contracts/types/acp-runtime';
+import { useRef } from 'react';
 import { useAppTranslation } from '../lib/i18n';
+import {
+  type AcpModeRequest,
+  type AcpRuntimeRequest,
+  isEffortOption,
+  useAcpRuntime,
+} from './use-acp-runtime';
 
-export type AcpRuntimeRequest = (
-  agentId: string,
-  values: AcpRuntimeValues,
-) => Promise<AcpRuntimeOptionsResult>;
-
-export type AcpModeRequest = (
-  agentId: string,
-  choice?: AcpNativeModeChoice,
-) => Promise<{ modes: AcpNativeModeSelector[] }>;
-
-const EFFORT_CATEGORIES = new Set([
-  'thought_level',
-  'reasoning',
-  'reasoning_effort',
-  'effort',
-  'thinking',
-]);
-
-const EFFORT_IDS = new Set([
-  'effort',
-  'thought',
-  'thought_level',
-  'reasoning_effort',
-  'thinking',
-  'thinking_level',
-  'reasoning',
-]);
-
-function isModelOption(option: AcpRuntimeOption): boolean {
-  return option.category === 'model' || option.id === 'model';
-}
-
-function isEffortOption(option: AcpRuntimeOption): boolean {
-  if (isModelOption(option) || option.id === 'provider') return false;
-  return (
-    (option.category !== undefined && EFFORT_CATEGORIES.has(option.category)) ||
-    EFFORT_IDS.has(option.id)
-  );
-}
-
-function nextValuesForChange(
-  option: AcpRuntimeOption,
-  value: string,
-  currentValues: AcpRuntimeValues,
-  allOptions: AcpRuntimeOption[],
-): AcpRuntimeValues {
-  // Changing provider invalidates both the selected model and its dependent effort levels.
-  if (option.id === 'provider') {
-    return { [option.id]: value };
-  }
-  // Changing model keeps provider (if any) and clears dependent effort options so
-  // an incompatible effort from the previous model is never sent to the new model.
-  if (isModelOption(option)) {
-    const kept = Object.fromEntries(
-      Object.entries(currentValues).filter(([id]) =>
-        allOptions.some((x) => x.id === id && x.id === 'provider'),
-      ),
-    );
-    return { ...kept, [option.id]: value };
-  }
-  return { ...currentValues, [option.id]: value };
-}
-
-function summaryLabel(
-  result: AcpRuntimeOptionsResult | undefined,
-  values: AcpRuntimeValues,
-  pendingValues: AcpRuntimeValues | undefined,
-): string {
-  const active = pendingValues ?? values;
-  if (result && result.options.length > 0) {
-    const parts = result.options
-      .map((option) => {
-        const current = pendingValues?.[option.id] ?? option.currentValue;
-        const matched = option.options.find((x) => x.value === current);
-        return matched?.name ?? current;
-      })
-      .filter(Boolean);
-    if (parts.length > 0) return parts.join(' / ');
-  }
-  const saved = Object.values(active).filter(Boolean);
-  return saved.length > 0 ? saved.join(' / ') : '';
-}
+export type { AcpModeRequest, AcpRuntimeRequest } from './use-acp-runtime';
 
 /** Options come from a private agent session. Saving configures the next turn/spawn. */
 export function AcpRuntimeControls({
@@ -109,79 +27,20 @@ export function AcpRuntimeControls({
   disabled?: boolean | undefined;
 }) {
   const { t } = useAppTranslation();
-  const [result, setResult] = useState<AcpRuntimeOptionsResult>();
-  const [modeSelectors, setModeSelectors] = useState<AcpNativeModeSelector[]>();
-  const [modeBusy, setModeBusy] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [pendingValues, setPendingValues] = useState<AcpRuntimeValues | undefined>();
-  const [error, setError] = useState('');
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const sequence = useRef(0);
-  useEffect(() => {
-    sequence.current++;
-    setResult(undefined);
-    setModeSelectors(undefined);
-    setModeBusy(false);
-    setPendingValues(undefined);
-    setError('');
-    setBusy(false);
-    setSaving(false);
-    return () => {
-      sequence.current++;
-    };
-  }, [agentId]);
-
-  const loadModes = async (choice?: AcpNativeModeChoice) => {
-    if (!modeRequest) return;
-    const version = sequence.current;
-    setModeBusy(true);
-    if (choice) setError('');
-    try {
-      const response = await modeRequest(agentId, choice);
-      if (sequence.current !== version) return;
-      setModeSelectors(response.modes);
-    } catch (e) {
-      if (sequence.current === version && choice) setError(toErrorMessage(e));
-    } finally {
-      if (sequence.current === version) setModeBusy(false);
-    }
-  };
-
-  const load = async (next: AcpRuntimeValues, save: boolean) => {
-    const version = ++sequence.current;
-    setBusy(true);
-    setSaving(save);
-    setPendingValues(save ? next : undefined);
-    setError('');
-    try {
-      const response = await request(agentId, next);
-      if (sequence.current !== version) return;
-      if (save) await onChange(next);
-      if (sequence.current === version) {
-        setResult(response);
-        setPendingValues(undefined);
-      }
-    } catch (e) {
-      if (sequence.current === version) {
-        setError(toErrorMessage(e));
-        setPendingValues(undefined);
-      }
-    } finally {
-      if (sequence.current === version) {
-        setBusy(false);
-        setSaving(false);
-      }
-    }
-  };
-
-  const applySelection = (option: AcpRuntimeOption, value: string) => {
-    if (!result) return;
-    const next = nextValuesForChange(option, value, values, result.options);
-    void load(next, true);
-  };
-
-  const summary = summaryLabel(result, values, pendingValues);
+  const {
+    result,
+    modeSelectors,
+    modeBusy,
+    busy,
+    saving,
+    pendingValues,
+    error,
+    summary,
+    load,
+    loadModes,
+    applySelection,
+  } = useAcpRuntime({ agentId, values, request, modeRequest, onChange });
 
   return (
     <details

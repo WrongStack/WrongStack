@@ -115,5 +115,34 @@
     "average": "Prom."
   },
   "branchFromHere": "Ramificar desde aquí",
-  "branchFromHereTitle": "Crear una nueva rama de sesión después de esta respuesta del asistente"
+  "branchFromHereTitle": "Crear una nueva rama de sesión después de esta respuesta del asistente",
+  "composerChips": {
+    "acpDefault": "Predeterminado del agente",
+    "acpTitle": "Modelo y esfuerzo de {{agent}}",
+    "agentMode": "Modo de {{agent}}",
+    "agentModeManaged": "WrongStack no puede cambiar a este modo.",
+    "agentModeNone": "Este agente no informa modos.",
+    "agentModeUnread": "modo del agente sin leer",
+    "agents": "Agentes",
+    "allModels": "Todos los modelos y búsqueda…",
+    "approvals": "Aprobaciones de WrongStack",
+    "approvalsAsk": "Preguntar",
+    "approvalsAskHint": "Las llamadas arriesgadas esperan tu aprobación.",
+    "approvalsPlus": "YOLO+",
+    "approvalsPlusHint": "Nada pregunta. Las reglas de denegación siguen rechazando.",
+    "approvalsYolo": "YOLO",
+    "approvalsYoloHint": "Se ejecuta sin preguntar; los tipos dañinos siguen preguntando.",
+    "fewerPrompts": "Menos preguntas",
+    "limitReached": "Límite alcanzado",
+    "limitReachedAt": "Límite alcanzado · {{time}}",
+    "modelCount_one": "{{count}} modelo",
+    "modelCount_other": "{{count}} modelos",
+    "moreModels": "+{{count}} más…",
+    "noModels": "No hay modelos disponibles.",
+    "permissions": "Permisos",
+    "providers": "Proveedores",
+    "quotaLeft": "{{window}} · {{percent}} % restante",
+    "skipsPrompts": "Sin preguntas",
+    "switchModel": "Cambiar modelo"
+  }
 }

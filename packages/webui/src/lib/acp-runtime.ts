@@ -4,6 +4,7 @@ import type {
   AcpRuntimeOptionsResult,
   AcpRuntimeValues,
 } from '@wrongstack/contracts/types/acp-runtime';
+import { acpModeKey, useAcpModeStore } from '@/stores/acp-mode-store';
 import { safeId } from './utils';
 import { getWSClient } from './ws-client';
 
@@ -93,7 +94,11 @@ export function requestAcpMode(
       off();
       if (payload['ok'] !== true)
         reject(new Error(String(payload['error'] ?? 'ACP mode request failed.')));
-      else resolve({ modes: (payload['modes'] as AcpNativeModeSelector[] | undefined) ?? [] });
+      else {
+        const modes = (payload['modes'] as AcpNativeModeSelector[] | undefined) ?? [];
+        useAcpModeStore.getState().record(acpModeKey(sessionId, agentId), modes);
+        resolve({ modes });
+      }
     });
     if (
       !client.send({

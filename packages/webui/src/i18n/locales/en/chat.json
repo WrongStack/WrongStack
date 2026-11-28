@@ -115,5 +115,34 @@
     "average": "Avg."
   },
   "branchFromHere": "Branch from here",
-  "branchFromHereTitle": "Fork a new session branch after this assistant response"
+  "branchFromHereTitle": "Fork a new session branch after this assistant response",
+  "composerChips": {
+    "acpDefault": "Agent default",
+    "acpTitle": "{{agent}} model and effort",
+    "agentMode": "{{agent}} mode",
+    "agentModeManaged": "WrongStack cannot switch to this mode.",
+    "agentModeNone": "This agent reports no modes.",
+    "agentModeUnread": "agent mode not read",
+    "agents": "Agents",
+    "allModels": "All models and search…",
+    "approvals": "WrongStack approvals",
+    "approvalsAsk": "Ask",
+    "approvalsAskHint": "Risky calls wait for your approval.",
+    "approvalsPlus": "YOLO+",
+    "approvalsPlusHint": "Nothing asks. Deny rules still refuse.",
+    "approvalsYolo": "YOLO",
+    "approvalsYoloHint": "Runs without asking; damaging kinds still ask.",
+    "fewerPrompts": "Fewer prompts",
+    "limitReached": "Limit reached",
+    "limitReachedAt": "Limit reached · {{time}}",
+    "modelCount_one": "{{count}} model",
+    "modelCount_other": "{{count}} models",
+    "moreModels": "+{{count}} more…",
+    "noModels": "No models available.",
+    "permissions": "Permissions",
+    "providers": "Providers",
+    "quotaLeft": "{{window}} · {{percent}}% left",
+    "skipsPrompts": "Skips prompts",
+    "switchModel": "Switch model"
+  }
 }

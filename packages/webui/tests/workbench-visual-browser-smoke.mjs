@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
+import { checkComposerChips } from './fixtures/composer-chip-checks.mjs';
 import { checkComposerLayout } from './fixtures/composer-layout-checks.mjs';
 import { checkHistoryLayout } from './fixtures/history-layout-checks.mjs';
 import { checkInspectionLayout } from './fixtures/inspection-layout-checks.mjs';
@@ -76,6 +77,7 @@ import { PanelSuspense } from '/src/components/PanelSuspense.tsx';
 import { useChatStore, useConfigStore, useSessionStore, useUIStore } from '/src/stores/index.ts';
 import { useLocalPrefs } from '/src/stores/local-prefs.ts';
 import { getWSClient } from '/src/lib/ws-client.ts';
+import { useProviderQuotaStore } from '/src/stores/provider-quota-store.ts';
 await i18n.changeLanguage(new URLSearchParams(location.search).get('lang') || 'en');
 await i18n.loadNamespaces(['activity', 'common', 'setup', 'chat', 'settings']);
 const client = getWSClient();
@@ -95,7 +97,7 @@ const promptReview = params.has('prompt-review') ? seedPromptReview() : {};
 const historyReview = params.has('history-review') ? seedHistoryReview() : {};
 if (params.has('inspection-review')) seedInspectionReview();
 useUIStore.setState({ currentView: params.get('view') || 'chat', sidebarOpen: false });
-window.fixture = { ui: useUIStore, prefs: useLocalPrefs, config: useConfigStore, chat: useChatStore, sent, ...promptReview, ...historyReview, views: ['chat', ...Object.keys(VIEW_REGISTRY)], ...(params.has('dense') ? seedWorkbenchVisualData() : {}) };
+window.fixture = { ui: useUIStore, prefs: useLocalPrefs, config: useConfigStore, chat: useChatStore, session: useSessionStore, quota: useProviderQuotaStore, client, sent, ...promptReview, ...historyReview, views: ['chat', ...Object.keys(VIEW_REGISTRY)], ...(params.has('dense') ? seedWorkbenchVisualData() : {}) };
 const theme = params.get('theme') || 'dark';
 function Fixture() {
   const currentView = useUIStore(s => s.currentView);
@@ -424,12 +426,20 @@ try {
     historyOnly ||
     inspectionOnly
       ? []
-      : await checkComposerLayout(
-          browser,
-          `http://127.0.0.1:${address.port}/__workbench_visual`,
-          output,
-          errors,
-        );
+      : [
+          ...(await checkComposerLayout(
+            browser,
+            `http://127.0.0.1:${address.port}/__workbench_visual`,
+            output,
+            errors,
+          )),
+          ...(await checkComposerChips(
+            browser,
+            `http://127.0.0.1:${address.port}/__workbench_visual`,
+            output,
+            errors,
+          )),
+        ];
   const nextSteps =
     interactionsOnly ||
     providersOnly ||
