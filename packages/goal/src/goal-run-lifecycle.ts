@@ -57,8 +57,10 @@ export async function prepareGoalGraphForResume(
       'This Goal has an unmerged phase. Review its worktree before final verification.',
     );
   }
-  if (graph.worktrees === true && !worktrees) {
-    throw new Error('Saved Goal requires git worktrees, but this project is not a git checkout.');
+  // Older saves may carry the phase worktree identity without the graph flag.
+  const hasSavedWorktree = incomplete.some((phase) => Boolean(phase.metadata?.['worktreeResume']));
+  if ((graph.worktrees ?? hasSavedWorktree) && !worktrees) {
+    throw new Error('Saved Goal requires git worktrees, but phase worktrees are unavailable.');
   }
 
   if (graph.worktrees !== false && worktrees) {
@@ -69,16 +71,15 @@ export async function prepareGoalGraphForResume(
         (phase.status === 'paused' || phase.status === 'running') &&
         !phase.metadata?.['worktreeResume'],
     );
-    const anyIdentity = incomplete.some((phase) => Boolean(phase.metadata?.['worktreeResume']));
     if (
       retainedWork &&
-      (interruptedWithoutIdentity || (graph.worktrees === undefined && !anyIdentity))
+      (interruptedWithoutIdentity || (graph.worktrees === undefined && !hasSavedWorktree))
     ) {
       throw new Error(
         'This older Goal has an unmerged worktree without a saved phase identity. Review that worktree before resuming.',
       );
     }
-    if (graph.worktrees === undefined) graph.worktrees = anyIdentity;
+    if (graph.worktrees === undefined) graph.worktrees = hasSavedWorktree;
   }
   if (graph.worktrees === undefined) graph.worktrees = false;
 

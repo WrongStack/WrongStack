@@ -60,6 +60,28 @@ describe('prepareGoalGraphForResume', () => {
     await expect(prepareGoalGraphForResume(saved)).rejects.toThrow('requires git worktrees');
   });
 
+  it('refuses to resume a legacy Goal outside its saved phase worktree', async () => {
+    const saved = await graph();
+    saved.runState = 'paused';
+    const phase = Array.from(saved.phases.values())[0]!;
+    phase.status = 'paused';
+    phase.metadata = {
+      worktreeResume: { dir: 'phase-checkout', branch: 'goal/build', baseBranch: 'main' },
+    };
+
+    await expect(prepareGoalGraphForResume(saved)).rejects.toThrow('requires git worktrees');
+    expect(saved.worktrees).toBeUndefined();
+  });
+
+  it('allows a legacy shared-checkout Goal to resume without a worktree manager', async () => {
+    const saved = await graph();
+    saved.runState = 'paused';
+    Array.from(saved.phases.values())[0]!.status = 'paused';
+
+    await expect(prepareGoalGraphForResume(saved)).resolves.toBeUndefined();
+    expect(saved.worktrees).toBe(false);
+  });
+
   it('rejects an ambiguous legacy paused phase with retained git work', async () => {
     const saved = await graph();
     Array.from(saved.phases.values())[0]!.status = 'paused';
