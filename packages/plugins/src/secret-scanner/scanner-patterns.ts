@@ -88,24 +88,32 @@ export function patternTypeForGroups(groups: readonly unknown[]): string | undef
   return undefined;
 }
 
+/** Flags a regex modifier group (`(?ims:…)`) can carry for one alternative. */
+const INLINE_FLAGS = new Set(['i', 'm', 's']);
+
 export function buildCombinedRegex(patterns: Pattern[]): RegExp {
   // Record each pattern's outer-group offset before its own inner groups.
   const offsets: number[] = [];
   let cursor = 0;
-  // One combined regex carries ONE flag set, so per-pattern flags must be
-  // unioned in. Dropping them silently changed matching: `json_credential_key`
-  // is authored with `i`, and the 'g'-only combined regex missed every
-  // case-variant JSON key ("API_KEY", "Password") that prompt-firewall's
-  // per-pattern loop and core's scrubber both catch on the same text.
-  // Union is also the safe direction for a redaction gate — it can only
-  // widen what is matched, never narrow it. Sticky (`y`) is excluded: it
-  // would break the exec-loop advancement the scan depends on.
+  // One combined regex carries ONE flag set, yet each pattern must match
+  // with its own flags. Dropping them missed every case-variant JSON key
+  // (`json_credential_key` is authored with `i`: "API_KEY", "Password");
+  // unioning them gave that `i` to every pattern, so the SCREAMING_CASE env
+  // rule matched camelCase source and `Bearer` matched the prose word
+  // "bearer", and ordinary code writes were blocked. So `i`, `m` and `s`
+  // ride on each pattern as an inline modifier group, `(?i:…)`, which adds
+  // no capture group; flags that cannot be inlined (`u`, `v`, `d`) are still
+  // unioned. Sticky (`y`) is excluded: it would break the exec-loop
+  // advancement the scan depends on.
   const flags = new Set<string>(['g']);
+  const sources: string[] = [];
   for (const p of patterns) {
     offsets.push(cursor);
     cursor += 1 + countCaptureGroups(p.regex.source, p.regex.flags);
-    for (const f of p.regex.flags) if (f !== 'y') flags.add(f);
+    const inline = [...p.regex.flags].filter((f) => INLINE_FLAGS.has(f)).join('');
+    for (const f of p.regex.flags) if (f !== 'y' && !INLINE_FLAGS.has(f)) flags.add(f);
+    sources.push(inline ? `((?${inline}:${p.regex.source}))` : `(${p.regex.source})`);
   }
   scannerPatterns.groupIndexes = offsets;
-  return new RegExp(patterns.map((p) => `(${p.regex.source})`).join('|'), [...flags].join(''));
+  return new RegExp(sources.join('|'), [...flags].join(''));
 }

@@ -455,3 +455,33 @@ describe('expanded credential coverage', () => {
     secretScannerPlugin.teardown?.(api as Any);
   });
 });
+
+describe('each pattern keeps its own flags in the combined scan', () => {
+  // One combined regex carries one flag set. Unioning every pattern's flags
+  // made `json_credential_key`'s `i` apply to all of them: the SCREAMING_CASE
+  // env rule then matched camelCase source and `Bearer` matched the prose
+  // word "bearer", so ordinary code writes were blocked by default.
+  it.each([
+    // Real lines from packages/tui and packages/webui sources.
+    ['camelCase source', "  const sageKey = showSageMemoryInject === false ? '|s0' : '';"],
+    ['camelCase object key', "    hasReasoningEffortKey: 'reasoningEffortLevels' in payload,"],
+    ['prose "bearer"', 'The server issues bearer capabilities to each client.'],
+  ])('does not flag %s', async (_label, text) => {
+    const api = makeApi();
+    secretScannerPlugin.setup(api as Any);
+    expect(await matchedTypes(api, text)).toEqual([]);
+    secretScannerPlugin.teardown?.(api as Any);
+  });
+
+  it.each([
+    ['high_entropy_env', 'ANTHROPIC_API_KEY=abcdefghijklmnopqrstuvwxyz0123456789'],
+    ['bearer_token', 'Authorization: Bearer abc.def-1234567890xyz'],
+    ['json_credential_key', '{"API_KEY": "zq81-77ab-c3d4-e5f6"}'],
+    ['json_credential_key', '{"Password": "hunter2hunter2"}'],
+  ])('still finds %s', async (type, text) => {
+    const api = makeApi();
+    secretScannerPlugin.setup(api as Any);
+    expect(await matchedTypes(api, text)).toContain(type);
+    secretScannerPlugin.teardown?.(api as Any);
+  });
+});
