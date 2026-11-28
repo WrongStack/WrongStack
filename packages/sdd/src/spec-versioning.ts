@@ -252,7 +252,10 @@ export class SpecVersioning {
       const nextBlockerTaskIds = new Set<string>();
       for (const rawBlockerReqId of mod.requirement.blockedBy ?? []) {
         const blockerReqId = rawBlockerReqId.trim();
-        if (!blockerReqId) continue;
+        // Same self-reference guard as the added-requirement path below: a
+        // requirement naming itself in blockedBy must not wedge its tasks
+        // with a self-edge they can never satisfy.
+        if (!blockerReqId || blockerReqId === mod.requirement.id) continue;
         for (const blockerTask of reqToTasks.get(blockerReqId) ?? []) {
           if (!nextBlockerTaskIds.has(blockerTask.id)) {
             nextBlockerTaskIds.add(blockerTask.id);
@@ -271,6 +274,7 @@ export class SpecVersioning {
       );
       for (const modTask of modTasks) {
         for (const blockerTask of nextBlockerTasks) {
+          if (blockerTask.id === modTask.id) continue;
           const exists = graph.edges.some(
             (edge) =>
               edge.type === 'depends_on' && edge.from === blockerTask.id && edge.to === modTask.id,

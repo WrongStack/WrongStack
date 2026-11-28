@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T01:59:27.983Z",
+  "generatedAt": "2026-11-28T02:02:12.528Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 51,
     "sourceFiles": 6651,
-    "testFiles": 6574,
-    "sourceLines": 1364884,
+    "testFiles": 6575,
+    "sourceLines": 1364888,
     "workspaceEdges": 268,
     "moduleEdges": 19526,
     "nonCommandSlashImports": 0,
@@ -972,7 +972,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 68,
+      "testFiles": 69,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -991,7 +991,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 68
+          "testFiles": 69
         }
       ]
     },
@@ -26888,6 +26888,12 @@
       },
       {
         "file": "packages/sdd/tests/spec-versioning-dep-trim.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sdd/tests/spec-versioning-self-dependency.test.ts",
         "projects": [
           "root-node"
         ]
