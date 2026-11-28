@@ -84,7 +84,8 @@
     "skills": "Skills",
     "office": "Agentenbüro",
     "automations": "Automatisierungen",
-    "analytics": "Analysen"
+    "analytics": "Analysen",
+    "github": "GitHub"
   },
   "rail": {
     "navigation": "Hauptnavigation",
@@ -733,7 +734,8 @@
       "reviews": "Chimera- und laufende Prüfberichte, Befunde und Nacharbeiten.",
       "design": "Design-Kits, die Galerie und das eigene Thema des Projekts.",
       "deadcode": "Ungenutzter Code, was ihn noch erreicht und was sein Entfernen bricht.",
-      "analytics": "Sitzungen, Agenten, Werkzeugaufrufe, Tokens und Kosten im Zeitverlauf."
+      "analytics": "Sitzungen, Agenten, Werkzeugaufrufe, Tokens und Kosten im Zeitverlauf.",
+      "github": "Pull Requests und Issues: prüfen, kommentieren, mergen oder an einen Agenten übergeben."
     },
     "sessions": {
       "title": "Sitzungen",
@@ -9951,5 +9953,9 @@
     "modelPlaceholder": "Gespeichertes Modell wählen oder Anbieter/Modell eingeben",
     "providerPlaceholder": "Gespeicherten Anbieter wählen",
     "provider": "Anbieter"
+  },
+  "githubPage": {
+    "targetLabel": "Zielkonversation für die GitHub-Übergabe",
+    "cancel": "Abbrechen"
   }
 }

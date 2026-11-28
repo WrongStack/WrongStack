@@ -227,7 +227,7 @@ export const desktopFeatures: DesktopFeature[] = [
     label: 'GitHub',
     group: 'Project intelligence',
     description:
-      "Open pull requests and issues of the project's GitHub repository (WebUI view; no native page yet).",
+      "Pull requests and issues of the project's GitHub repository: review, diff, line comments, merge and agent hand-offs.",
     views: ['github'],
     queries: [{ label: 'Pull requests and issues', resource: '/api/github' }],
   },

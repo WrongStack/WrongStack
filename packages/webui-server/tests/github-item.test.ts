@@ -33,7 +33,12 @@ function seams(route: Route, token: boolean = true) {
 async function call(
   path: string,
   github: GitHubSeams,
-  options: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+    accessTokenOk?: boolean;
+  } = {},
 ) {
   const method = options.method ?? 'GET';
   const req = Readable.from(
@@ -64,7 +69,7 @@ async function call(
     res,
     new URL(`http://localhost${path}`),
     { projectRoot: '/project', github },
-    { requireAccessToken: false, accessTokenOk: false },
+    { requireAccessToken: false, accessTokenOk: options.accessTokenOk ?? false },
   );
   return { handled, status, body };
 }
@@ -561,7 +566,19 @@ describe('POST /api/github/action', () => {
     expect(github.fetch).not.toHaveBeenCalled();
   });
 
-  it('only accepts writes from the page', async () => {
+  it('accepts an Origin-less write from a client holding the access token', async () => {
+    const github = seams(() => json({}));
+    const { status, body } = await call('/api/github/action', github, {
+      method: 'POST',
+      body: { kind: 'issue', number: 9, action: 'reopen' },
+      headers: { origin: '' },
+      accessTokenOk: true,
+    });
+    expect(status).toBe(200);
+    expect(body).toEqual({ ok: true, status: 'done' });
+  });
+
+  it('refuses an Origin-less write without the access token', async () => {
     const github = seams(() => json({}));
     const noOrigin = await call('/api/github/action', github, {
       method: 'POST',

@@ -84,7 +84,8 @@
     "skills": "Beceriler",
     "office": "Ajan ofisi",
     "automations": "Otomasyonlar",
-    "analytics": "Analitik"
+    "analytics": "Analitik",
+    "github": "GitHub"
   },
   "rail": {
     "navigation": "Ana gezinme",
@@ -733,7 +734,8 @@
       "reviews": "Chimera ve sürekli inceleme raporları, bulgular ve takip işleri.",
       "design": "Tasarım kitleri, galeri ve bu projenin kendi teması.",
       "deadcode": "Kullanılmayan kod, ona hâlâ ulaşanlar ve kaldırmanın bozacağı şeyler.",
-      "analytics": "Zaman içinde oturumlar, ajanlar, araç çağrıları, jetonlar ve maliyet."
+      "analytics": "Zaman içinde oturumlar, ajanlar, araç çağrıları, jetonlar ve maliyet.",
+      "github": "Pull request'ler ve issue'lar: incele, yorum yap, birleştir ya da ajana devret."
     },
     "sessions": {
       "title": "Oturumlar",
@@ -9951,5 +9953,9 @@
     "modelPlaceholder": "Kayıtlı bir model seç ya da sağlayıcı/model yaz",
     "providerPlaceholder": "Kayıtlı bir sağlayıcı seç",
     "provider": "Sağlayıcı"
+  },
+  "githubPage": {
+    "targetLabel": "GitHub devri için hedef konuşma",
+    "cancel": "Vazgeç"
   }
 }

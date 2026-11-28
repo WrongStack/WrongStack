@@ -13,6 +13,7 @@ import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { sendRosterMessage } from '@/lib/roster-ws';
+import { navigateToView } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import {
   useConfigStore,
@@ -102,6 +103,14 @@ export const webuiSurfaceHost: SurfaceHost = {
   context: webuiContextFeed,
   providers: webuiProviderHost,
   setup: webuiSetupHost,
+  // The active conversation names the project; a hand-off lands in its composer.
+  github: {
+    useSessionId: () => useActiveSessionId(),
+    handOff: (prompt) => {
+      useUIStore.getState().requestPromptInsert(prompt);
+      navigateToView('chat');
+    },
+  },
   Markdown: WebuiSurfaceMarkdown,
 };
 setDefaultSurfaceHost(webuiSurfaceHost);

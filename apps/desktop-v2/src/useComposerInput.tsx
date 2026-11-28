@@ -1,15 +1,17 @@
 import { detectSkillMention, insertSkillMention } from '@wrongstack/webui-protocol';
 import { Terminal } from 'lucide-react';
-import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
+import { type RefObject, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ComposerMentionPicker } from './ComposerMentionPicker';
 import { type ComposerFileReference, fileMention, withReference } from './composer-resources-model';
 import { commandDescription } from './desktop-command-text';
 import { matchDesktopCommands } from './desktop-commands';
 import { useEngineCommands } from './desktop-engine-commands';
 import { useDesktopText } from './desktop-i18n';
+import { projectHttp } from './engine-http';
 import type { EngineCommand } from './engine-operations';
 import type { ChatMessage, EngineState } from './engine-state';
 import { recallHistory } from './journal-recall';
+import { useComposerGitHub } from './useComposerGitHub';
 
 export function useComposerInput({
   draft,
@@ -62,6 +64,19 @@ export function useComposerInput({
     }
   }, [draft, cursor, textarea]);
   const dismiss = () => setDismissed(identity);
+  const http = useMemo(() => projectHttp(projectId), [projectId]);
+  const github = useComposerGitHub({
+    draft,
+    cursor,
+    projectId,
+    http,
+    suppressed: dismissed === identity || Boolean(skill || file),
+    onInsert: (text, next) => {
+      replace(text, next);
+      history.current.index = -1;
+    },
+    onDismiss: dismiss,
+  });
   const pick = (value: string) => {
     if (skill) {
       const next = insertSkillMention(draft, skill, value);
@@ -84,6 +99,7 @@ export function useComposerInput({
       if (key === 'Escape') dismiss();
       return true;
     }
+    if (github.onKey(key, shift)) return true;
     if (
       commandQuery !== null &&
       commands.length &&
@@ -138,6 +154,8 @@ export function useComposerInput({
         onDismiss={dismiss}
         keys={keys}
       />
+    ) : github.popup ? (
+      github.popup
     ) : commandQuery !== null && commands.length ? (
       <section
         className="composer-mention-popup command-suggestions"

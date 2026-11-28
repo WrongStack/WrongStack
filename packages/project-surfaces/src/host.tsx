@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { AtlasHost } from './atlas/atlas-host';
 import type { ContextFeed } from './context/context-host';
+import type { GitHubHost } from './github/github-host';
 import type { KanbanHost } from './kanban/kanban-host';
 import type { OfficeFeed } from './office/feed-types';
 import type { ProviderHost } from './providers/provider-host';
@@ -128,6 +129,8 @@ export interface SurfaceHost {
   providers?: ProviderHost | undefined;
   /** What the first-run setup reads and does; hosts without it leave it out. */
   setup?: SetupHost | undefined;
+  /** What the GitHub pull request and issue surface needs; hosts without it leave it out. */
+  github?: GitHubHost | undefined;
   /** Renders a message's markdown the way the application renders its own messages. */
   Markdown?: ComponentType<{ children: string }> | undefined;
 }

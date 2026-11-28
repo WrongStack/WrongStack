@@ -84,7 +84,8 @@
     "skills": "Skills",
     "office": "Agent office",
     "automations": "Automations",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "github": "GitHub"
   },
   "rail": {
     "navigation": "Main navigation",
@@ -733,7 +734,8 @@
       "reviews": "Chimera and continuous review reports, findings and follow-up.",
       "design": "Design kits, the gallery and this project’s own theme.",
       "deadcode": "Unused code, what still reaches it and what removing it breaks.",
-      "analytics": "Sessions, agents, tool calls, tokens and cost over time."
+      "analytics": "Sessions, agents, tool calls, tokens and cost over time.",
+      "github": "Pull requests and issues: review, comment, merge or hand them to an agent."
     },
     "sessions": {
       "title": "Sessions",
@@ -9951,5 +9953,9 @@
     "modelPlaceholder": "Choose a saved model, or type provider/model",
     "providerPlaceholder": "Choose a saved provider",
     "provider": "Provider"
+  },
+  "githubPage": {
+    "targetLabel": "GitHub hand-off target conversation",
+    "cancel": "Cancel"
   }
 }

@@ -5,8 +5,8 @@ import type {
 } from '@wrongstack/webui-protocol';
 import { MessageSquarePlus, X } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
-import { cn } from '@/lib/utils';
+import { useAppTranslation } from '../lib/i18n';
+import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import { anchorKey, numberPatch, rowAnchor } from './github-view-model';
 import { usePendingReview } from './pending-review';

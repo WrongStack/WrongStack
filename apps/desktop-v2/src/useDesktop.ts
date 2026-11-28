@@ -28,6 +28,7 @@ export const PROJECT_PAGES = [
   'mailbox',
   'worktrees',
   'kit',
+  'github',
   'techstack',
   'deadcode',
   'design',

@@ -61,6 +61,9 @@ const AutomationWorkspace = lazy(() =>
 const ProjectKit = lazy(() =>
   import('./ProjectKit').then((module) => ({ default: module.ProjectKit })),
 );
+const ProjectGitHub = lazy(() =>
+  import('./ProjectGitHub').then((module) => ({ default: module.ProjectGitHub })),
+);
 const ProjectDeadCode = lazy(() =>
   import('./ProjectDeadCode').then((module) => ({ default: module.ProjectDeadCode })),
 );
@@ -297,6 +300,19 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
               setFileTarget(path, line);
               vm.setProjectPage('files');
             }}
+          />
+        </Suspense>
+      ) : vm.projectPage === 'github' ? (
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.github') })}</p>}
+        >
+          <ProjectGitHub
+            key={project.id}
+            projectId={project.id}
+            http={http}
+            sessions={projectSessions}
+            onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
+            onNewSession={() => vm.newSession(project.id)}
           />
         </Suspense>
       ) : vm.projectPage === 'kit' ? (

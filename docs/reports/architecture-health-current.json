@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T00:06:00.311Z",
+  "generatedAt": "2026-11-28T00:53:59.044Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6641,
-    "testFiles": 6570,
-    "sourceLines": 1363752,
-    "workspaceEdges": 267,
-    "moduleEdges": 19475,
+    "sourceFiles": 6648,
+    "testFiles": 6572,
+    "sourceLines": 1364179,
+    "workspaceEdges": 268,
+    "moduleEdges": 19506,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 582,
-      "testFiles": 415,
+      "sourceFiles": 585,
+      "testFiles": 417,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 415
+          "testFiles": 417
         }
       ]
     },
@@ -785,14 +785,15 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 263,
+      "sourceFiles": 273,
       "testFiles": 57,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/kanban",
         "@wrongstack/providers",
-        "@wrongstack/tools"
+        "@wrongstack/tools",
+        "@wrongstack/webui-protocol"
       ],
       "tsconfigs": [
         {
@@ -1199,7 +1200,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 811,
+      "sourceFiles": 805,
       "testFiles": 603,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1759,6 +1760,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/composer-collapse.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/composer-github-mention.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -2989,6 +2996,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-chronicle-health-race.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-github.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -41362,6 +41375,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/github-hand-off.tsx",
+      "specifier": "./project-kit.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/GitHunkReview.tsx",
       "specifier": "./git-hunk-review.css",
       "syntax": "import"
@@ -42432,7 +42450,7 @@
     },
     {
       "file": "apps/desktop-v2/src/useDesktop.ts",
-      "lines": 729,
+      "lines": 730,
       "relativeImports": 15
     },
     {

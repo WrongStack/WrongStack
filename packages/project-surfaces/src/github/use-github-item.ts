@@ -4,14 +4,9 @@ import type {
   GitHubItemDetailView,
 } from '@wrongstack/webui-protocol';
 import { useEffect, useState } from 'react';
-import { useActiveSessionId } from '@/stores';
+import { surfaceFetch } from '../host';
+import { useGitHubSessionId, withGitHubSession } from './github-session';
 import type { GitHubSelection } from './github-view-model';
-
-function withSession(path: string, sessionId: string | null | undefined, query = {}) {
-  const params = new URLSearchParams(query);
-  if (sessionId) params.set('sessionId', sessionId);
-  return `${path}?${params}`;
-}
 
 async function readJson<T>(response: Response): Promise<T> {
   const data = await response.json();
@@ -21,7 +16,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 /** One pull request or issue of the active session's project. */
 export function useGitHubItem(selection: GitHubSelection | null) {
-  const sessionId = useActiveSessionId();
+  const sessionId = useGitHubSessionId();
   const [generation, setGeneration] = useState(0);
   const key = selection ? `${sessionId ?? 'host'}:${selection.kind}:${selection.number}` : '';
   const [state, setState] = useState<{ key: string; data: GitHubItemDetailView } | null>(null);
@@ -32,8 +27,8 @@ export function useGitHubItem(selection: GitHubSelection | null) {
     const controller = new AbortController();
     setError(null);
     setLoading(true);
-    fetch(
-      withSession('/api/github/item', sessionId, {
+    surfaceFetch(
+      withGitHubSession('/api/github/item', sessionId, {
         kind: selection.kind,
         number: String(selection.number),
       }),
@@ -64,7 +59,7 @@ export async function runGitHubAction(
   sessionId: string | null | undefined,
   request: GitHubActionRequest,
 ): Promise<GitHubActionResult> {
-  const response = await fetch(withSession('/api/github/action', sessionId), {
+  const response = await surfaceFetch(withGitHubSession('/api/github/action', sessionId), {
     method: 'POST',
     credentials: 'same-origin',
     cache: 'no-store',

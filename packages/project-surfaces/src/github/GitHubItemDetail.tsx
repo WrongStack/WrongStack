@@ -5,13 +5,12 @@ import type {
 } from '@wrongstack/webui-protocol';
 import { ArrowLeft, ArrowUpRight, Bot, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
-import { cn } from '@/lib/utils';
-import { navigateToView } from '@/lib/view-navigation';
-import { useActiveSessionId } from '@/stores';
-import { useUIStore } from '@/stores/ui-store';
+import { useSurfaceHost } from '../host';
+import { useAppTranslation } from '../lib/i18n';
+import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import { GitHubItemActions } from './GitHubItemActions';
+import { useGitHubSessionId } from './github-session';
 import {
   type AgentIntent,
   agentPrompt,
@@ -59,7 +58,7 @@ function PullFile({
   onCommented: () => void;
 }) {
   const { t } = useAppTranslation();
-  const sessionId = useActiveSessionId();
+  const sessionId = useGitHubSessionId();
   const [open, setOpen] = useState(false);
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
@@ -240,18 +239,25 @@ export function GitHubItemDetail({
   const view = state.view;
   const item = view?.item ?? null;
   const pull = item?.pull ?? null;
+  const github = useSurfaceHost().github;
+  const HandOff = github?.HandOff;
+  const [handing, setHanding] = useState<string | null>(null);
   const handOff = (intent: AgentIntent) => {
     if (!view?.repository || !item) return;
-    useUIStore.getState().requestPromptInsert(agentPrompt(intent, view.repository, item.number));
-    navigateToView('chat');
+    const prompt = agentPrompt(intent, view.repository, item.number);
+    if (github?.handOff) github.handOff(prompt);
+    else setHanding(prompt);
   };
-  const intents: AgentIntent[] = item
-    ? pull
-      ? pullIntents(pull)
-      : item.state === 'open'
-        ? ['issue']
-        : []
-    : [];
+  const canHandOff = Boolean(github?.handOff || HandOff);
+  const intents: AgentIntent[] = !canHandOff
+    ? []
+    : item
+      ? pull
+        ? pullIntents(pull)
+        : item.state === 'open'
+          ? ['issue']
+          : []
+      : [];
   const status = !item
     ? null
     : pull?.merged
@@ -357,6 +363,7 @@ export function GitHubItemDetail({
                 ))}
               </div>
             )}
+            {handing && HandOff && <HandOff prompt={handing} onDone={() => setHanding(null)} />}
             <Section title={t('activity:github.description')}>
               {item.body ? (
                 <p className="max-h-80 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">

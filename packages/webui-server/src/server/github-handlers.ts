@@ -156,7 +156,7 @@ export async function handleGitHubRoutes(
   try {
     if (url.pathname === '/api/github') await handleGitHubRepositoryRead(res, url, deps);
     else if (url.pathname === '/api/github/item') await handleGitHubItemRead(res, url, deps);
-    else await handleGitHubAction(req, res, url, deps, invalidateGitHubView);
+    else await handleGitHubAction(req, res, url, deps, invalidateGitHubView, auth.accessTokenOk);
   } catch (error) {
     if (!res.headersSent) replyJson(res, 500, { error: sanitizeApiError(error) });
   }

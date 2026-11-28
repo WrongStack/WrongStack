@@ -1,20 +1,26 @@
 import type { GitHubRepositoryView } from '@wrongstack/webui-protocol';
 import { useEffect, useState } from 'react';
-import { useActiveSessionId, useConfigStore } from '@/stores';
+import { surfaceFetch, useSurfaceHost } from '../host';
+import { useGitHubSessionId, withGitHubSession } from './github-session';
+
+/** `refresh=1` after the session, the order the WebUI always sent. */
+function refreshUrl(url: string, refresh: boolean): string {
+  return refresh ? `${url}${url.endsWith('?') ? '' : '&'}refresh=1` : url;
+}
 
 async function request(
   sessionId: string | null | undefined,
   refresh: boolean,
   signal: AbortSignal,
 ): Promise<GitHubRepositoryView> {
-  const query = new URLSearchParams();
-  if (sessionId) query.set('sessionId', sessionId);
-  if (refresh) query.set('refresh', '1');
-  const response = await fetch(`/api/github?${query}`, {
-    signal,
-    credentials: 'same-origin',
-    cache: 'no-store',
-  });
+  const response = await surfaceFetch(
+    refreshUrl(withGitHubSession('/api/github', sessionId), refresh),
+    {
+      signal,
+      credentials: 'same-origin',
+      cache: 'no-store',
+    },
+  );
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
   return data as GitHubRepositoryView;
@@ -22,8 +28,8 @@ async function request(
 
 /** The active session's project repository; re-read on session or socket change. */
 export function useGitHubRepository() {
-  const sessionId = useActiveSessionId();
-  const connected = useConfigStore((s) => s.wsConnected);
+  const sessionId = useGitHubSessionId();
+  const connected = useSurfaceHost().useConnected();
   const [generation, setGeneration] = useState(0);
   const session = sessionId ?? 'host';
   const scope = `${session}:${connected}:${generation}`;

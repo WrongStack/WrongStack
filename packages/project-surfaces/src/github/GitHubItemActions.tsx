@@ -5,9 +5,9 @@ import type {
   GitHubMergeMethod,
 } from '@wrongstack/webui-protocol';
 import { useState } from 'react';
-import { useAppTranslation } from '@/i18n';
-import { useActiveSessionId } from '@/stores';
+import { useAppTranslation } from '../lib/i18n';
 import { Button } from '../ui/button';
+import { useGitHubSessionId } from './github-session';
 import { checkTone } from './github-view-model';
 import { usePendingReview } from './pending-review';
 import { runGitHubAction } from './use-github-item';
@@ -31,7 +31,7 @@ export function GitHubItemActions({
   onDone: () => void;
 }) {
   const { t } = useAppTranslation();
-  const sessionId = useActiveSessionId();
+  const sessionId = useGitHubSessionId();
   const [text, setText] = useState('');
   const [method, setMethod] = useState<GitHubMergeMethod>('squash');
   const [confirming, setConfirming] = useState<Confirmable | null>(null);

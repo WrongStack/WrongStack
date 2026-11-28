@@ -497,14 +497,18 @@ export async function handleGitHubAction(
   url: URL,
   deps: GitHubDeps,
   invalidate: (repository: string) => void,
+  accessTokenOk: boolean,
 ): Promise<void> {
-  // The global guard rejects an Origin that does not match Host. Requiring the
-  // header here also turns away plain clients that omit it (curl, fetch from a
-  // script). It is not authentication: on the token-less loopback default a
-  // local process that sets a matching Origin can still call this route, the
-  // same as the automation routes; the access token is what closes that.
-  if (!req.headers.origin) {
-    replyJson(res, 403, { error: 'GitHub writes are only accepted from the WebUI page' });
+  // Same rule as the server's global mutation gate: a write comes from a page
+  // (the global guard already checked its Origin against Host) or from a
+  // client holding the access token (the desktop bridge sends no Origin).
+  // Neither is authentication on the token-less loopback default: a local
+  // process that sets a matching Origin can still call this route, as it can
+  // the automation routes; configuring the access token is what closes that.
+  if (!req.headers.origin && !accessTokenOk) {
+    replyJson(res, 403, {
+      error: 'GitHub writes need the WebUI page or the access token',
+    });
     return;
   }
   const raw = await readActionBody(req);

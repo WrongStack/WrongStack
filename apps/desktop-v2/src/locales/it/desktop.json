@@ -84,7 +84,8 @@
     "skills": "Skill",
     "office": "Ufficio degli agenti",
     "automations": "Automazioni",
-    "analytics": "Analisi"
+    "analytics": "Analisi",
+    "github": "GitHub"
   },
   "rail": {
     "navigation": "Navigazione principale",
@@ -733,7 +734,8 @@
       "reviews": "Report Chimera e revisione continua, rilievi e attività successive.",
       "design": "Kit di design, galleria e tema proprio del progetto.",
       "deadcode": "Codice inutilizzato, chi lo raggiunge ancora e cosa interrompe la rimozione.",
-      "analytics": "Sessioni, agenti, chiamate agli strumenti, token e costi nel tempo."
+      "analytics": "Sessioni, agenti, chiamate agli strumenti, token e costi nel tempo.",
+      "github": "Pull request e issue: rivedi, commenta, unisci o affidale a un agente."
     },
     "sessions": {
       "title": "Sessioni",
@@ -9951,5 +9953,9 @@
     "modelPlaceholder": "Scegli un modello salvato oppure digita provider/modello",
     "providerPlaceholder": "Scegli un provider salvato",
     "provider": "Provider"
+  },
+  "githubPage": {
+    "targetLabel": "Conversazione di destinazione per il passaggio GitHub",
+    "cancel": "Annulla"
   }
 }
