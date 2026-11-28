@@ -56,7 +56,7 @@
 /* Give running prose a reading measure while code, tables and tool activity use the full row. */
 .native-chat-messages .chat-message .markdown-content > :is(p, ul, ol, blockquote),
 .native-chat-messages .chat-message > .user-chat-body {
-  max-inline-size: 76ch;
+  max-inline-size: 72ch;
 }
 :root:not([data-density="compact"]) .native-chat-messages .chat-message > div > .markdown-content {
   font-size: 15px;
@@ -81,12 +81,12 @@
 .chat-message.find-match {
   outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   outline-offset: 4px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .chat-message.find-current {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .chat-message > header time {
   margin-left: 8px;

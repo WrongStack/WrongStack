@@ -10,7 +10,7 @@
   gap: 6px;
   padding: 5px 7px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   color: var(--muted);
   font-size: 11px;
   font-weight: 400;
@@ -84,12 +84,12 @@ button.text-link:has(> svg) {
 .markdown-content code {
   background: var(--raised);
   padding: 2px 5px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   font: 12px / 1.7 var(--user-font-code, Consolas, monospace);
 }
 .markdown-code-block {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   overflow: hidden;
   margin: 16px 0;
 }
@@ -146,7 +146,7 @@ button.text-link:has(> svg) {
   gap: 10px;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
 }
 .chat-follow-control {
@@ -158,14 +158,14 @@ button.text-link:has(> svg) {
   color: var(--accent);
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   padding: 6px 12px;
   font-size: 11px;
 }
 .input-request-card {
   max-width: 850px;
   border: 1px solid oklch(0.43 0.04 126);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 22px;
   margin: 20px 0;
   background: var(--raised);
@@ -237,7 +237,7 @@ button.text-link:has(> svg) {
   padding: 12px;
   border: 1px solid var(--border);
   background: var(--base);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   cursor: pointer;
 }
 .input-option strong {
@@ -270,7 +270,7 @@ button.text-link:has(> svg) {
   color: var(--text);
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   font: inherit;
   line-height: 1.7;
 }
@@ -360,7 +360,7 @@ button.text-link:has(> svg) {
   gap: 8px;
   border: 1px solid var(--border);
   border-left-width: 3px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   padding: 8px 10px;
   font-size: 13px;

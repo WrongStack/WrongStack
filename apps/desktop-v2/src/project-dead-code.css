@@ -8,7 +8,7 @@
   border: 1px solid var(--border);
   background: var(--raised);
   color: var(--text);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 10px 12px;
   font: inherit;
   font-size: 13px;
@@ -50,7 +50,7 @@
   padding: 18px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
 }
 .dead-code-stats small {
   color: var(--muted);
@@ -64,7 +64,7 @@
   border: 1px solid var(--accent-border);
   background: var(--accent-soft);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -103,7 +103,7 @@
 .dead-code-findings article {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   min-width: 0;
 }
@@ -121,7 +121,7 @@
   font-size: 12px;
   border: 1px solid var(--border);
   padding: 5px 7px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .dead-code-findings p {
   font-size: 13px;
@@ -147,7 +147,7 @@
 .dead-code-actions {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   margin: 18px 0;
   display: flex;
   gap: 14px;
@@ -159,7 +159,7 @@
   padding: 18px;
   border: 1px solid var(--accent-border);
   background: var(--accent-soft);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   font-size: 13px;
   line-height: 1.6;
   margin-top: 12px;
@@ -173,7 +173,7 @@
 }
 .dead-code-plan article {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   overflow: hidden;
   margin: 14px 0;
 }
@@ -224,7 +224,7 @@
   margin: 20px 0;
   border: 1px solid var(--accent-border);
   padding: 18px;
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   font-size: 13px;
 }
 .dead-code-result details {
@@ -240,7 +240,7 @@
   margin-top: 24px;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
 }
 .dead-code-backups > header,
 .dead-code-backups article {

@@ -102,7 +102,7 @@
     "findAnything": "Tout rechercher",
     "workspace": "Espace de travail {{name}}",
     "projects": "Projets",
-"views": "Vues",
+    "views": "Vues",
     "addProject": "Ajouter un projet",
     "newSessionIn": "Nouvelle session dans {{name}}",
     "newSession": "Nouvelle session",
@@ -114,7 +114,9 @@
     "removeBody": "Elle quitte cette liste, et sa transcription de bureau ainsi que ses brouillons sont supprimés. Une session en cours est d’abord arrêtée. Une conversation d’agent reste dans l’historique du projet, d’où elle peut être reprise.",
     "removeConfirm": "Retirer",
     "cancel": "Annuler",
-    "olderHost": "L’hôte de sessions en cours est plus ancien que ce bureau. Arrêtez ses sessions et redémarrez le bureau pour retirer des sessions."
+    "olderHost": "L’hôte de sessions en cours est plus ancien que ce bureau. Arrêtez ses sessions et redémarrez le bureau pour retirer des sessions.",
+    "showSessions": "Afficher les sessions de {{name}}",
+    "hideSessions": "Masquer les sessions de {{name}}"
   },
   "topbar": {
     "live": "{{count}} en cours",
@@ -300,6 +302,17 @@
       "text": "Votre zone de saisie contient déjà un brouillon.",
       "replace": "Remplacer le brouillon",
       "keep": "Garder le brouillon actuel"
+    },
+    "settings": {
+      "label": "Réglages de la session",
+      "model": "Modèle",
+      "run": "Exécution",
+      "effort": "Effort",
+      "reasoning": "Raisonnement",
+      "identity": "Identité",
+      "continuation": "Continuation",
+      "mode": "Mode agent",
+      "auto": "Auto"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Compact affiche davantage de conversation à l'écran, comme la vue compacte de la WebUI.",
       "comfortable": "Confortable",
       "compact": "Compact"
+    },
+    "corners": {
+      "title": "Coins",
+      "body": "Arrondis adoucit les cartes, menus et contrôles ; Nets garde chaque bord carré.",
+      "soft": "Arrondis",
+      "sharp": "Nets"
     },
     "sounds": {
       "title": "Sons",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Éditeur de texte brut",
     "loadingEditor": "Chargement de l’éditeur de code…",
     "editorUnavailable": "L’éditeur de code n’a pas pu se charger ; ce fichier s’ouvre donc dans l’éditeur de texte brut.",
-    "plainText": "Texte brut"
+    "plainText": "Texte brut",
+    "gitStatus": {
+      "M_one": "{{count}} modifié",
+      "M": "{{count}} modifiés",
+      "A_one": "{{count}} ajouté",
+      "A": "{{count}} ajoutés",
+      "D_one": "{{count}} supprimé",
+      "D": "{{count}} supprimés",
+      "R_one": "{{count}} renommé",
+      "R": "{{count}} renommés",
+      "C_one": "{{count}} copié",
+      "C": "{{count}} copiés",
+      "U_one": "{{count}} en conflit",
+      "U": "{{count}} en conflit",
+      "untracked_one": "{{count}} non suivi",
+      "untracked": "{{count}} non suivis"
+    }
   },
   "find": {
     "placeholder": "Rechercher",

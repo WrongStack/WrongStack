@@ -1,3 +1,4 @@
+import { Repeat, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 import { AUTONOMY_MODES, autonomyModeAvailable, sessionAutonomy } from './autonomy-model';
 import { useDesktopText } from './desktop-i18n';
@@ -40,6 +41,8 @@ export function AutonomyControl({
             : t('autonomyControl.title'))
         }
       >
+        <Repeat size={12} />
+        <span className="composer-setting-name">{t('composer.settings.continuation')}</span>
         <select
           aria-label={t('autonomyControl.label')}
           value={mode}
@@ -108,6 +111,8 @@ function YoloControl({
       className={`composer-chip effort-control yolo-${level}`}
       title={error || t(`autonomyControl.yolo.${level}Title`)}
     >
+      <ShieldAlert size={12} />
+      <span className="composer-setting-name">YOLO</span>
       <select
         aria-label={t('autonomyControl.yoloLabel')}
         value={level}

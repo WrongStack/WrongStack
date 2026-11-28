@@ -1,15 +1,25 @@
-import { Check, Columns3, LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
+import {
+  Check,
+  Clock3,
+  Columns3,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  Settings2,
+  Star,
+  X,
+} from 'lucide-react';
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { type EngineState, emptyEngineState } from './engine-state';
 import { entries } from './engine-values';
 import { type ComparedModel, ModelComparison } from './ModelComparison';
+import { ModelPickerFacts } from './ModelPickerFacts';
 import { MAX_COMPARED_MODELS, toggleCompared } from './model-comparison';
 import {
   MODEL_DETAIL_WORDS,
   type ModelDetailWords,
-  modelDetailLine,
   type PickerModel,
   pickerModel,
 } from './model-picker-details';
@@ -292,200 +302,222 @@ function LiveProfileModelPicker({
     event.preventDefault();
     next.focus();
   };
+  const currentChoice = choices.find((item) => item.id === provider);
+  const isChosen = (id: string) =>
+    comparing
+      ? compared.some((entry) => entry.key === comparedKey(id))
+      : provider === session.provider && id === session.model;
   return (
     <section className="composer-dialog profile-model-picker" aria-label={t('modelPicker.label')}>
-      <header>
+      <header className="model-picker-header">
         <h2 id="dialog-title">{title ?? t('modelPicker.title')}</h2>
-        <button
-          ref={closeButton}
-          type="button"
-          className="icon-button"
-          aria-label={t('modelPicker.close')}
-          disabled={switching}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-      </header>
-      <p>{description ?? t('modelPicker.description')}</p>
-      <div className="model-picker-filters">
-        <label>
-          {t('modelPicker.provider')}
-          <select
-            aria-label={providerLabel ?? t('modelPicker.providerLabel')}
-            value={provider}
-            disabled={!ready || switching}
-            onChange={(event) => setProvider(event.target.value)}
-          >
-            {!choices.some((item) => item.id === provider) && (
-              <option value={provider}>{t('modelPicker.unavailable', { provider })}</option>
-            )}
-            {choices.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-                {item.saved ? t('modelPicker.saved') : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="composer-model-search">
-          {searchLabel ?? t('modelPicker.searchLabel')}
-          <span className="dialog-search-field">
-            <Search size={15} aria-hidden="true" />
-            <input
-              ref={search}
-              aria-label={searchLabel ?? t('modelPicker.searchLabel')}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={navigateModels}
-              placeholder={t('modelPicker.placeholder')}
-            />
-          </span>
-        </label>
-      </div>
-      {ready && quickRecents.length > 0 && (
-        <fieldset className="composer-model-recents">
-          <legend>{t('modelPicker.recent')}</legend>
-          {quickRecents.map((item) => (
+        <div className="model-picker-tools">
+          {!comparisonOpen && (
             <button
               type="button"
-              key={`${item.provider}/${item.model}`}
-              className="button secondary small"
-              disabled={switching}
-              aria-pressed={item.provider === session.provider && item.model === session.model}
-              onClick={() => void choose(item.model, item.provider)}
+              className="icon-button"
+              disabled={switching || !ready}
+              aria-pressed={comparing}
+              aria-label={comparing ? t('modelPicker.doneComparing') : t('modelPicker.compare')}
+              title={comparing ? t('modelPicker.doneComparing') : t('modelPicker.compare')}
+              onClick={() => {
+                setComparing((value) => !value);
+                setCompared([]);
+                setComparisonOpen(false);
+              }}
             >
-              <span title={item.model}>{item.model}</span>
-              <small title={item.provider}>{item.provider}</small>
+              <Columns3 size={16} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="icon-button"
+            disabled={switching}
+            aria-label={t('modelPicker.refresh')}
+            title={t('modelPicker.refresh')}
+            onClick={() => void refresh()}
+          >
+            <RefreshCw size={16} className={!ready || loading ? 'spin' : undefined} />
+          </button>
+          {onSettings && (
+            <button
+              type="button"
+              className="icon-button"
+              disabled={switching}
+              aria-label={t('modelPicker.settings')}
+              title={t('modelPicker.settings')}
+              onClick={onSettings}
+            >
+              <Settings2 size={16} />
+            </button>
+          )}
+          <button
+            ref={closeButton}
+            type="button"
+            className="icon-button"
+            aria-label={t('modelPicker.close')}
+            disabled={switching}
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </header>
+      {description && <p className="model-picker-description">{description}</p>}
+      <label className="composer-model-search">
+        <span className="dialog-search-field">
+          <Search size={15} aria-hidden="true" />
+          <input
+            ref={search}
+            aria-label={searchLabel ?? t('modelPicker.searchLabel')}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={navigateModels}
+            placeholder={t('modelPicker.placeholder')}
+          />
+        </span>
+      </label>
+      <div className="model-picker-body">
+        <nav
+          className="model-picker-providers"
+          aria-label={providerLabel ?? t('modelPicker.providerLabel')}
+        >
+          <p className="model-picker-caption">{t('modelPicker.provider')}</p>
+          {!currentChoice && provider && (
+            <button type="button" aria-pressed="true" disabled>
+              <span className="model-provider-mark" aria-hidden="true">
+                {provider.slice(0, 1).toUpperCase()}
+              </span>
+              <span>{t('modelPicker.unavailable', { provider })}</span>
+            </button>
+          )}
+          {choices.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              data-provider={item.id}
+              aria-pressed={item.id === provider}
+              disabled={!ready || switching}
+              title={item.name}
+              onClick={() => setProvider(item.id)}
+            >
+              <span className="model-provider-mark" aria-hidden="true">
+                {item.name.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="model-provider-name">{item.name}</span>
+              {item.id === session.provider && (
+                <span className="model-provider-live" aria-hidden="true" />
+              )}
+              {item.saved && <span className="project-menu-sr">{t('modelPicker.saved')}</span>}
             </button>
           ))}
-        </fieldset>
-      )}
-      {error && (
-        <p role="alert" className="composer-error">
-          {error}
-        </p>
-      )}
-      {comparing && !comparisonOpen && (
-        <div className="model-compare-bar" role="status">
-          {comparedModels.length < 2
-            ? comparedModels.length
-              ? t('modelPicker.pickAnother')
-              : t('modelPicker.pickTwo')
-            : t('modelPicker.picked', {
-                models: comparedModels.length,
-                providers: new Set(comparedModels.map((entry) => entry.provider)).size,
-              })}
-          <button
-            type="button"
-            className="button small"
-            disabled={comparedModels.length < 2}
-            onClick={() => setComparisonOpen(true)}
-          >
-            {t('modelPicker.show')}
-          </button>
-        </div>
-      )}
-      {comparisonOpen ? (
-        <ModelComparison
-          models={comparedModels}
-          disabled={switching || !ready}
-          onUse={(id, target) => void choose(id, target)}
-          onBack={() => setComparisonOpen(false)}
-        />
-      ) : (
-        <div className="composer-model-list" ref={modelList} aria-busy={!ready || loading}>
-          {error && !ready ? (
-            <p>{t('modelPicker.unavailableChoices')}</p>
-          ) : !ready || loading ? (
-            <p role="status">
-              <LoaderCircle className="spin" size={15} /> {t('modelPicker.loading')}
+        </nav>
+        <div className="model-picker-main">
+          {ready && quickRecents.length > 0 && !comparisonOpen && (
+            <fieldset className="composer-model-recents">
+              <legend>
+                <Clock3 size={12} aria-hidden="true" /> {t('modelPicker.recent')}
+              </legend>
+              {quickRecents.map((item) => (
+                <button
+                  type="button"
+                  key={`${item.provider}/${item.model}`}
+                  disabled={switching}
+                  aria-pressed={item.provider === session.provider && item.model === session.model}
+                  title={`${item.provider} · ${item.model}`}
+                  onClick={() => void choose(item.model, item.provider)}
+                >
+                  <span>{item.model}</span>
+                  <small>{item.provider}</small>
+                </button>
+              ))}
+            </fieldset>
+          )}
+          {error && (
+            <p role="alert" className="composer-error">
+              {error}
             </p>
-          ) : available.length ? (
-            available.map((model) => (
+          )}
+          {comparing && !comparisonOpen && (
+            <div className="model-compare-bar" role="status">
+              {comparedModels.length < 2
+                ? comparedModels.length
+                  ? t('modelPicker.pickAnother')
+                  : t('modelPicker.pickTwo')
+                : t('modelPicker.picked', {
+                    models: comparedModels.length,
+                    providers: new Set(comparedModels.map((entry) => entry.provider)).size,
+                  })}
               <button
                 type="button"
-                key={model.id}
-                disabled={switching}
-                aria-pressed={
-                  comparing
-                    ? compared.some((entry) => entry.key === comparedKey(model.id))
-                    : provider === session.provider && model.id === session.model
-                }
-                onClick={() => (comparing ? toggle(model) : void choose(model.id))}
-                onKeyDown={navigateModels}
+                className="button small"
+                disabled={comparedModels.length < 2}
+                onClick={() => setComparisonOpen(true)}
               >
-                <AgentRuntimeBadge
-                  provider={provider}
-                  model={model.id}
-                  executionRole="agent"
-                  showName={false}
-                />
-                <span className="model-picker-row-copy">
-                  <strong>{model.name}</strong>
-                  {model.name !== model.id && <small>{model.id}</small>}
-                  {modelDetailLine(model, details) && (
-                    <small className="composer-model-details">
-                      {modelDetailLine(model, details)}
-                    </small>
-                  )}
-                </span>
-                <span className="model-picker-row-state">
-                  {(comparing
-                    ? compared.some((entry) => entry.key === comparedKey(model.id))
-                    : provider === session.provider && model.id === session.model) && (
-                    <Check size={16} aria-hidden="true" />
-                  )}
-                  {modelListed(policy.favoriteModels, provider, model.id) && (
-                    <small>{t('modelPicker.favorite')}</small>
-                  )}
-                </span>
+                {t('modelPicker.show')}
               </button>
-            ))
+            </div>
+          )}
+          {comparisonOpen ? (
+            <ModelComparison
+              models={comparedModels}
+              disabled={switching || !ready}
+              onUse={(id, target) => void choose(id, target)}
+              onBack={() => setComparisonOpen(false)}
+            />
           ) : (
-            <p role="status">{t('modelPicker.none')}</p>
+            <div className="composer-model-list" ref={modelList} aria-busy={!ready || loading}>
+              {error && !ready ? (
+                <p className="model-picker-empty">{t('modelPicker.unavailableChoices')}</p>
+              ) : !ready || loading ? (
+                <p className="model-picker-empty" role="status">
+                  <LoaderCircle className="spin" size={15} /> {t('modelPicker.loading')}
+                </p>
+              ) : available.length ? (
+                available.map((model) => (
+                  <button
+                    type="button"
+                    key={model.id}
+                    disabled={switching}
+                    aria-pressed={isChosen(model.id)}
+                    onClick={() => (comparing ? toggle(model) : void choose(model.id))}
+                    onKeyDown={navigateModels}
+                  >
+                    <AgentRuntimeBadge
+                      provider={provider}
+                      model={model.id}
+                      executionRole="agent"
+                      showName={false}
+                    />
+                    <span className="model-picker-row-copy">
+                      <span className="model-picker-row-title">
+                        <strong>{model.name}</strong>
+                        {model.name !== model.id && <small>{model.id}</small>}
+                      </span>
+                      <ModelPickerFacts model={model} words={details} />
+                    </span>
+                    <span className="model-picker-row-state">
+                      {modelListed(policy.favoriteModels, provider, model.id) && (
+                        <Star
+                          size={14}
+                          className="model-favorite"
+                          role="img"
+                          aria-label={t('modelPicker.favorite')}
+                        />
+                      )}
+                      {isChosen(model.id) && <Check size={16} aria-hidden="true" />}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="model-picker-empty" role="status">
+                  {t('modelPicker.none')}
+                </p>
+              )}
+            </div>
           )}
         </div>
-      )}
-      <footer>
-        {/* The open comparison has its own way back; one exit, not two. */}
-        {!comparisonOpen && (
-          <button
-            type="button"
-            className="button secondary"
-            disabled={switching || !ready}
-            aria-pressed={comparing}
-            onClick={() => {
-              setComparing((value) => !value);
-              setCompared([]);
-              setComparisonOpen(false);
-            }}
-          >
-            <Columns3 size={14} />
-            {comparing ? t('modelPicker.doneComparing') : t('modelPicker.compare')}
-          </button>
-        )}
-        <button
-          type="button"
-          className="button secondary"
-          disabled={switching}
-          onClick={() => void refresh()}
-        >
-          <RefreshCw size={14} />
-          {t('modelPicker.refresh')}
-        </button>
-        {onSettings && (
-          <button
-            type="button"
-            className="button secondary"
-            disabled={switching}
-            onClick={onSettings}
-          >
-            <Settings2 size={14} />
-            {t('modelPicker.settings')}
-          </button>
-        )}
-      </footer>
+      </div>
     </section>
   );
 }

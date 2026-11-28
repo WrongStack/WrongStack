@@ -1953,7 +1953,7 @@ try {
         .click();
     }
     // Exercise the visible create-session flow against the real native commands.
-    await page.getByRole('button', { name: 'New session', exact: true }).click();
+    await page.locator('.topbar').getByRole('button', { name: 'New session', exact: true }).click();
     await page.getByRole('button', { name: 'Terminal A persistent native shell' }).click();
     await page.getByLabel('Session name').fill('Native UI terminal');
     await page.getByRole('button', { name: 'Create terminal session' }).click();
@@ -2166,7 +2166,7 @@ try {
     await page.getByRole('textbox', { name: 'Message WrongStack' }).waitFor();
     // Configure the ordinary chat cases explicitly; the composer exercise below
     // separately verifies the profile's automatic refinement workflow.
-    await page.locator('.composer-options').getByLabel('Composer options', { exact: true }).click();
+    await page.locator('.composer-settings > summary').click();
     await page.getByRole('checkbox', { name: 'Refine before sending', exact: true }).uncheck();
     await waitFor(
       async () =>

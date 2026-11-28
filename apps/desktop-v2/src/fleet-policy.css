@@ -14,7 +14,7 @@
 }
 .fleet-capacity-card {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 22px;
   background: var(--raised);
 }
@@ -44,7 +44,7 @@
   box-sizing: border-box;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   color: var(--text);
   font: inherit;
@@ -52,7 +52,7 @@
 .fleet-companions,
 .fleet-next-step-policy {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 22px;
 }
 .fleet-policy-switch {

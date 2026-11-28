@@ -18,7 +18,10 @@ export async function exerciseNativeNextSteps({ page, artifactDir, waitFor, prov
   // Continue automatically (with YOLO) offers a cancellable countdown; cancelling sends nothing.
   const mode = page.getByRole('combobox', { name: 'Continuation mode', exact: true });
   const quiet = providerFixture.calls.length;
+  // The continuation mode lives in the composer's session settings popover.
+  await page.locator('.composer-settings > summary').click();
   await mode.selectOption('auto');
+  await page.keyboard.press('Escape');
   const countdown = page.locator('.auto-continue');
   await countdown.filter({ hasText: /^Continuing in \d s with:/ }).waitFor();
   await countdown.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -32,7 +35,9 @@ export async function exerciseNativeNextSteps({ page, artifactDir, waitFor, prov
     false,
     'A cancelled countdown sends nothing',
   );
+  await page.locator('.composer-settings > summary').click();
   await mode.selectOption('off');
+  await page.keyboard.press('Escape');
   await input.fill('Keep this constraint.');
   await panel.getByLabel('[native-composer-nextstep-selected] Inspect the result').check();
   const before = providerFixture.calls.length;

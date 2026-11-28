@@ -1,4 +1,4 @@
-import { Building2 } from 'lucide-react';
+import { Building2, Folder } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import type { DesktopController } from './useDesktop';
 import { useDetailsDismiss } from './useDetailsDismiss';
@@ -41,11 +41,15 @@ export function OfficeShortcut({ vm }: { vm: DesktopController }) {
         {projects.map(({ id, name }) => (
           <button
             type="button"
-            className="button secondary small"
+            className="office-project"
             key={id}
+            title={name}
             onClick={() => vm.openProjectPage(id, 'office')}
           >
-            {name}
+            <span className="office-project-mark" aria-hidden="true">
+              <Folder size={13} />
+            </span>
+            <span className="office-project-name">{name}</span>
           </button>
         ))}
       </div>

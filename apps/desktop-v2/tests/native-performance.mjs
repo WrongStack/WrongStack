@@ -207,9 +207,7 @@ export async function exerciseNativePerformance({
     await composer.waitFor({ timeout: 100000 });
     // The window can render before the preference update lands; make direct send explicit so no
     // refinement review sits in front of a timed turn.
-    const options = page
-      .locator('.composer-options')
-      .getByLabel('Composer options', { exact: true });
+    const options = page.locator('.composer-settings > summary');
     const refine = page.getByRole('checkbox', { name: 'Refine before sending', exact: true });
     await options.click();
     // An unchecked box may only mean the profile's value has not streamed in yet. Switch it on
@@ -304,17 +302,18 @@ export async function exerciseNativePerformance({
   );
   const ownListedMs = since(start);
   const ownModels = await models.count();
-  const providerSelect = picker.getByRole('combobox', { name: 'Session model provider' });
-  const offered = await providerSelect
-    .locator('option')
-    .evaluateAll((options) => options.map((option) => option.value));
+  // Providers are a list of buttons beside the models, each naming its id.
+  const providerButtons = picker.locator('.model-picker-providers [data-provider]');
+  const offered = await providerButtons.evaluateAll((buttons) =>
+    buttons.map((button) => button.getAttribute('data-provider')),
+  );
   const largest = ['openrouter', 'vercel-ai-gateway', 'github-copilot', 'openai'].find((id) =>
     offered.includes(id),
   );
   let catalog = null;
   if (largest) {
     start = performance.now();
-    await providerSelect.selectOption(largest);
+    await picker.locator(`.model-picker-providers [data-provider="${largest}"]`).click();
     let previous = -1;
     let steady = 0;
     await waitFor(

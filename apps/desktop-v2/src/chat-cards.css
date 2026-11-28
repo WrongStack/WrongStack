@@ -6,7 +6,7 @@
   margin: 2px 0 12px;
   padding: 11px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   font-size: 13px;
   min-width: 0;
@@ -52,7 +52,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: color-mix(in oklch, var(--tone) 15%, transparent);
   color: var(--tone);
 }
@@ -98,7 +98,7 @@
   gap: 6px;
   padding: 2px 9px;
   border: 1px solid color-mix(in oklch, var(--tone) 38%, var(--border));
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   color: var(--tone);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
@@ -134,7 +134,7 @@
   height: 3px;
   margin: 8px 0 2px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
   background: color-mix(in oklch, var(--tone) 18%, transparent);
 }
 .chat-event-countdown > i {
@@ -179,7 +179,7 @@
   gap: 5px;
   padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   font-size: 11.5px;
 }
@@ -199,7 +199,7 @@
   width: 34px;
   height: 4px;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   background: color-mix(in oklch, var(--tone) 22%, transparent);
 }
 .chat-brain-meter::after {
@@ -228,7 +228,7 @@
   gap: 10px;
   padding: 8px 10px 8px 12px;
   border: 1px solid color-mix(in oklch, var(--tone) 38%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: color-mix(in oklch, var(--tone) 5%, var(--raised));
 }
 .engine-workspace .conversation-notice.warning {
@@ -250,13 +250,13 @@
   gap: 10px;
   padding: 10px 14px;
   border: 1px solid color-mix(in oklch, var(--danger) 45%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: color-mix(in oklch, var(--danger) 7%, var(--raised));
 }
 .engine-workspace .failed-run > svg {
   box-sizing: content-box;
   padding: 6px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: color-mix(in oklch, var(--danger) 15%, transparent);
 }
 .engine-workspace .failed-run > div > span {
@@ -265,17 +265,17 @@
 }
 .engine-workspace .waiting-room {
   border: 1px solid color-mix(in oklch, hsl(var(--ws-warning)) 45%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: color-mix(in oklch, hsl(var(--ws-warning)) 5%, var(--raised));
 }
 .engine-workspace :is(.scheduled-jobs, .session-todos, .next-steps-panel, .composer-queue) {
   border-color: var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
 }
 .engine-workspace .auto-continue {
   border-color: color-mix(in oklch, var(--accent) 50%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: color-mix(in oklch, var(--accent) 6%, var(--raised));
 }
 .engine-workspace .composer-queue > summary {
@@ -290,7 +290,7 @@
   gap: 5px;
   padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   color: var(--muted);
   font: 11.5px / 1.5 var(--user-font-code, Consolas, monospace);
@@ -306,14 +306,14 @@
 .engine-workspace .input-request-card {
   padding: 18px 20px;
   border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
 }
 .engine-workspace .input-request-card h3 {
   font-size: 17px;
   font-weight: 600;
 }
 .engine-workspace .input-option {
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   transition: border-color 120ms ease;
 }
 .engine-workspace .input-option:has(input:checked) {
@@ -340,7 +340,7 @@
 .engine-workspace .failed-run > .button:not(.secondary) {
   padding: 5px 12px;
   border: 1px solid color-mix(in oklch, var(--danger) 55%, var(--border));
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: color-mix(in oklch, var(--danger) 16%, transparent);
   color: var(--text);
   font-weight: 500;
@@ -369,7 +369,7 @@
   gap: 2px;
   height: 6px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--border);
 }
 .chat-council-bar > i {
@@ -410,7 +410,7 @@
   align-self: center;
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: var(--corner-xs);
   background: var(--option);
   content: "";
 }
@@ -431,7 +431,7 @@
   gap: 6px;
   padding: 3px 4px 3px 9px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--base);
   font-size: 12px;
 }
@@ -448,7 +448,7 @@
   align-items: center;
   gap: 4px;
   padding: 1px 7px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: color-mix(in oklch, var(--tone) 14%, transparent);
   color: var(--tone);
   font-weight: 600;
@@ -466,7 +466,7 @@
 }
 .chat-council-veto {
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: color-mix(in oklch, var(--danger) 16%, transparent);
   color: var(--danger);
   font-size: 11px;
@@ -494,7 +494,7 @@
   margin: 12px auto;
   padding: 10px 14px;
   border: 1px solid color-mix(in oklch, hsl(var(--ws-warning)) 50%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: color-mix(in oklch, hsl(var(--ws-warning)) 6%, var(--raised));
   color: var(--text);
   font-size: 13px;

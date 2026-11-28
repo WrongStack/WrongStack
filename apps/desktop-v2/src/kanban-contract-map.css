@@ -36,7 +36,7 @@
 .kanban-contract-kind {
   padding: 1px 6px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   color: var(--muted);
   font-size: 12px;
 }
@@ -53,7 +53,7 @@
   margin-top: 8px;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 .kanban-contract-form label {
   display: grid;

@@ -9,7 +9,7 @@
   min-width: 56px;
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   background: color-mix(in srgb, var(--border) 70%, transparent);
 }
 .tool-stats-ratio .ok {

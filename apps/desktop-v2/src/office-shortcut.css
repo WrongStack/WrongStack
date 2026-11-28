@@ -1,14 +1,46 @@
 .office-projects.notification-panel {
-  width: min(210px, 60vw);
+  width: min(260px, 70vw);
+  padding-bottom: 6px;
   overflow-y: auto;
 }
-.office-projects > button {
+.office-projects > header strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+/* One menu row per project: a tinted folder mark and the name on one line. */
+.office-projects > .office-project {
+  display: flex;
   flex: none;
-  justify-content: flex-start;
-  margin: 4px 6px;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 34px;
+  margin: 1px 6px;
+  padding: 4px 8px;
+  border-radius: var(--corner-md);
+  color: var(--text);
+  font-size: 13px;
   text-align: start;
+}
+.office-projects > .office-project:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.office-project-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--corner-sm);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.office-project-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Keep the shortcut reachable even where focused chat normally hides the header. */

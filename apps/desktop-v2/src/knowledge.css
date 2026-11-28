@@ -16,7 +16,7 @@
   padding: 13px 17px;
   min-width: 270px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--subtle);
 }
 .memory-systems > button[aria-current] {
@@ -49,7 +49,7 @@
   padding: 8px 11px;
   color: var(--muted);
   font-size: 12px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .sage-workspace-nav > button[aria-current] {
   color: var(--accent);
@@ -122,7 +122,7 @@
 }
 .sage-candidate-card {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   padding: 22px;
 }
@@ -184,7 +184,7 @@
 .sage-candidate-status {
   padding: 4px 6px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .sage-candidate-status.status-pending {
   color: var(--accent);
@@ -196,7 +196,7 @@
   border: 1px solid var(--border);
   padding: 20px;
   background: var(--raised);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   position: sticky;
   top: 0;
   max-height: 75dvh;
@@ -226,7 +226,7 @@
   text-align: center;
   padding: 35px;
   border: 1px dashed var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   width: 100%;
   color: var(--subtle);
 }
@@ -250,7 +250,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   overflow: hidden;
   margin: 20px 0 28px;
 }
@@ -289,7 +289,7 @@
 }
 .sage-health-check {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 18px;
   margin-bottom: 12px;
   background: var(--raised);
@@ -306,7 +306,7 @@
   padding: 4px 6px;
   background: var(--accent-soft);
   color: var(--accent);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .sage-health-check.severity-error {
   border-color: oklch(0.6 0.16 25 / 0.55);
@@ -341,7 +341,7 @@
   border: 1px solid var(--border);
   padding: 4px 6px;
   color: var(--subtle);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .sage-maintenance {
   border-left: 1px solid var(--border);
@@ -457,7 +457,7 @@
   padding: 4px 6px;
   font-size: 11px;
   color: var(--subtle);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .sage-usage-grid {
   display: grid;
@@ -563,7 +563,7 @@
   border: 1px solid var(--border);
   padding: 12px 14px;
   background: var(--raised);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   margin: 20px 0;
 }
 .sage-retrieval-search > svg {
@@ -601,7 +601,7 @@
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 18px;
   margin-bottom: 10px;
   background: var(--raised);
@@ -656,7 +656,7 @@
   padding: 20px;
   border: 1px solid var(--border);
   background: var(--raised);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .sage-vector-hits header {
   display: flex;
@@ -698,7 +698,7 @@
   padding: 12px;
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   color: var(--text);
   display: block;
   margin-top: 10px;
@@ -727,7 +727,7 @@
   color: var(--text);
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .sage-audience-filters > span {
   margin-left: auto;
@@ -748,7 +748,7 @@
   text-align: left;
   padding: 22px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
 }
 .sage-audience-cards > button:hover {
@@ -924,7 +924,7 @@
   color: var(--muted);
   border: 1px solid var(--border);
   padding: 3px 5px;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .sage-status-active {
   color: var(--accent);
@@ -1037,7 +1037,7 @@
   margin: 14px 0;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   min-width: 0;
 }
 .sage-validity-review > header,

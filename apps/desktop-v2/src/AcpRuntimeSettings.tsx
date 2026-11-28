@@ -99,7 +99,7 @@ export function AcpSessionModes({
           className="composer-chip effort-control"
           title={selector.description}
         >
-          <span>ACP</span>
+          <span className="composer-setting-name">ACP {selector.name}</span>
           <select
             aria-label={`ACP ${selector.name}`}
             disabled={

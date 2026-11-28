@@ -1,0 +1,150 @@
+/* Stat tiles (Metric): Mission Control and the project overview.
+
+   Each tile is a card with a tinted icon, its number, an optional bar that splits the number
+   into its kinds, and one short note. Tones are the semantic colours, so palettes and light
+   mode follow without per-tile rules. */
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+.metric {
+  --tone: var(--accent);
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: var(--corner-lg);
+  background:
+    radial-gradient(
+      120% 90% at 100% 0%,
+      color-mix(in srgb, var(--tone) 10%, transparent),
+      transparent 60%
+    ),
+    var(--raised);
+}
+.metric.tone-info,
+.metric-bar > .tone-info {
+  --tone: hsl(var(--ws-info));
+}
+.metric.tone-success,
+.metric-bar > .tone-success {
+  --tone: hsl(var(--ws-success));
+}
+.metric.tone-warning,
+.metric-bar > .tone-warning {
+  --tone: hsl(var(--ws-warning));
+}
+.metric.tone-danger,
+.metric-bar > .tone-danger {
+  --tone: var(--danger);
+}
+.metric.tone-violet,
+.metric-bar > .tone-violet {
+  --tone: oklch(0.68 0.16 300);
+}
+.metric.tone-muted,
+.metric-bar > .tone-muted {
+  --tone: var(--subtle);
+}
+.metric-bar > .tone-accent {
+  --tone: var(--accent);
+}
+.metric-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.metric-label > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metric-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--corner-md);
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  color: var(--tone);
+}
+.metric > strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 28px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.metric-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--corner-pill);
+  background: var(--tone);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 22%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .metric-live-dot {
+    animation: metric-pulse 1.8s ease-in-out infinite;
+  }
+}
+@keyframes metric-pulse {
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--tone) 0%, transparent);
+  }
+}
+.metric-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.metric-bar > span {
+  flex-basis: 0;
+  min-width: 4px;
+  background: var(--tone);
+}
+.metric p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--subtle);
+  font-size: 11.5px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@container fleet (max-width: 760px) {
+  .metrics-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container project-overview (max-width: 760px) {
+  .metrics-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container fleet (max-width: 360px) {
+  .metrics-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Some catalog labels are count phrases ("active sessions"); a tile title starts capitalised. */
+.metric-label > span:last-child::first-letter {
+  text-transform: uppercase;
+}

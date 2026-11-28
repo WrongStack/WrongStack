@@ -27,7 +27,7 @@
   font-size: 13px;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   cursor: pointer;
 }
 .image-diff-modes button[aria-pressed="true"] {

@@ -2,7 +2,7 @@
   margin: 24px 0;
   padding: 22px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   min-width: 0;
 }
 .provider-oauth header p {
@@ -28,7 +28,7 @@
   min-height: 40px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--surface);
   color: inherit;
   font: inherit;
@@ -37,7 +37,7 @@
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   margin: 16px 0;
 }
 .oauth-progress > button {

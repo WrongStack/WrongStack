@@ -7,24 +7,34 @@
 .settings-focused .main-content {
   scroll-padding-block: 12px 96px;
 }
+/* A navigation wide enough that section names stay on one line; the content takes the rest. */
 .wrongstack-settings .settings-workspace {
-  gap: clamp(18px, 3vw, 42px);
+  grid-template-columns: minmax(200px, 236px) minmax(0, 1fr);
+  gap: clamp(18px, 3vw, 40px);
 }
 .wrongstack-settings .settings-navigation {
   min-width: 0;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--corner-md);
   background: var(--sidebar);
   max-block-size: max(160px, calc(100dvh - 120px));
   scroll-padding-block: 48px 8px;
 }
 .wrongstack-settings .settings-navigation > button {
-  min-height: 36px;
+  min-height: 34px;
   font-size: 13px;
   line-height: 1.35;
   position: relative;
+}
+.wrongstack-settings .settings-navigation > button > span {
+  /* Long names (German, French) wrap rather than hide behind an ellipsis. */
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+.wrongstack-settings .settings-navigation > button:hover:not([aria-current]) {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
 }
 .wrongstack-settings .settings-navigation > :where(button) > svg {
   flex: none;
@@ -34,7 +44,8 @@
   position: absolute;
   inset-block: 9px;
   inset-inline-start: 0;
-  width: 2px;
+  width: 3px;
+  border-radius: var(--corner-pill);
   background: currentColor;
 }
 
@@ -68,7 +79,7 @@
   place-items: center;
   width: 26px;
   height: 26px;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--corner-sm);
 }
 .settings-search-status {
   margin: 0;
@@ -290,6 +301,9 @@
   }
 }
 @media (max-width: 1000px) {
+  .wrongstack-settings .settings-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .wrongstack-settings .settings-navigation {
     max-block-size: none;
     overflow: visible;

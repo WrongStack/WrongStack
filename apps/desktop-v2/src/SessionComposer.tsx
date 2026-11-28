@@ -1,23 +1,5 @@
-import {
-  ArrowUp,
-  BookOpen,
-  Clock3,
-  CornerDownLeft,
-  FilePlus2,
-  Gauge,
-  ListPlus,
-  LoaderCircle,
-  Pencil,
-  RefreshCw,
-  Sparkles,
-  Split,
-  Square,
-  Terminal,
-  X,
-} from 'lucide-react';
+import { ArrowUp, CornerDownLeft, ListPlus, LoaderCircle, Pencil, Square, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AgentModeControl } from './AgentModeControl';
-import { AutonomyControl, autonomyControlInputs } from './AutonomyControl';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import {
@@ -25,11 +7,18 @@ import {
   ComposerInputChips,
   useComposerAttachments,
 } from './ComposerAttachments';
+import { ComposerOptionsMenu, ComposerSettingsMenu } from './ComposerMenus';
 import { usePasteHint } from './ComposerPasteHint';
 import { ComposerQueue } from './ComposerQueue';
 import { ComposerReferenceChips } from './ComposerReferenceChips';
 import { type ComposerAttachment, wireAttachments } from './composer-attachments';
-import { dispatchComposer, type SubmitMode, supportsQueue } from './composer-model';
+import {
+  dispatchComposer,
+  effortNames,
+  type SubmitMode,
+  sessionEffort,
+  supportsQueue,
+} from './composer-model';
 import {
   appendToDraft,
   type ComposerFileReference,
@@ -57,10 +46,8 @@ import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
-import { SessionPermissionsOption } from './SessionPermissionsOption';
 import { TurnFollowUps } from './TurnFollowUps';
 import { useComposerInput } from './useComposerInput';
-import { useDetailsDismiss } from './useDetailsDismiss';
 import { usePendingPreference } from './usePendingPreference';
 import { SavedRefinementNotice, useRefinementDraft } from './useRefinementDraft';
 import './composer.css';
@@ -157,7 +144,7 @@ export function SessionComposer({
   const topicResolution = useRef<((choice: boolean | null) => void) | null>(null);
   const [topicBusy, setTopicBusy] = useState(false);
   const [agentPlan, setAgentPlan] = useState(false);
-  const optionsMenu = useDetailsDismiss();
+  const [settingsSlot, setSettingsSlot] = useState<HTMLDivElement | null>(null);
   const [mcpContent, setMcpContent] = useState(false);
   const [topic, setTopic] = useState<{ reason: string; nextTopic: string } | null>(null);
   // Up-arrow recall continues past this conversation into the project's durable prompt journal,
@@ -527,6 +514,15 @@ export function SessionComposer({
     !sending &&
     !topicBusy &&
     !prefBusy;
+  const effortState = sessionEffort(state);
+  const settingsSummary =
+    state.provider === 'acp' || effortState.hidden
+      ? ''
+      : effortState.current === 'auto'
+        ? t('composer.settings.auto')
+        : t(`options.${effortState.current}`, {
+            defaultValue: effortNames[effortState.current as keyof typeof effortNames],
+          });
   const modeLabel =
     mode === 'queue'
       ? t('composer.mode.queue')
@@ -755,147 +751,65 @@ export function SessionComposer({
           <DraftCounter draft={draft} context={state.context} />
         </div>
         <footer className="composer-toolbar">
-          <SessionModelControls
-            state={state}
-            command={command}
-            send={send}
-            onSettings={onSettings}
-          />
-          {state.sessionId && !recallLoaded && (
-            <JournalRecallLoader projectId={projectId} onLoad={onRecallLoad} />
-          )}
-          <AutonomyControl
-            {...autonomyControlInputs(state.results)}
-            command={command}
-            disabled={!state.connected || state.needsSetup}
-            showYolo={state.provider !== 'acp'}
-          />
-          <AgentModeControl
-            command={command}
-            announced={String(state.results['session.start']?.['mode'] ?? '')}
-            disabled={!state.connected || state.running}
-          />
-          <div className="composer-actions">
+          <div className="composer-lead">
             <ComposerInputChips
               attachDisabled={sending || media.processing}
               dictationDisabled={sending || !state.connected}
               onAttach={() => media.picker.current?.click()}
               onDictation={(text) => input.replace(appendToDraft(currentDraft.current, text))}
             />
-            <button
-              type="button"
-              className="composer-chip"
-              aria-label={t('composer.journal')}
-              title={t('composer.journalTitle')}
-              onClick={() => setPromptWorkspace('journal')}
-            >
-              <Clock3 size={14} />
-            </button>
-            <details className="composer-options" ref={optionsMenu}>
-              <summary title={t('composer.options')} aria-label={t('composer.options')}>
-                <Sparkles size={15} />
-              </summary>
-              <div>
-                <button
-                  type="button"
-                  disabled={sending || topicBusy || !state.connected}
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    setAgentPlan(true);
-                  }}
-                >
-                  <Split size={14} />
-                  {t('composer.agentPlan')}
-                </button>
-                <SessionPermissionsOption state={state} command={command} />
-                <button
-                  type="button"
-                  disabled={!canSend || !draft.trim()}
-                  onClick={(e) => {
-                    e.currentTarget.closest('details')?.removeAttribute('open');
-                    void beginSubmission(draft, mode, true).catch(() => {});
-                  }}
-                >
-                  <Sparkles size={14} /> {t('composer.refineDraft')}
-                </button>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    setPromptWorkspace('library');
-                  }}
-                >
-                  <BookOpen size={14} /> {t('composer.library')}
-                </button>
-                <button
-                  type="button"
-                  disabled={sending || draftConflict || !state.connected}
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    setMcpContent(true);
-                  }}
-                >
-                  <FilePlus2 size={14} /> {t('composer.mcpContent')}
-                </button>
-                <button
-                  type="button"
-                  disabled={sending}
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    input.replace(appendToDraft(draft, '@'));
-                  }}
-                >
-                  <FilePlus2 size={14} /> {t('composer.addFile')}
-                </button>
-                <button
-                  type="button"
-                  disabled={sending}
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    input.replace(appendToDraft(draft, '$'));
-                  }}
-                >
-                  <Sparkles size={14} /> {t('composer.skillMention')}
-                </button>
-                <button
-                  type="button"
-                  disabled={!state.connected}
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    setContextPanel('inspect');
-                  }}
-                >
-                  <Gauge size={14} /> {t('composer.contextPanel')}
-                </button>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    setCommandHelp(true);
-                  }}
-                >
-                  <Terminal size={14} /> {t('composer.commands')}
-                </button>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={enhanceEnabled}
-                    disabled={prefBusy || !state.connected}
-                    onChange={(e) => void setEnhance(e.target.checked)}
-                  />{' '}
-                  {t('composer.refineBeforeSend')}
-                </label>
-                {prefBusy && <small role="status">{t('composer.savingPreference')}</small>}
-                <button
-                  type="button"
-                  disabled={!state.connected || queueBusy}
-                  onClick={() => void queueAction('queue.get')}
-                >
-                  <RefreshCw size={14} /> {t('composer.refreshQueue')}
-                </button>
-                <small>{t('composer.keys')}</small>
-              </div>
-            </details>
+            <SessionModelControls
+              state={state}
+              command={command}
+              send={send}
+              onSettings={onSettings}
+              settingsTarget={settingsSlot}
+            />
+            <ComposerSettingsMenu
+              state={state}
+              command={command}
+              summary={settingsSummary}
+              slot={setSettingsSlot}
+              refineBeforeSend={enhanceEnabled}
+              preferenceBusy={prefBusy}
+              onRefineBeforeSend={(value) => void setEnhance(value)}
+            />
+            {state.sessionId && !recallLoaded && (
+              <JournalRecallLoader projectId={projectId} onLoad={onRecallLoad} />
+            )}
+          </div>
+          <div className="composer-actions">
+            <ComposerOptionsMenu
+              state={state}
+              command={command}
+              actions={{
+                agentPlan: {
+                  disabled: sending || topicBusy || !state.connected,
+                  run: () => setAgentPlan(true),
+                },
+                refineDraft: {
+                  disabled: !canSend || !draft.trim(),
+                  run: () => void beginSubmission(draft, mode, true).catch(() => {}),
+                },
+                journal: () => setPromptWorkspace('journal'),
+                library: () => setPromptWorkspace('library'),
+                mcpContent: {
+                  disabled: sending || draftConflict || !state.connected,
+                  run: () => setMcpContent(true),
+                },
+                addFile: { disabled: sending, run: () => input.replace(appendToDraft(draft, '@')) },
+                skillMention: {
+                  disabled: sending,
+                  run: () => input.replace(appendToDraft(draft, '$')),
+                },
+                context: { disabled: !state.connected, run: () => setContextPanel('inspect') },
+                commands: () => setCommandHelp(true),
+                refreshQueue: {
+                  disabled: !state.connected || queueBusy,
+                  run: () => void queueAction('queue.get'),
+                },
+              }}
+            />
             {state.running && (
               <>
                 <button
@@ -916,7 +830,8 @@ export function SessionComposer({
                   disabled={sending || !state.connected}
                   onClick={() => stop()}
                 >
-                  <Square size={10} fill="currentColor" /> {t('composer.stopRun')}
+                  <Square size={10} fill="currentColor" />{' '}
+                  <span className="composer-stop-label">{t('composer.stopRun')}</span>
                 </button>
               </>
             )}

@@ -43,12 +43,12 @@
   background: var(--base);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   max-width: 100%;
 }
 .git-hunk-review article {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   margin: 15px 0;
   overflow: hidden;
 }

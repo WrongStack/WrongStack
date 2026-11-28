@@ -198,6 +198,13 @@
   font-size: 13px;
 }
 
+/* A long single word (German "Projektwerkzeuge") breaks inside a narrow explorer, never past it. */
+.app-shell .explorer .project-views .rail-button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
 .app-shell .explorer .project-views > button:hover {
   background: color-mix(in srgb, var(--text) 7%, transparent);
   color: var(--text);
@@ -325,16 +332,32 @@
   gap: 8px;
 }
 
+/* Who is speaking: a small avatar before the name. WrongStack's is the accent mark; yours is a
+   quiet person glyph. */
 .native-chat-messages .chat-message > header > span:first-child::before {
   content: "";
-  width: 6px;
-  height: 6px;
   flex: none;
-  background: var(--muted);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--corner-pill);
+  background-color: color-mix(in srgb, var(--text) 10%, transparent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 13px;
 }
 
 .native-chat-messages .chat-message.assistant > header > span:first-child::before {
-  background: var(--accent);
+  border-radius: var(--corner-sm);
+  background-color: var(--accent);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z'/%3E%3C/svg%3E"),
+    linear-gradient(
+      135deg,
+      var(--accent),
+      color-mix(in srgb, var(--accent) 55%, var(--brand-secondary, hsl(var(--ws-brand-orange))))
+    );
+  background-size: 13px, cover;
 }
 
 .native-chat-messages .chat-message.assistant > header > span:first-child {
@@ -348,12 +371,18 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The operator's own turn is a quoted prompt, marked by an edge rule. */
+/* The operator's own turn is a soft, tinted card. */
 .native-chat-messages .chat-message.user .user-chat-body {
-  border: 0;
-  border-left: 2px solid var(--accent);
-  background: var(--raised);
+  margin-inline-start: 30px;
   padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: var(--corner-lg);
+  background: color-mix(in srgb, var(--accent) 7%, var(--raised));
+}
+
+/* The answer reads in line with the speaker's name, past the avatar. */
+.native-chat-messages .chat-message.assistant > div {
+  margin-inline-start: 30px;
 }
 
 /* ------------------------------------------------------------------ *
@@ -384,21 +413,6 @@
 .app-shell .composer-fold-controls:has(+ .composer-host:not([hidden])) > .button:hover {
   color: var(--text);
   border-color: var(--accent-border);
-}
-
-/* Every control in the composer row reads as the same chip. The value
-   chips (model, effort, mode) already carry the frame; the select inside
-   one must not draw a second control inside it. */
-.native-composer .composer-toolbar .composer-chip select {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: inherit;
-  font: inherit;
-  font-size: inherit;
 }
 
 /* ------------------------------------------------------------------ *
@@ -453,4 +467,31 @@
   background: var(--base);
   color: var(--text);
   box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Empty states
+ * ------------------------------------------------------------------ */
+
+/* A tool page with nothing selected leads with its icon in a tinted badge, so the page reads
+   as waiting for a choice rather than as missing content. */
+:is(
+    .review-empty,
+    .skill-reader-empty,
+    .skill-empty,
+    .mailbox-empty,
+    .dead-code-empty,
+    .chronicle-inspector-empty,
+    .history-empty-reader,
+    .tech-empty,
+    .kit-empty,
+    .file-review-empty
+  )
+  > svg:first-child {
+  box-sizing: content-box;
+  padding: 14px;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 5%, transparent);
+  color: var(--accent);
 }

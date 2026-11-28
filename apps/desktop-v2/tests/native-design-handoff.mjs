@@ -313,9 +313,9 @@ export async function exerciseNativeDesignHandoff({
       'Studio requires a same-project agent, excludes terminal/foreign sessions and preserves drafts after host-confirmed layout reload',
     );
     const prefs = await call(first, 'prefs.get');
-    const options = page.locator('.composer-options');
+    const options = page.locator('.composer-settings');
     if ((await options.getAttribute('open')) === null)
-      await options.getByLabel('Composer options', { exact: true }).click();
+      await options.locator(':scope > summary').click();
     const refine = options.getByRole('checkbox', { name: 'Refine before sending', exact: true });
     await waitFor(
       async () => (await refine.isChecked()) === (prefs.enhanceEnabled === true),
@@ -327,7 +327,7 @@ export async function exerciseNativeDesignHandoff({
       'Direct-send fixture preference saved',
     );
     assert.equal((await call(first, 'prefs.get')).enhanceEnabled, false);
-    await options.getByLabel('Composer options', { exact: true }).click();
+    await options.locator(':scope > summary').click();
     const spec = '.design/references/native-handoff/DESIGN.md';
     for (const base of [otherProject.root, root, join(root, 'packages/alpha')].filter(
       (base) => relative(executionRoot, base) !== '',

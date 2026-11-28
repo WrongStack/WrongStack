@@ -47,7 +47,7 @@
 .process-output select {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   color: var(--text);
   padding: 10px 12px;
@@ -65,7 +65,7 @@
 .process-list article {
   border: 1px solid var(--border);
   background: var(--raised);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 18px;
   min-width: 0;
 }
@@ -80,7 +80,7 @@
 }
 .process-status {
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
@@ -100,7 +100,7 @@
 .process-output {
   margin-top: 22px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 20px;
   background: var(--raised);
 }
@@ -120,7 +120,7 @@
   text-align: center;
   padding: 56px 20px;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   color: var(--muted);
 }
 .process-review {
@@ -176,7 +176,7 @@
 .process-ended li {
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .process-ended pre {
   margin: 4px 0;

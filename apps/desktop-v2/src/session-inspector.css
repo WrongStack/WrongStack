@@ -38,10 +38,7 @@
   background: var(--base);
 }
 /* An open, bounded menu may extend into the transcript, never under a clipping ancestor. */
-.session-leader-column:has(
-  .composer-options[open],
-  .session-model-controls .acp-runtime-controls[open]
-) {
+.session-leader-column:has(.composer-options[open], .composer-settings[open]) {
   overflow: visible;
 }
 .session-inspector {
@@ -245,23 +242,43 @@
   background: var(--base);
 }
 .session-inspector .agent-tabs {
-  gap: 0;
+  gap: 2px;
   padding: 0 8px 8px;
 }
 .session-inspector .agent-tabs > button {
-  padding: 12px 8px;
+  --agent-tone: var(--subtle);
+  align-items: flex-start;
   gap: 10px;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--corner-md);
   background: transparent;
 }
+.session-inspector .agent-tabs > button:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
 .session-inspector .agent-tabs > button[aria-pressed="true"] {
-  background: var(--base);
-  box-shadow: inset 2px 0 var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: none;
+}
+.session-inspector .agent-tabs > button:has(.agent-led.running) {
+  --agent-tone: var(--accent);
+}
+.session-inspector .agent-tabs > button:has(.agent-led.done) {
+  --agent-tone: hsl(var(--ws-success));
+}
+.session-inspector .agent-tabs > button:has(.agent-led.failed) {
+  --agent-tone: var(--danger);
+}
+.session-inspector .agent-tabs .agent-led {
+  margin-top: 6px;
+  background: var(--agent-tone);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-tone) 20%, transparent);
 }
 .session-inspector .agent-row-heading {
   flex-wrap: nowrap;
+  align-items: center;
 }
 .session-inspector .agent-row-heading strong {
   flex: 1;
@@ -273,8 +290,31 @@
 }
 .session-inspector .agent-row-heading small {
   flex: none;
-  padding: 0;
+  padding: 1px 7px;
   border: 0;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--agent-tone) 14%, transparent);
+  color: color-mix(in srgb, var(--agent-tone) 55%, var(--text));
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.session-inspector .agent-row-task,
+.session-inspector .agent-row-preview {
+  -webkit-line-clamp: 1;
+  margin-top: 3px;
+  font-size: 12px;
+}
+.session-inspector .agent-row-task {
+  color: var(--text);
+  opacity: 0.85;
+}
+.session-inspector .agent-row-preview {
+  color: var(--subtle);
+}
+.session-inspector .agent-tabs > button > svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--subtle);
 }
 .session-inspector .session-agent-detail-heading strong {
   min-width: 0;
@@ -341,6 +381,28 @@
   align-items: baseline;
   gap: 12px;
   padding-block: 8px;
+}
+/* A tool's row carries a bar: its call count against the busiest tool's. */
+.session-inspector-details .session-tool-summary dl > .session-tool-row {
+  position: relative;
+  padding-bottom: 14px;
+}
+.session-tool-row::before,
+.session-tool-row::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: 5px;
+  height: 4px;
+  border-radius: var(--corner-pill);
+}
+.session-tool-row::before {
+  inset-inline-end: 0;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.session-tool-row::after {
+  width: var(--share, 0%);
+  background: var(--accent);
 }
 .session-tool-summary dd {
   margin: 0;

@@ -6,7 +6,7 @@
 .refinement-policy article {
   padding: 22px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   min-width: 0;
 }
@@ -40,7 +40,7 @@
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   color: var(--text);
   background: var(--base);
   font: inherit;

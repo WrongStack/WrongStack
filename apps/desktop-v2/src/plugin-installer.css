@@ -5,7 +5,7 @@
   min-width: 0;
   border: 1px solid var(--border);
   background: var(--raised);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 18px 22px;
 }
 .plugin-installer h3 {
@@ -33,6 +33,6 @@
   overflow-wrap: anywhere;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   font-size: 12px;
 }

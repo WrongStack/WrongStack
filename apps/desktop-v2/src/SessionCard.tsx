@@ -1,30 +1,69 @@
 import { ArrowRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
+import './stat-tiles.css';
 import { ageParts, isLive, type Session, sessionStatus, sessionTitle } from './model';
 
+/** A segment of a stat tile's bar: how much of the whole one kind is. */
+export interface MetricSegment {
+  value: number;
+  tone: MetricTone;
+  label: string;
+}
+export type MetricTone = 'accent' | 'info' | 'success' | 'warning' | 'danger' | 'violet' | 'muted';
+
+/**
+ * A stat tile: a tinted icon, the number, and one short note. An optional bar splits the whole
+ * into its kinds (running, paused, failed…), so the tile shows the shape and not only the sum.
+ */
 export function Metric({
   icon,
   label,
   value,
   note,
   live = false,
+  tone = 'accent',
+  segments,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   note: string;
   live?: boolean;
+  tone?: MetricTone;
+  segments?: readonly MetricSegment[] | undefined;
 }) {
+  const total = segments?.reduce((sum, segment) => sum + Math.max(0, segment.value), 0) ?? 0;
   return (
-    <div className="metric">
+    <div className={`metric tone-${tone}`}>
       <div className="metric-label">
-        {icon}
+        <span className="metric-icon" aria-hidden="true">
+          {icon}
+        </span>
         <span>{label}</span>
       </div>
       <strong>
         {value}
         {live && <span className="metric-live-dot" />}
       </strong>
+      {segments && (
+        <span
+          className="metric-bar"
+          role="img"
+          aria-label={segments.map((segment) => `${segment.label}: ${segment.value}`).join(', ')}
+        >
+          {total > 0 &&
+            segments
+              .filter((segment) => segment.value > 0)
+              .map((segment) => (
+                <span
+                  key={segment.label}
+                  className={`tone-${segment.tone}`}
+                  style={{ flexGrow: segment.value }}
+                  title={`${segment.label}: ${segment.value}`}
+                />
+              ))}
+        </span>
+      )}
       <p>{note}</p>
     </div>
   );

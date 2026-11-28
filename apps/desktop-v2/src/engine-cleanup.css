@@ -2,7 +2,7 @@
   padding: 14px 16px;
   margin-bottom: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 0);
+  border-radius: var(--corner-sm);
   background: var(--base);
 }
 .engine-cleanup header,

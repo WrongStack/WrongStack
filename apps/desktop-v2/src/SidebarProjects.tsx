@@ -1,4 +1,4 @@
-import { Folder, FolderOpen, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Folder, FolderOpen, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
@@ -24,6 +24,17 @@ export type ProjectMenuController = Pick<
   | 'closeSessionTab'
 >;
 const DRAG_TYPE = 'application/x-wrongstack-project';
+const COLLAPSED_KEY = 'wrongstack.desktop.collapsedProjects';
+
+/** Projects whose session list is hidden; a convenience, so an unreadable store means none. */
+function readCollapsed(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
+    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 /** A project move is saved on drop, never on hover; aborted and external drags do nothing. */
 export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
@@ -38,6 +49,18 @@ export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
   const [destinationId, setDestinationId] = useState('');
   const [moveError, setMoveError] = useState('');
   const [moving, setMoving] = useState(false);
+  const [collapsed, setCollapsed] = useState<string[]>(readCollapsed);
+  const toggleCollapsed = (id: string) => {
+    const next = collapsed.includes(id)
+      ? collapsed.filter((item) => item !== id)
+      : [...collapsed, id];
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next));
+    } catch {
+      // Remembering the choice is a convenience; a blocked store keeps it for this window.
+    }
+  };
   const moveLock = useRef(false);
   const projects = vm.snapshot.projects;
   const sessionsByProject = useMemo(
@@ -170,28 +193,53 @@ export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
               </span>
               <span>{p.name}</span>
             </button>
-            <button
-              type="button"
-              className="project-new-session"
-              aria-label={t('explorer.newSessionIn', { name: p.name })}
-              title={t('explorer.newSession')}
-              disabled={disabled}
-              onClick={() => vm.newSession(p.id)}
-            >
-              <Plus size={13} />
-            </button>
-            <button
-              type="button"
-              className="project-remove"
-              aria-label={text('remove', p.name)}
-              title={text('remove', p.name)}
-              disabled={disabled}
-              onClick={() => setConfirming(p)}
-            >
-              <Trash2 size={13} />
-            </button>
+            {sessionsByProject.get(p.id)?.length ? (
+              <span className="project-session-count" aria-hidden="true">
+                {sessionsByProject.get(p.id)?.length}
+              </span>
+            ) : null}
+            <span className="project-actions">
+              {sessionsByProject.get(p.id)?.length ? (
+                <button
+                  type="button"
+                  className="project-collapse"
+                  aria-expanded={!collapsed.includes(p.id)}
+                  aria-label={t(
+                    collapsed.includes(p.id) ? 'explorer.showSessions' : 'explorer.hideSessions',
+                    { name: p.name },
+                  )}
+                  title={t(
+                    collapsed.includes(p.id) ? 'explorer.showSessions' : 'explorer.hideSessions',
+                    { name: p.name },
+                  )}
+                  onClick={() => toggleCollapsed(p.id)}
+                >
+                  <ChevronDown size={13} />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="project-new-session"
+                aria-label={t('explorer.newSessionIn', { name: p.name })}
+                title={t('explorer.newSession')}
+                disabled={disabled}
+                onClick={() => vm.newSession(p.id)}
+              >
+                <Plus size={13} />
+              </button>
+              <button
+                type="button"
+                className="project-remove"
+                aria-label={text('remove', p.name)}
+                title={text('remove', p.name)}
+                disabled={disabled}
+                onClick={() => setConfirming(p)}
+              >
+                <Trash2 size={13} />
+              </button>
+            </span>
           </div>
-          <div className="project-branch-sessions">
+          <div className="project-branch-sessions" hidden={collapsed.includes(p.id)}>
             {sessionsByProject.get(p.id)?.map((s) => (
               <SidebarSessionRow
                 key={s.id}

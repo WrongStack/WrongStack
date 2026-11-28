@@ -1,6 +1,6 @@
 import { playCompletionChime } from '@wrongstack/project-surfaces/lib/chime';
 import { LANGUAGES } from '@wrongstack/project-surfaces/lib/languages';
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Square, Squircle, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { AppearanceFonts } from './AppearanceFonts';
 import { AppearanceStatusChips } from './AppearanceStatusChips';
@@ -135,6 +135,31 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
             >
               <span>{label}</span>
               {appearance.density === id && <Check size={13} />}
+            </button>
+          ))}
+        </fieldset>
+      </div>
+      <div className="appearance-section">
+        <div>
+          <h3>{t('appearance.corners.title')}</h3>
+          <p>{t('appearance.corners.body')}</p>
+        </div>
+        <fieldset className="appearance-modes" aria-label={t('appearance.corners.title')}>
+          {(
+            [
+              { id: undefined, label: t('appearance.corners.soft'), Icon: Squircle },
+              { id: 'sharp', label: t('appearance.corners.sharp'), Icon: Square },
+            ] as const
+          ).map(({ id, label, Icon }) => (
+            <button
+              type="button"
+              key={label}
+              aria-pressed={appearance.corners === id}
+              onClick={() => changeAppearance({ corners: id })}
+            >
+              <Icon size={16} aria-hidden="true" />
+              <span>{label}</span>
+              {appearance.corners === id && <Check size={13} />}
             </button>
           ))}
         </fieldset>

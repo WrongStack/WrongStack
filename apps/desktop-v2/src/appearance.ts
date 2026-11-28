@@ -29,6 +29,8 @@ export interface Appearance extends FontAppearance, StatusAppearance, Conversati
   density?: 'compact' | undefined;
   /** The WebUI's "sound when a run finishes"; off unless chosen. */
   sound?: 'on' | undefined;
+  /** Square corners everywhere; unset draws the soft, rounded default. */
+  corners?: 'sharp' | undefined;
 }
 export const defaultAppearance: Appearance = {
   mode: 'system',
@@ -57,6 +59,7 @@ export function parseAppearance(raw: string | null | undefined): Appearance {
         contrastModes.find((mode) => mode === candidate['contrast']) ?? defaultAppearance.contrast,
       ...(candidate['density'] === 'compact' ? { density: 'compact' as const } : {}),
       ...(candidate['sound'] === 'on' ? { sound: 'on' as const } : {}),
+      ...(candidate['corners'] === 'sharp' ? { corners: 'sharp' as const } : {}),
       ...parseConversationAppearance(candidate),
       ...parseFontAppearance(candidate),
       ...parseStatusAppearance(candidate),
@@ -125,6 +128,8 @@ export function applyAppearance(appearance: Appearance, systemDark: boolean, sys
   else delete root.dataset['density'];
   if (appearance.sound === 'on') root.dataset['sound'] = 'on';
   else delete root.dataset['sound'];
+  if (appearance.corners === 'sharp') root.dataset['corners'] = 'sharp';
+  else delete root.dataset['corners'];
   applyFontAppearance(root, appearance);
   applyStatusAppearance(root, appearance);
   if (appearance.accent === 'signal') delete root.dataset['palette'];

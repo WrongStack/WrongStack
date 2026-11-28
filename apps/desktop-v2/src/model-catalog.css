@@ -5,7 +5,7 @@
   padding: 14px;
   margin-block: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   font-size: 13px;
   line-height: 1.6;
@@ -18,7 +18,7 @@
 .model-draft-comparison > div {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 12px;
 }
 .model-draft-comparison h4 {
@@ -39,7 +39,7 @@
 }
 .model-price-tier {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 16px;
   margin-block: 12px;
 }
@@ -57,7 +57,7 @@
   padding: 16px;
   margin-bottom: 18px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
 }
 .catalog-model-search header {
@@ -124,7 +124,7 @@
   display: grid;
   grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.8fr);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   overflow: hidden;
 }
 .model-catalog-list {
@@ -223,7 +223,7 @@
 .model-capabilities span {
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
-  border-radius: 20px;
+  border-radius: var(--corner-xl);
   padding: 5px 9px;
   font-size: 12px;
 }
@@ -268,7 +268,7 @@
   padding: 14px;
   margin-top: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 .model-advanced-fields {
   margin: 20px 0;
@@ -283,7 +283,7 @@
   padding: 12px;
   margin: 12px 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 /* The remove button sat in the type select's grid cell and grew to fill it (≈185×95). */
 .model-reasoning-option .model-editor-grid > .button {
@@ -348,7 +348,7 @@
 .model-draft-count {
   padding: 0 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   color: var(--muted);
   font-size: 12px;
   font-weight: 500;
@@ -366,7 +366,7 @@
   min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
 }
 .model-draft-admin-row {

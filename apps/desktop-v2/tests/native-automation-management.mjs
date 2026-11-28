@@ -66,7 +66,7 @@ export async function exerciseNativeAutomationManagement({
   await workspace().getByLabel('Automation image', { exact: true }).fill('trusted:1');
   await workspace().getByRole('button', { name: 'Choose automation model', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Choose automation model', exact: true });
-  await picker.getByLabel('Session model provider', { exact: true }).selectOption('desktop-local');
+  await picker.locator('.model-picker-providers [data-provider="desktop-local"]').click();
   await picker.locator('.composer-model-list button').filter({ hasText: fixtureModel }).click();
   await picker.waitFor({ state: 'hidden' });
   await workspace().getByRole('button', { name: 'Configure environment', exact: true }).click();

@@ -135,7 +135,7 @@
 }
 .project-destination {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   text-align: left;
   padding: 0;
@@ -207,7 +207,7 @@
   height: 37px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   margin-bottom: 9px;
   padding: 9px;
 }
@@ -270,7 +270,7 @@
   gap: 12px;
   padding: 25px 20px;
   border: 1px dashed var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 12px;
   color: var(--muted);
 }
@@ -354,7 +354,7 @@
   font: inherit;
   font-size: 12px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .view-segment {
   display: flex;
@@ -363,7 +363,7 @@
   background: var(--sidebar);
   border: 1px solid var(--border);
   padding: 3px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .view-segment > button {
   display: flex;
@@ -372,7 +372,7 @@
   padding: 6px 10px;
   font-size: 11px;
   color: var(--muted);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .view-segment > [aria-pressed="true"] {
   background: var(--raised);
@@ -396,7 +396,7 @@
 .memory-map-panel {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   overflow: hidden;
 }
 .graph-surface {
@@ -455,7 +455,7 @@
   text-align: left;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 13px 14px 12px 18px;
   box-shadow: 0 4px 12px oklch(0.1 0 0 / 0.06);
   --graph-mark: var(--accent);
@@ -466,7 +466,7 @@
   top: 24px;
   width: 7px;
   height: 20px;
-  border-radius: 2px;
+  border-radius: var(--corner-xs);
   background: var(--graph-mark);
 }
 .graph-node small {
@@ -558,7 +558,7 @@
   align-items: center;
   gap: 2px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
   padding: 3px;
   box-shadow: 0 2px 8px oklch(0.1 0 0 / 0.06);
@@ -622,7 +622,7 @@
 .atlas-inspector {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   padding: 23px;
   min-width: 0;
 }
@@ -741,7 +741,7 @@
   margin-top: 9px;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   color: var(--text);
   font: inherit;
@@ -911,7 +911,7 @@
   border: 0;
   appearance: none;
   height: 3px;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
   background: var(--border);
   overflow: hidden;
 }
@@ -936,7 +936,7 @@
   flex-direction: column;
   min-height: 400px;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 45px;
 }
 .board-empty > svg {
@@ -976,7 +976,7 @@
   flex: 0 0 258px;
   padding: 0 10px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: color-mix(in oklch, var(--sidebar) 70%, var(--base));
   --column-color: var(--subtle);
 }
@@ -1028,7 +1028,7 @@
   margin-bottom: 11px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   cursor: grab;
   box-shadow: 0 2px 3px oklch(0.05 0 0 / 0.025);
 }
@@ -1091,7 +1091,7 @@
   color: var(--accent);
   background: var(--accent-soft);
   padding: 3px 6px;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .kanban-task-card > footer {
   display: flex;
@@ -1182,7 +1182,7 @@
 .atlas-layout > .graph-surface {
   height: clamp(360px, calc(100dvh - 490px), 650px);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 .atlas-inspector h2 {
   font-size: 20px;
@@ -1196,7 +1196,7 @@
   height: 45px;
   background: var(--accent-soft);
   color: var(--accent);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   display: grid;
   place-items: center;
   margin-top: 12px;
@@ -1246,7 +1246,7 @@
   background: var(--border);
   height: 4px;
   margin-top: 12px;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
   overflow: hidden;
 }
 .atlas-health-fill {
@@ -1260,7 +1260,7 @@
   font-size: 12px;
   line-height: 1.8;
   padding: 10px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .atlas-dependency-list h3 {
   font-size: 12px;
@@ -1327,7 +1327,7 @@
   border: 1px solid var(--border);
   font-size: 12px;
   margin-bottom: 17px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .atlas-index-notice > button {
   display: flex;
@@ -1353,7 +1353,7 @@
   margin-top: 24px;
   border: 1px solid var(--border);
   background: var(--code);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 .atlas-source > header {
   display: flex;
@@ -1399,7 +1399,7 @@
   color: var(--muted);
   font-size: 12px;
   padding: 12px 10px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   margin-bottom: 3px;
 }
 .settings-navigation > button > svg:last-child {
@@ -1501,7 +1501,7 @@
   padding: 10px 12px;
   font: inherit;
   font-size: 12px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 /* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
 .setting-control select:not([multiple]) {
@@ -1521,7 +1521,7 @@
   flex-shrink: 0;
   width: 38px;
   height: 22px;
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   padding: 3px;
   /* Off reads as an empty track with a visible edge, not a dark slab on a dark page. */
   background: color-mix(in srgb, var(--text) 8%, var(--raised));
@@ -1572,7 +1572,7 @@
   border: 1px solid var(--border);
   background: var(--raised);
   padding: 22px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   min-width: 0;
 }
 .integration-card > header {
@@ -1586,7 +1586,7 @@
 .integration-icon {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--accent-soft);
   color: var(--accent);
   display: grid;
@@ -1665,7 +1665,7 @@
 }
 .integration-empty {
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 45px;
   margin-top: 25px;
 }

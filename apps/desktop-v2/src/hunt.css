@@ -6,7 +6,7 @@
   margin: 0 0 8px;
   padding: 8px 12px;
   border: 1px solid var(--accent);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 13px;
 }
 .hunt-paused > svg {
@@ -43,7 +43,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
 }
 .hunt-round-card > div > .hunt-round {
   border-color: color-mix(in oklch, var(--accent) 45%, transparent);

@@ -24,7 +24,7 @@
 }
 /* Upward-opening composer menus need to leave room for both fixed chrome rows. */
 @media (max-height: 600px) {
-  .app-shell .composer-options > div {
+  .app-shell :is(.composer-options > div, .composer-settings-panel) {
     max-height: min(
       420px,
       calc(45dvh - var(--desktop-status-height) - var(--desktop-caption-height))

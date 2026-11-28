@@ -43,7 +43,7 @@ export function ProjectToolsMenu({
         const tools = launcher ? group.tools : group.tools.filter((tool) => !tool.featured);
         if (!tools.length) return null;
         return (
-          <section key={group.id} className="project-tools-group">
+          <section key={group.id} className="project-tools-group" data-group={group.id}>
             <h3>{t(`projectTools.groups.${group.id}`)}</h3>
             <div className="project-tools-items">
               {tools.map(({ id, Icon, summaryKey }) => {
@@ -58,7 +58,13 @@ export function ProjectToolsMenu({
                     aria-current={open ? 'page' : undefined}
                     onClick={() => onOpen(id)}
                   >
-                    <Icon size={launcher ? 14 : 21} />
+                    {launcher ? (
+                      <Icon size={14} />
+                    ) : (
+                      <span className="project-tool-icon" aria-hidden="true">
+                        <Icon size={18} />
+                      </span>
+                    )}
                     <div className="project-tool-copy">
                       <strong>{t(`pages.${id}`)}</strong>
                       {!launcher && <span>{t(summaryKey)}</span>}
@@ -67,7 +73,7 @@ export function ProjectToolsMenu({
                     {launcher ? (
                       open && <i className="project-tool-dot" aria-hidden="true" />
                     ) : (
-                      <ArrowRight size={16} />
+                      <ArrowRight size={15} className="project-tool-arrow" />
                     )}
                   </button>
                 );

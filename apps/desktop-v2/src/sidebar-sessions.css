@@ -1,60 +1,72 @@
 /* A session row in the sidebar: the session, then its stop and remove actions (SidebarSessionRow). */
 .tree-session-row {
+  --row-surface: var(--sidebar);
   position: relative;
   display: flex;
   align-items: center;
+  min-width: 0;
+  border-radius: var(--corner-md);
+}
+.tree-session-row:hover {
+  --row-surface: color-mix(in srgb, var(--text) 6%, var(--sidebar));
+}
+.tree-session-row.chosen {
+  --row-surface: color-mix(in srgb, var(--accent) 14%, var(--sidebar));
 }
 .app-shell .explorer .project-branch .tree-session-row > .tree-session {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex: 1;
+  width: 100%;
   min-width: 0;
-  min-height: 32px;
+  min-height: 30px;
   padding: 3px 6px;
-  gap: 7px;
-  border-radius: 5px;
-}
-.explorer .project-branch-sessions .tree-session::before {
-  display: none;
+  gap: 8px;
+  border-radius: var(--corner-md);
+  background: var(--row-surface);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: start;
 }
 .app-shell .explorer .project-branch .tree-session-row > .tree-session:hover {
-  background: color-mix(in srgb, var(--text) 7%, transparent);
   color: var(--text);
+}
+.app-shell .explorer .project-branch .tree-session-row > .tree-session.chosen {
+  color: var(--text);
+  font-weight: 600;
+}
+/* The open session is marked by a short accent bar on the guide line. */
+.app-shell .explorer .project-branch .tree-session-row > .tree-session.chosen::before {
+  content: "";
+  position: absolute;
+  inset-block: 7px;
+  inset-inline-start: -5px;
+  width: 2px;
+  border-radius: var(--corner-pill);
+  background: var(--accent);
 }
 .tree-session-icon {
   position: relative;
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: 21px;
-  block-size: 22px;
-  color: var(--muted);
+  inline-size: 18px;
+  block-size: 20px;
+  color: var(--subtle);
+}
+.tree-session.chosen .tree-session-icon {
+  color: var(--accent);
 }
 .tree-session-icon .status-dot {
   position: absolute;
-  inset-inline-end: 0;
+  inset-inline-end: -2px;
   inset-block-end: 1px;
   width: 7px;
   height: 7px;
-  border: 1px solid var(--raised);
-}
-.app-shell .explorer .project-branch .tree-session-row > .tree-session.chosen {
-  color: var(--text);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  box-shadow: inset 2px 0 var(--accent);
-  font-weight: 600;
-}
-.tree-session.chosen .tree-session-icon {
-  color: var(--accent-ink);
-}
-.tree-session-actions {
-  flex: none;
-  align-items: center;
-  display: none;
-}
-.tree-session-row:hover .tree-session-actions,
-.tree-session-row:focus-within .tree-session-actions,
-.tree-session-row[aria-busy="true"] .tree-session-actions,
-.tree-session-row.chosen .tree-session-actions {
-  display: flex;
+  border: 1.5px solid var(--row-surface);
+  border-radius: var(--corner-pill);
+  box-sizing: content-box;
 }
 .tree-session .tree-session-title {
   min-width: 0;
@@ -62,9 +74,40 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tree-session-row:is(:hover, :focus-within, .chosen, [aria-busy="true"]) .tree-session-actions {
+  opacity: 1;
+}
 .tree-session-actions .icon-button {
+  display: grid;
+  place-items: center;
   width: 24px;
-  height: 26px;
+  height: 24px;
+  border-radius: var(--corner-sm);
+  color: var(--muted);
+}
+.tree-session-actions .icon-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+.tree-session-actions .icon-button.danger:hover:not(:disabled) {
+  color: var(--danger);
+}
+.session-remove-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+.session-remove-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--corner-md);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 .session-remove-body {
   margin: 0 0 16px;

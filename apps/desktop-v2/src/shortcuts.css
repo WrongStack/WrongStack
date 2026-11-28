@@ -41,6 +41,6 @@
   font-size: 12px;
   text-align: center;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   background: var(--raised);
 }

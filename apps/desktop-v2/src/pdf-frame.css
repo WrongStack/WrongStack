@@ -3,6 +3,6 @@
   width: min(900px, 100%);
   height: min(75vh, 900px);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: #fff;
 }

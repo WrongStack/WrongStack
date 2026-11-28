@@ -107,6 +107,13 @@ export async function exerciseNativeComposer({
       await details.getByLabel('Composer options', { exact: true }).click();
     return details;
   };
+  /** The session settings popover, opened; it holds "Refine before sending". */
+  const settings = async () => {
+    const details = page.locator('.composer-settings');
+    if (!(await details.evaluate((el) => el.open)))
+      await details.locator(':scope > summary').click();
+    return details;
+  };
   await idle();
   await page.getByRole('button', { name: 'Choose session model', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Choose a model' });
@@ -116,6 +123,8 @@ export async function exerciseNativeComposer({
     .filter({ has: page.locator('strong', { hasText: fixtureModel }) })
     .click();
   await picker.waitFor({ state: 'detached' });
+  // Effort lives in the composer's session settings popover.
+  await page.locator('.composer-settings > summary').click();
   await page.getByRole('combobox', { name: 'Session reasoning effort' }).selectOption('high');
   await waitFor(
     async () => (await call('prefs.get', {}, ['prefs.updated'])).reasoningEffort === 'high',
@@ -332,14 +341,16 @@ export async function exerciseNativeComposer({
     .locator('.composer-model-list button')
     .filter({ hasText: 'alternate-refiner' })
     .waitFor();
-  const refinerRowDetails = await refinerPicker
+  const refinerRow = refinerPicker
     .locator('.composer-model-list button')
-    .filter({ hasText: 'alternate-refiner' })
-    .locator('.composer-model-details')
-    .innerText();
-  assert.match(
-    refinerRowDetails,
-    /^128K context · 16K output/,
+    .filter({ hasText: 'alternate-refiner' });
+  // The row draws its limits as facts; each fact keeps its words as the title.
+  assert.deepEqual(
+    [
+      await refinerRow.locator('.model-fact-context').getAttribute('title'),
+      await refinerRow.locator('.model-fact-output').getAttribute('title'),
+    ],
+    ['128K context', '16K output'],
     'Catalog limits show in the picker',
   );
   await page.screenshot({ path: join(artifactDir, 'native-refiner-picker.png'), fullPage: true });
@@ -543,7 +554,7 @@ export async function exerciseNativeComposer({
   await refine.getByRole('button', { name: 'Keep original draft', exact: true }).click();
   await waitFor(async () => (await storedReview()).value === null, 'Closed review leaves storage');
   await composer().fill('');
-  await (await options())
+  await (await settings())
     .getByRole('checkbox', { name: 'Refine before sending', exact: true })
     .check();
   await waitFor(
@@ -572,7 +583,7 @@ export async function exerciseNativeComposer({
     'Original prompt approved from automatic refinement',
   );
   await idle();
-  await (await options())
+  await (await settings())
     .getByRole('checkbox', { name: 'Refine before sending', exact: true })
     .uncheck();
   await waitFor(

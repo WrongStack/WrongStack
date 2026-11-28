@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T00:02:54.360Z",
+  "generatedAt": "2026-11-28T00:06:00.311Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6639,
-    "testFiles": 6569,
-    "sourceLines": 1363172,
+    "sourceFiles": 6641,
+    "testFiles": 6570,
+    "sourceLines": 1363752,
     "workspaceEdges": 267,
-    "moduleEdges": 19467,
+    "moduleEdges": 19475,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -427,8 +427,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 580,
-      "testFiles": 414,
+      "sourceFiles": 582,
+      "testFiles": 415,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -447,7 +447,7 @@
         {
           "path": "apps/desktop-v2/tsconfig.test.json",
           "error": null,
-          "testFiles": 414
+          "testFiles": 415
         }
       ]
     },
@@ -3799,6 +3799,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-stats.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/transcript-follow-on-send.test.ts",
         "projects": [
           "root-node"
         ]
@@ -41591,6 +41597,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ProjectBreadcrumb.tsx",
+      "specifier": "./project-tools.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ProjectChimera.tsx",
       "specifier": "./project-chimera.css",
       "syntax": "import"
@@ -41748,6 +41759,11 @@
     {
       "from": "apps/desktop-v2/src/SessionBrowser.tsx",
       "specifier": "./session-browser.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionCard.tsx",
+      "specifier": "./stat-tiles.css",
       "syntax": "import"
     },
     {
@@ -42341,12 +42357,12 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 853,
+      "lines": 854,
       "relativeImports": 17
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 787,
+      "lines": 792,
       "relativeImports": 61
     },
     {
@@ -42406,8 +42422,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1083,
-      "relativeImports": 40
+      "lines": 998,
+      "relativeImports": 37
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -42426,7 +42442,7 @@
     },
     {
       "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
-      "lines": 785,
+      "lines": 786,
       "relativeImports": 49
     }
   ],
@@ -42457,11 +42473,6 @@
       "relativeImports": 0
     },
     {
-      "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1083,
-      "relativeImports": 40
-    },
-    {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
       "lines": 1080,
       "relativeImports": 11
@@ -42470,6 +42481,11 @@
       "file": "packages/webui/src/components/ChimeraReviewsView.tsx",
       "lines": 1042,
       "relativeImports": 3
+    },
+    {
+      "file": "apps/desktop-v2/src/SessionComposer.tsx",
+      "lines": 998,
+      "relativeImports": 37
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
@@ -42533,7 +42549,7 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 853,
+      "lines": 854,
       "relativeImports": 17
     },
     {
@@ -42573,7 +42589,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 787,
+      "lines": 792,
       "relativeImports": 61
     },
     {
@@ -42582,14 +42598,14 @@
       "relativeImports": 1
     },
     {
+      "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
+      "lines": 786,
+      "relativeImports": 49
+    },
+    {
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 786,
       "relativeImports": 8
-    },
-    {
-      "file": "apps/desktop-v2/src/WrongStackSettings.tsx",
-      "lines": 785,
-      "relativeImports": 49
     },
     {
       "file": "packages/tools/src/design.ts",

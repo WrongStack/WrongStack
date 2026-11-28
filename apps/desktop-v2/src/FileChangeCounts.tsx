@@ -20,6 +20,66 @@ export function FileChangeCounts({ added, deleted }: { added: unknown; deleted: 
   );
 }
 
+/** Git's change kinds, in the order the summary draws them. */
+const GIT_KINDS = ['M', 'A', 'D', 'R', 'C', 'U', 'untracked'] as const;
+type GitKind = (typeof GIT_KINDS)[number];
+
+/** The kind a git status letter names; an untracked file is "?". Unknown letters read as modified. */
+export function gitKind(status: unknown): GitKind {
+  const letter = String(status ?? '').charAt(0);
+  if (letter === '?') return 'untracked';
+  return (GIT_KINDS as readonly string[]).includes(letter) ? (letter as GitKind) : 'M';
+}
+
+/**
+ * The change list at a glance: one bar split by change kind, each kind's count, and the lines
+ * added and removed across every file.
+ */
+export function FileChangeSummary({ changes }: { changes: Record<string, unknown>[] }) {
+  const { t } = useDesktopText();
+  if (!changes.length) return null;
+  const counts = new Map<GitKind, number>();
+  let added = 0;
+  let deleted = 0;
+  for (const file of changes) {
+    const kind = gitKind(file['status']);
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+    if (typeof file['added'] === 'number') added += file['added'];
+    if (typeof file['deleted'] === 'number') deleted += file['deleted'];
+  }
+  const kinds = GIT_KINDS.filter((kind) => counts.has(kind));
+  const lines = added + deleted;
+  return (
+    <div className="file-change-summary">
+      <div className="file-change-summary-bar" aria-hidden="true">
+        {kinds.map((kind) => (
+          <i key={kind} className={`status-${kind}`} style={{ flexGrow: counts.get(kind) }} />
+        ))}
+      </div>
+      <ul className="file-change-summary-kinds">
+        {kinds.map((kind) => {
+          const label = t(`fileView.gitStatus.${kind}`, { count: counts.get(kind) });
+          return (
+            <li key={kind} className={`status-${kind}`} title={label} aria-label={label}>
+              <b aria-hidden="true">{kind === 'untracked' ? '?' : kind}</b>
+              <span aria-hidden="true">{counts.get(kind)}</span>
+            </li>
+          );
+        })}
+        {lines > 0 && (
+          <li className="file-change-summary-lines">
+            <FileChangeCounts added={added} deleted={deleted} />
+            <span className="file-change-ratio" aria-hidden="true">
+              <i style={{ flexGrow: added }} />
+              <i style={{ flexGrow: deleted }} />
+            </span>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 /** Stage (or unstage) every file in a change group, as the WebUI's change list offers. */
 export function StageAllButton({
   staged,

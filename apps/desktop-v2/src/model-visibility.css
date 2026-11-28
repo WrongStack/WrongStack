@@ -25,7 +25,7 @@
   min-height: 40px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--surface);
   color: inherit;
   font: inherit;
@@ -42,7 +42,7 @@
   gap: 12px;
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 16px;
 }
 .model-visibility-list article > div {
@@ -81,7 +81,7 @@
   margin: 20px 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 .provider-visibility-copy {
   flex: 1;

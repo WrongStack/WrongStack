@@ -61,7 +61,7 @@
 }
 .recovery-metrics article {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 15px;
   background: var(--raised);
 }
@@ -81,7 +81,7 @@
 .recovery-files,
 .recovery-outcome {
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   padding: 20px;
   margin-bottom: 20px;
@@ -148,7 +148,7 @@
   flex: 1;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   min-width: 140px;
 }
 .recovery-event-filters input {
@@ -165,7 +165,7 @@
   background: var(--base);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   padding: 8px;
   max-width: 100%;
 }
@@ -255,7 +255,7 @@
 }
 .recovery-records {
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   padding: 12px 20px;
   margin-bottom: 20px;
@@ -326,7 +326,7 @@
   font-size: 13px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
 }
 .recovery-prompt-actions {

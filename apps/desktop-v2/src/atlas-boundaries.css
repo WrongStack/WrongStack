@@ -25,7 +25,7 @@
   height: 390px;
   min-height: 300px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   margin: 12px 0;
 }
 .boundary-groups {
@@ -45,7 +45,7 @@
 .boundary-groups button {
   padding: 6px 9px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   color: var(--muted);
   font-size: 11px;
   overflow-wrap: anywhere;
@@ -58,7 +58,7 @@
   padding: 16px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .boundary-detail h4 {
   font-size: 13px;

@@ -706,6 +706,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       {deleting && (
         <Modal title={t('automation.deleteTitle')} onClose={() => setDeleting(null)}>
           <section className="automation-delete" aria-label={t('automation.deleteTitle')}>
+            <h2>{t('automation.deleteTitle')}</h2>
             <p>
               <Trans
                 i18n={surfaceI18n}

@@ -21,7 +21,7 @@
   margin: 0;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
 }
 .worktree-history-label {
@@ -69,7 +69,7 @@
   align-items: center;
   padding: 2px 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -83,7 +83,7 @@
 .worktree-history-segment {
   position: absolute;
   inset: 0 auto;
-  border-radius: 2px;
+  border-radius: var(--corner-xs);
 }
 .worktree-history-segment.phase-working {
   background: hsl(var(--ws-warning));
@@ -153,7 +153,7 @@
   gap: 6px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 13px;
 }
 .worktree-history-detail header {
@@ -172,7 +172,7 @@
 .worktree-history-badge {
   padding: 0 6px;
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   font-size: 12px;
 }
 .worktree-history-detail > p {

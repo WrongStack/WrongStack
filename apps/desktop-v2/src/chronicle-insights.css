@@ -1,6 +1,6 @@
 .chronicle-insights {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   margin: 24px 0;
 }
@@ -43,7 +43,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -59,7 +59,7 @@
 }
 .insights-list article {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 12px 14px;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -97,7 +97,7 @@
   align-self: flex-start;
   padding: 1px 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   color: var(--muted);
   font-size: 11px;
 }

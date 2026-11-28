@@ -29,7 +29,7 @@
   gap: 10px;
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   text-align: left;
   background: var(--raised);
   color: var(--text);
@@ -119,7 +119,7 @@
 .automation-environment-editor fieldset {
   margin: 16px 0;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 14px;
   min-width: 0;
 }
@@ -200,7 +200,7 @@
 .automation-leave {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .automation-leave > button {
   margin: 8px 8px 0 0;
@@ -287,7 +287,7 @@
   color: var(--accent);
   background: var(--accent-soft);
   padding: 6px 10px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .automation-run-metrics {
   display: grid;
@@ -301,7 +301,7 @@
   padding: 16px;
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .automation-run-metrics small {
   color: var(--muted);
@@ -317,7 +317,7 @@
   padding: 14px;
   margin: 12px 0;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 13px;
 }
 .automation-check-list :where(small, span) {
@@ -330,7 +330,7 @@
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   font: 11px / 1.8 var(--user-font-code, monospace);
 }
@@ -360,7 +360,7 @@
 .automation-publication fieldset {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .automation-publication :where(legend) {
   padding: 0 6px;

@@ -52,7 +52,7 @@
   min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   font: inherit;
   font-size: 13px;
   background: var(--raised);
@@ -68,7 +68,7 @@
 .mcp-task-list > article {
   border: 1px solid var(--border);
   background: var(--raised);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   padding: 20px;
 }
 .mcp-task-list h3 {
@@ -99,7 +99,7 @@
 }
 .mcp-task-status {
   padding: 6px 10px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   font-size: 12px;
   background: var(--accent-soft);
   color: var(--accent-ink);
@@ -118,7 +118,7 @@
   text-align: center;
   color: var(--muted);
   border: 1px dashed var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
 }
 .mcp-task-cancel > :where(p) {
   color: var(--muted);

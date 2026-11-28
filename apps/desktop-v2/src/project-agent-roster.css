@@ -7,7 +7,7 @@
   min-height: 38px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   color: var(--text);
   font: inherit;
@@ -94,7 +94,7 @@
   min-height: 38px;
   padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   color: var(--text);
   font: inherit;
@@ -106,7 +106,7 @@
 }
 .roster-catalog-card {
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   padding: 11px 14px;
   text-align: left;
   background: var(--raised);
@@ -151,7 +151,7 @@
 }
 .roster-empty {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   min-height: 350px;
   display: flex;
   flex-direction: column;
@@ -194,7 +194,7 @@
 }
 .roster-sections button {
   padding: 9px 13px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
   font-size: 13px;
 }
@@ -224,7 +224,7 @@
 .roster-policy-note,
 .roster-prepared-instruction {
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   padding: 18px;
 }
@@ -243,7 +243,7 @@
 .roster-resolved > :where(dl) > div {
   padding: 12px;
   background: var(--base);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .roster-inspector dt {
   color: var(--muted);
@@ -301,7 +301,7 @@
 .roster-learning-metrics > div {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   display: grid;
   gap: 6px;
 }
@@ -319,7 +319,7 @@
 }
 .roster-directives details {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   padding: 14px;
 }
@@ -352,7 +352,7 @@
 .roster-skill-layer article {
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   margin: 12px 0;
   background: var(--raised);
 }
@@ -385,7 +385,7 @@
 .roster-inheritance > div {
   height: 360px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--base);
 }
 .roster-inheritance > p {
@@ -476,7 +476,7 @@
   align-items: center;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 10px;
   min-width: 0;
 }
@@ -512,7 +512,7 @@
   align-items: center;
   gap: 7px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 8px;
   margin: 0;
   font-size: 12px;
@@ -537,7 +537,7 @@
 .roster-markdown {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--base);
 }
 .roster-document-conflict {
@@ -556,7 +556,7 @@
 .roster-confirm {
   padding: 14px;
   border: 1px solid var(--accent-border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   margin-top: 18px;
 }
 .roster-confirm button {
@@ -568,7 +568,7 @@
 .roster-capture {
   border: 1px solid var(--border);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
 }
 .roster-capture summary {
@@ -583,7 +583,7 @@
   margin: 12px 0;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
 }
 .roster-overlap article header {
@@ -663,7 +663,7 @@
   margin-bottom: 16px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
 }
 .roster-knowledge h4 {
   margin: 0;

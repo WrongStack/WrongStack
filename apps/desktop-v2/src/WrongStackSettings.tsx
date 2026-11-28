@@ -559,6 +559,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               <button
                 type="button"
                 aria-current={section === id ? 'page' : undefined}
+                title={title}
                 onClick={() => openSection(id, true)}
               >
                 <Icon size={16} aria-hidden="true" />

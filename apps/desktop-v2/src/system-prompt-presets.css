@@ -11,7 +11,7 @@
   display: grid;
   gap: 8px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 12px 14px;
 }
 .prompt-preset-variant label,

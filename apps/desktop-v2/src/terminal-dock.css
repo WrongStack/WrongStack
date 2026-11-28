@@ -27,7 +27,11 @@
 }
 .terminal-dock-icon {
   flex: none;
-  color: var(--muted);
+  box-sizing: content-box;
+  padding: 4px;
+  border-radius: var(--corner-sm);
+  background: color-mix(in srgb, hsl(var(--ws-success)) 14%, transparent);
+  color: hsl(var(--ws-success));
 }
 .terminal-dock > header > .icon-button {
   flex: none;
@@ -36,6 +40,7 @@
 }
 .terminal-dock > header > strong {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

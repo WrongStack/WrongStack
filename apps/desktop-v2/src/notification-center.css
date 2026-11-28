@@ -19,7 +19,7 @@
   min-width: 15px;
   height: 15px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   background: var(--danger);
   color: var(--base);
   font-size: 9px;
@@ -38,7 +38,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 0);
+  border-radius: var(--corner-sm);
   background: var(--base);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
   overflow: hidden;
@@ -54,7 +54,7 @@
   background: var(--raised);
 }
 .notification-unread {
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   padding: 1px 7px;
   background: var(--accent-soft);
   color: var(--accent-ink);
@@ -72,7 +72,7 @@
   gap: 5px;
   min-height: 28px;
   padding: 4px 7px;
-  border-radius: var(--radius-sm, 0);
+  border-radius: var(--corner-sm);
   color: var(--muted);
 }
 .notification-actions button:not(:disabled):hover,
@@ -102,7 +102,7 @@
   flex: 1;
   min-height: 28px;
   padding: 4px 8px;
-  border-radius: var(--radius-sm, 0);
+  border-radius: var(--corner-sm);
   color: var(--muted);
 }
 .notification-tabs button[aria-pressed="true"] {

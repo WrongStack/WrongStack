@@ -1,6 +1,6 @@
-import { FileDiff, LayoutList, LoaderCircle, PanelLeftClose } from 'lucide-react';
+import { FileDiff, LayoutList, LoaderCircle, Minus, PanelLeftClose, Plus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { FileChangeCounts, StageAllButton } from './FileChangeCounts';
+import { FileChangeCounts, FileChangeSummary, gitKind, StageAllButton } from './FileChangeCounts';
 import { FileExplorerFooter } from './FileExplorerChrome';
 import { FileTreeView } from './FileTreeView';
 import { fileName, parentPath } from './file-model';
@@ -126,6 +126,9 @@ export function FileWorkspaceNavigation({
           {typeof git['error'] === 'string' ? (
             <p className="file-quiet-state">{String(git['error'])}</p>
           ) : (
+            <FileChangeSummary changes={changes} />
+          )}
+          {typeof git['error'] !== 'string' &&
             ['Working tree', 'Staged'].map((group) => {
               const rows = changes.filter(
                 (file) =>
@@ -146,6 +149,7 @@ export function FileWorkspaceNavigation({
                   </h3>
                   {rows.map((file) => (
                     <div
+                      data-git-kind={gitKind(file['status'])}
                       className={`file-change-row ${active === fromGitPath(String(file['path'])) ? 'selected' : ''}`}
                       key={String(file['path'])}
                     >
@@ -179,7 +183,8 @@ export function FileWorkspaceNavigation({
                           </small>
                         </span>
                         <b
-                          className={`file-git-status status-${String(file['status']).replace('?', 'untracked')}`}
+                          className={`file-git-status status-${gitKind(file['status'])}`}
+                          title={t(`fileView.gitStatus.${gitKind(file['status'])}`, { count: 1 })}
                         >
                           {String(file['status'])}
                         </b>
@@ -198,14 +203,13 @@ export function FileWorkspaceNavigation({
                           void stage(fromGitPath(String(file['path'])), Boolean(file['staged']))
                         }
                       >
-                        {file['staged'] ? '−' : '+'}
+                        {file['staged'] ? <Minus size={13} /> : <Plus size={13} />}
                       </button>
                     </div>
                   ))}
                 </section>
               );
-            })
-          )}
+            })}
           {!changes.length && !git['error'] && (
             <p className="file-quiet-state">{t('fileView.noChanges')}</p>
           )}

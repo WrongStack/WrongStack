@@ -15,6 +15,7 @@ import { useDesktopText } from './desktop-i18n';
 import {
   PINNED_SESSIONS_KEY,
   readPinnedSessions,
+  sessionStatus,
   sortSessions,
   writePinnedSessions,
 } from './model';
@@ -66,6 +67,14 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
   const busyProjects = new Set(active.map((session) => session.projectId)).size;
   const midnight = new Date().setHours(0, 0, 0, 0);
   const startedToday = snapshot.sessions.filter((session) => session.createdAt >= midnight).length;
+  const byStatus = (status: ReturnType<typeof sessionStatus>) =>
+    snapshot.sessions.filter((session) => sessionStatus(session) === status).length;
+  const statusSegments = [
+    { value: byStatus('active'), tone: 'accent', label: t('fleetView.status.active') },
+    { value: byStatus('paused'), tone: 'warning', label: t('fleetView.status.paused') },
+    { value: byStatus('error'), tone: 'danger', label: t('fleetView.status.error') },
+    { value: byStatus('stopped'), tone: 'muted', label: t('fleetView.status.stopped') },
+  ] as const;
   return (
     <section className="sessions-region" aria-label={t('fleetView.sessionsLabel')}>
       <div className="metrics-strip fleet-kpis">
@@ -74,6 +83,7 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
           label={t(active.length === 1 ? 'fleetView.activeOne' : 'fleetView.activeMany')}
           value={active.length}
           live={active.length > 0}
+          segments={statusSegments}
           note={t('fleetView.kpi.liveNote', {
             agents: liveAgents,
             terminals: active.length - liveAgents,
@@ -83,6 +93,7 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
           icon={<AlertTriangle size={14} />}
           label={t('fleetView.kpi.attention')}
           value={attention.length}
+          tone={attention.length ? 'warning' : 'muted'}
           note={t('fleetView.kpi.attentionNote')}
         />
         <Metric
@@ -91,12 +102,22 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
             snapshot.projects.length === 1 ? 'fleetView.projectOne' : 'fleetView.projectMany',
           )}
           value={snapshot.projects.length}
+          tone="info"
+          segments={[
+            { value: busyProjects, tone: 'info', label: t('fleetView.status.active') },
+            {
+              value: snapshot.projects.length - busyProjects,
+              tone: 'muted',
+              label: t('fleetView.status.stopped'),
+            },
+          ]}
           note={t('fleetView.kpi.projectsNote', { count: busyProjects })}
         />
         <Metric
           icon={<CalendarClock size={14} />}
           label={t('fleetView.kpi.today')}
           value={startedToday}
+          tone="success"
           note={t('fleetView.kpi.totalNote', { count: snapshot.sessions.length })}
         />
       </div>

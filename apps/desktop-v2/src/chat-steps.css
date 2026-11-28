@@ -18,7 +18,7 @@
   margin: 4px 0 16px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   overflow: hidden;
 }
@@ -61,6 +61,9 @@
 /* The rows. */
 .session-activity.chat-steps {
   display: grid;
+  /* One track as wide as the card: an implicit auto track grows to the longest path and pushes
+     every row's status and counts out of the clipped card. */
+  grid-template-columns: minmax(0, 1fr);
   max-height: none;
   overflow: visible;
   padding: 0;
@@ -69,7 +72,7 @@
 .chat-steps:not(.chat-run-activity .chat-steps) {
   margin: 4px 0 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   overflow: hidden;
 }
@@ -117,7 +120,7 @@
   width: 24px;
   height: 24px;
   border: 1px solid var(--step-line);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   color: var(--muted);
 }
@@ -317,7 +320,7 @@
   height: 3px;
   margin: 10px 0 8px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
   background: var(--step-line);
 }
 .chat-plan > .chat-plan-bar > span {
@@ -349,7 +352,7 @@
   width: 16px;
   height: 16px;
   border: 1.5px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .chat-plan-item.completed .chat-plan-mark {
   border-color: var(--step-ok);

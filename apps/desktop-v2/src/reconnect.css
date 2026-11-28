@@ -7,7 +7,7 @@
   margin: 0 0 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   color: var(--text);
 }
@@ -31,7 +31,7 @@
 .connection-diagnostics {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
   color: var(--text);
 }

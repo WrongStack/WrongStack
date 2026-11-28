@@ -9,7 +9,7 @@
 .review-chain-evidence {
   padding: 14px 18px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   font-size: 13px;
   color: var(--muted);

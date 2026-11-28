@@ -107,12 +107,18 @@ export function SidebarSessionRow({
       </span>
       {confirming && (
         <Modal title={t('explorer.removeTitle', { title })} onClose={() => setConfirming(false)}>
+          <h2 className="session-remove-title">
+            <span className="session-remove-icon" aria-hidden="true">
+              <Trash2 size={16} />
+            </span>
+            {t('explorer.removeTitle', { title })}
+          </h2>
           <p className="session-remove-body">{t('explorer.removeBody')}</p>
           <div className="session-remove-actions">
             <button type="button" className="button secondary" onClick={() => setConfirming(false)}>
               {t('explorer.cancel')}
             </button>
-            <button type="button" className="button danger" onClick={() => void remove()}>
+            <button type="button" className="button primary danger" onClick={() => void remove()}>
               {t('explorer.removeConfirm')}
             </button>
           </div>

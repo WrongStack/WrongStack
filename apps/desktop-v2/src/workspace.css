@@ -36,7 +36,7 @@
   padding: 9px 10px;
   font-size: 12px;
   color: var(--muted);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .feature-navigation [aria-current],
 .feature-action-picker [aria-pressed="true"] {
@@ -95,7 +95,7 @@
 }
 .feature-cards > button {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 20px;
   text-align: left;
   background: var(--raised);
@@ -127,7 +127,7 @@
   color: var(--text);
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   min-width: 0;
   font-size: 12px;
 }
@@ -150,7 +150,7 @@
 .feature-record-list button {
   border: 1px solid var(--border);
   background: var(--raised);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   padding: 16px;
   text-align: left;
 }
@@ -172,7 +172,7 @@
 .feature-editor {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 22px;
   min-width: 0;
 }
@@ -195,7 +195,7 @@
   background: var(--base);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   font: inherit;
   line-height: 1.7;
 }
@@ -237,7 +237,7 @@
   color: var(--accent);
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   font-size: 12px;
 }
 .feature-import {
@@ -287,7 +287,7 @@
 }
 .feature-snapshot {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 18px;
   overflow: auto;
 }
@@ -318,7 +318,7 @@
 }
 .snapshot-record {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   padding: 14px;
   margin-bottom: 10px;
 }
@@ -337,7 +337,7 @@
 }
 .feature-action-picker button {
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   padding: 8px 10px;
   font-size: 12px;
   color: var(--muted);
@@ -393,7 +393,7 @@
   gap: 8px;
   padding: 8px 12px;
   border: 1px solid color-mix(in srgb, hsl(var(--ws-warning)) 45%, var(--border));
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: color-mix(in srgb, hsl(var(--ws-warning)) 10%, transparent);
   color: hsl(var(--ws-warning));
   font-size: 13px;

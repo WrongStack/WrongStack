@@ -253,8 +253,8 @@ try {
         await page.getByRole('button', { name: 'Collapse session panel', exact: true }).click();
         assert.equal(
           await page.getByRole('tab').count(),
-          3,
-          'Icon rail stays visible while the sidebar is collapsed',
+          4,
+          'Icon rail (agents, plan, companions, details) stays visible while the sidebar is collapsed',
         );
         assert.equal(await page.locator('.session-inspector-rail').isVisible(), true);
         const expandedChat = await leader.boundingBox();

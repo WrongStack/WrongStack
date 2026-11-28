@@ -51,7 +51,6 @@ body {
 .avatar {
   background: var(--accent-soft);
 }
-.metrics-strip,
 .engine-workspace {
   background: var(--base);
 }
@@ -69,6 +68,23 @@ body {
 .provider-result.failed,
 .input-request-error {
   color: var(--danger);
+}
+/* A destructive button reads as one at a glance: tinted, and filled when it is the main action. */
+.button.danger {
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  box-shadow: none;
+}
+.button.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+.button.primary.danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: light-dark(#fff, oklch(0.2 0.03 25));
+}
+.button.primary.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 88%, var(--text));
 }
 .terminal-surface {
   background: var(--terminal-background);
@@ -143,7 +159,7 @@ body {
   gap: 10px;
   border: 1px solid var(--border);
   padding: 20px 14px;
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   font-size: 13px;
 }
@@ -162,7 +178,7 @@ body {
 }
 .theme-choices > button {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 10px;
   text-align: left;
   background: var(--raised);
@@ -172,7 +188,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .theme-pair > i {
   background: var(--swatch);

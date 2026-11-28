@@ -41,7 +41,7 @@
   width: 100%;
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   padding: 9px;
   color: var(--text);
 }
@@ -67,7 +67,7 @@
   gap: 6px;
   border: 1px solid transparent;
   padding: 13px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .composer-model-list > button:hover,
 .composer-model-list > button[aria-pressed="true"] {
@@ -93,7 +93,7 @@
   margin: 12px 0;
   padding: 10px 12px;
   border: 1px solid var(--accent-border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: color-mix(in srgb, var(--accent-soft) 40%, transparent);
 }
 .refine-countdown > p[role="status"] {

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T00:02:54.360Z
+**Generated:** 2026-11-28T00:06:00.311Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6639 |
-| Production source lines | 1363172 |
-| Test files | 6569 |
+| Production source files | 6641 |
+| Production source lines | 1363752 |
+| Test files | 6570 |
 | Workspace dependency edges | 267 |
-| Relative module edges | 19467 |
+| Relative module edges | 19475 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -40,7 +40,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 133 | 15 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 193 | 246 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 665 | 869 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 580 | 414 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 582 | 415 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 65 | 41 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake-mcp, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 40 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 47 | @wrongstack/persistence |
@@ -98,9 +98,9 @@ None.
 | 1162 | `packages/core/src/execution/design-md.ts` |
 | 1146 | `packages/acp/src/client/acp-session.ts` |
 | 1118 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
-| 1083 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1042 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
+| 998 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 966 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 963 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 957 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
@@ -113,7 +113,7 @@ None.
 | 869 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
 | 864 | `packages/acp/src/agent/protocol-session-management.ts` |
 | 855 | `packages/plugins/src/adversary-mode/evaluator.ts` |
-| 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 854 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 853 | `packages/tools/src/design-reference.ts` |
 | 848 | `packages/webui/src/components/DesignGalleryView.tsx` |
 | 839 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
@@ -121,10 +121,10 @@ None.
 | 816 | `packages/client/src/client.ts` |
 | 800 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 787 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
+| 792 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 787 | `packages/plugins/src/branch-guard/index.ts` |
+| 786 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
-| 785 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 780 | `packages/tools/src/design.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 774 | `packages/mailbox-mcp/src/adapter.ts` |

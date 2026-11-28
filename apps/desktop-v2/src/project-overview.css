@@ -38,9 +38,6 @@
   overflow-wrap: anywhere;
   user-select: text;
 }
-.project-overview .project-kpis {
-  margin-block: 16px 24px;
-}
 .project-overview .project-session-summary {
   margin: 0 0 24px;
 }
@@ -53,38 +50,64 @@
 .overview-tool-links {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-bottom: 24px;
-  border-block: 1px solid var(--border);
+  gap: 12px;
+  margin-bottom: 26px;
 }
 .overview-tool-links > button {
+  --tool-tone: var(--accent);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 10px;
-  padding: 12px;
-  text-align: start;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: var(--corner-lg);
+  background:
+    radial-gradient(
+      120% 100% at 0% 0%,
+      color-mix(in srgb, var(--tool-tone) 12%, transparent),
+      transparent 65%
+    ),
+    var(--raised);
   color: var(--muted);
+  text-align: start;
+  transition: border-color 120ms ease;
+}
+.overview-tool-links > button:has(.tone-violet) {
+  --tool-tone: oklch(0.68 0.16 300);
+}
+.overview-tool-links > button:has(.tone-warning) {
+  --tool-tone: hsl(var(--ws-warning));
+}
+.overview-tool-links > button:has(.tone-info) {
+  --tool-tone: hsl(var(--ws-info));
 }
 .overview-tool-links > button:hover {
-  background: var(--raised);
+  border-color: color-mix(in srgb, var(--tool-tone) 55%, var(--border));
 }
-.overview-tool-links > button + button {
-  border-inline-start: 1px solid var(--border);
+.overview-tool-links .project-tool-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--corner-lg);
 }
-.overview-tool-links > button > span {
+.overview-tool-links > button > span:not(.project-tool-icon) {
   display: grid;
-  gap: 4px;
-  overflow-wrap: anywhere;
+  gap: 3px;
+  min-width: 0;
 }
 .overview-tool-links strong {
   color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 650;
 }
 .overview-tool-links small {
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.45;
+}
+.overview-tool-links > button > svg:last-child {
+  color: var(--subtle);
 }
 .project-overview .project-session-rows {
   border-block-start: 1px solid var(--border);
@@ -110,12 +133,8 @@
   gap: 6px;
   text-align: end;
 }
-@container project-overview (max-width: 540px) {
+@container project-overview (max-width: 640px) {
   .overview-tool-links {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .overview-tool-links > button + button {
-    border-inline-start: 0;
-    border-block-start: 1px solid var(--border);
   }
 }

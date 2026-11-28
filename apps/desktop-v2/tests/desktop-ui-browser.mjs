@@ -10,7 +10,23 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const artifacts = resolve(root, '../../.temp_files/desktop-ui-browser');
 const cacheDir = join(artifacts, `vite-${process.pid}`);
 
-async function assertSquareCorners(page, state) {
+/** Sharp corners square everything; the soft default rounds the visible surfaces. */
+async function assertCorners(page, state) {
+  const sharp = await page.evaluate(() => document.documentElement.dataset.corners === 'sharp');
+  if (!sharp) {
+    const square = await page.evaluate(() =>
+      [
+        ...document.querySelectorAll(
+          'dialog[open], .native-composer, .metric, .composer-chip.model-selector, .project-branch-heading',
+        ),
+      ]
+        .filter((element) => element.checkVisibility())
+        .filter((element) => getComputedStyle(element).borderTopLeftRadius === '0px')
+        .map((element) => `${element.tagName}.${element.getAttribute('class') ?? ''}`),
+    );
+    assert.deepEqual(square, [], `${state} draws soft corners`);
+    return;
+  }
   const rounded = await page.evaluate(() => {
     const corners = ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'];
     const offenders = [];
@@ -83,7 +99,7 @@ const acp=location.search.includes('acp');
 const model=acp?'fixture-agent':'Fixture model';
 let runtime={};
 const longModel='review-model-with-a-long-qualified-name';
-let appearance={...defaultAppearance,mode:location.pathname.endsWith('/light')?'light':'dark'};
+let appearance={...defaultAppearance,mode:location.pathname.endsWith('/light')?'light':'dark',...(location.search.includes('sharp')?{corners:'sharp'}:{})};
 const initialLayout=location.pathname.includes('/session')?JSON.stringify({project:'p1',selected:'s0',section:'fleet',openSessionIds:['s0']}):null;
 const queues=new Map(),offsets=new Map();
 window.uiCalls=[]; window.uiUnexpected=[]; window.terminalStreams=[]; window.terminalAcks=[]; window.terminalStops=[];
@@ -254,11 +270,20 @@ try {
         page.on('console', (message) => {
           if (message.type() === 'error') errors.push(message.text());
         });
-        await page.goto(width === 800 ? `${url}?acp` : url, {
+        // The light pass also checks the sharp-corner appearance; the dark pass the soft default.
+        const query = [width === 800 ? 'acp' : '', mode === 'light' ? 'sharp' : '']
+          .filter(Boolean)
+          .join('&');
+        await page.goto(query ? `${url}?${query}` : url, {
           waitUntil: 'domcontentloaded',
           timeout: 60000,
         });
         await page.locator('.session-card').first().waitFor();
+        assert.equal(
+          await page.evaluate(() => document.documentElement.dataset.corners ?? 'soft'),
+          mode === 'light' ? 'sharp' : 'soft',
+          'The pass runs in the corner appearance it checks',
+        );
         if (mode === 'light')
           await page.getByRole('button', { name: 'Switch to light mode', exact: true }).click();
         const desktopMenu = page.getByRole('button', { name: 'Desktop', exact: true });
@@ -274,7 +299,7 @@ try {
         await desktopMenu.press('ArrowDown');
         const desktopPopup = page.getByRole('menu', { name: 'Desktop', exact: true });
         await desktopPopup.waitFor();
-        await assertSquareCorners(page, 'Desktop menu');
+        await assertCorners(page, 'Desktop menu');
         assert.ok(
           await desktopPopup
             .getByRole('menuitem')
@@ -390,7 +415,7 @@ try {
           await desktopPopup.getByRole('menuitem', { name: 'Workspace layout' }).click();
           const layout = page.getByRole('dialog', { name: 'Workspace layout' });
           await layout.waitFor();
-          await assertSquareCorners(page, 'Workspace layout');
+          await assertCorners(page, 'Workspace layout');
           const focusPreset = layout.getByRole('button', { name: 'Focus', exact: true });
           const codePreset = layout.getByRole('button', { name: 'Code', exact: true });
           await focusPreset.press('Enter');
@@ -418,7 +443,7 @@ try {
         await statusBar.getByRole('status', { name: 'Local engine connected' }).waitFor();
         const statusBox = await statusBar.boundingBox();
         assert.ok(statusBox && Math.abs(statusBox.y + statusBox.height - height) <= 1);
-        await assertSquareCorners(page, 'Fleet');
+        await assertCorners(page, 'Fleet');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-fleet.png`) });
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -466,7 +491,7 @@ try {
           assert.equal((await inspector.boundingBox()).width, startWidth + 8);
           await divider.press('ArrowRight');
         }
-        await assertSquareCorners(page, 'Session');
+        await assertCorners(page, 'Session');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-session.png`) });
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -495,7 +520,11 @@ try {
         const modelButton = page.locator('.model-selector');
         await modelButton.click();
         const picker = page.locator('.profile-model-picker');
-        await picker.locator('button[aria-pressed="true"]').first().waitFor();
+        // The provider rail is pressed at once; the model rows arrive with the catalog.
+        await picker
+          .locator('.composer-model-list[aria-busy="false"] > button[aria-pressed="true"]')
+          .first()
+          .waitFor();
         const modelSearch = picker.getByRole('textbox');
         assert.ok(await modelSearch.evaluate((element) => document.activeElement === element));
         await assertSearchIconSpacing(modelSearch);
@@ -509,14 +538,18 @@ try {
         await result.press('ArrowUp');
         assert.ok(await modelSearch.evaluate((element) => document.activeElement === element));
         await modelSearch.fill('');
-        await assertSquareCorners(page, 'Model picker');
+        await assertCorners(page, 'Model picker');
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-models.png`) });
         await page.keyboard.press('Escape');
         await picker.waitFor({ state: 'hidden' });
         assert.ok(await modelButton.evaluate((el) => el === document.activeElement));
         if (width === 1440) {
           await modelButton.press('Enter');
-          await picker.locator('button[aria-pressed="true"]').first().waitFor();
+          // The provider rail is pressed at once; the model rows arrive with the catalog.
+          await picker
+            .locator('.composer-model-list[aria-busy="false"] > button[aria-pressed="true"]')
+            .first()
+            .waitFor();
           await modelSearch.fill('Review model');
           await modelSearch.press('Enter');
           await picker.waitFor({ state: 'hidden' });
@@ -557,6 +590,8 @@ try {
           await page.evaluate(() => {
             window.failAcpOptions = true;
           });
+          // ACP runtime options live in the composer's session settings.
+          await page.locator('.composer-settings > summary').click();
           await trigger.press('Enter');
           const runtimePanel = page.locator('.session-model-controls .acp-runtime-controls');
           await runtimePanel.getByRole('alert').getByText('Fixture agent unavailable').waitFor();
@@ -572,6 +607,8 @@ try {
           await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-acp.png`) });
           await trigger.press('Enter');
           await acpModel.waitFor({ state: 'hidden' });
+          await page.keyboard.press('Escape');
+          await page.locator('.composer-settings-panel').waitFor({ state: 'hidden' });
         }
 
         const options = page.locator('.composer-options > summary');
@@ -764,6 +801,23 @@ try {
           false,
         );
         await page.screenshot({ path: join(artifacts, `${mode}-${width}-${height}-project.png`) });
+        if (width === 800) {
+          // Every project page shares one scroller: a tool opened from far down the overview
+          // starts at its own top instead of inheriting the overview's offset.
+          const scroller = page.locator('.project-page-content');
+          await scroller.evaluate((element) => {
+            element.scrollTop = element.scrollHeight;
+          });
+          assert.ok(await scroller.evaluate((element) => element.scrollTop > 0));
+          await overview
+            .locator('.project-tools-menu .project-tool')
+            .filter({ hasText: 'Chronicle' })
+            .click();
+          await page.locator('.project-chronicle').waitFor();
+          assert.equal(await scroller.evaluate((element) => element.scrollTop), 0);
+          await project.click();
+          await overview.getByRole('heading', { name: 'WrongStack UI', exact: true }).waitFor();
+        }
         await overview
           .locator('.project-session-rows')
           .getByRole('button', { name: /Review the session workspace/ })
@@ -880,7 +934,7 @@ try {
       });
       await page.waitForFunction(() => window.terminalAcks.length >= 2);
       await expectTerminalIntact('docked stream', 'docked-ok');
-      await assertSquareCorners(page, 'Terminal dock');
+      await assertCorners(page, 'Terminal dock');
       await page.screenshot({ path: join(artifacts, 'terminal-dock.png') });
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),

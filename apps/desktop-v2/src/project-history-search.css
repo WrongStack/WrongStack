@@ -2,7 +2,7 @@
   margin: 18px 0;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--surface);
 }
 .history-search-disclosure > summary {
@@ -29,7 +29,7 @@
 }
 .history-search-results article {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 14px;
   min-width: 0;
 }

@@ -6,7 +6,8 @@ import type {
   UIEvent,
   WheelEvent,
 } from 'react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { EngineCommand, EngineSend } from './engine-operations';
 
 /** Batch layout and engine updates together and recheck the reader's intent before scrolling. */
 export function useTranscriptEndScroll({
@@ -126,4 +127,29 @@ export function useTranscriptFollowHandlers(
         towardEnd();
     },
   };
+}
+
+/**
+ * The composer's engine operations, except that a prompt sent from this window brings the reader
+ * back to the end, as a chat does. Prompts arriving from another window never move the reader.
+ * The wrappers are stable while `send` and `command` are, so the composer's effects do not rerun.
+ */
+export function useFollowOnSend(send: EngineSend, command: EngineCommand, resume: () => void) {
+  const latest = useRef(resume);
+  latest.current = resume;
+  return useMemo(() => {
+    const follow = (type: string) => {
+      if (type === 'user_message') latest.current();
+    };
+    return {
+      send: ((type, payload) => {
+        follow(type);
+        return send(type, payload);
+      }) satisfies EngineSend,
+      command: ((type, payload, replies, options) => {
+        follow(type);
+        return command(type, payload, replies, options);
+      }) satisfies EngineCommand,
+    };
+  }, [send, command]);
 }

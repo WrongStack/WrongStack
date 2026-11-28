@@ -222,6 +222,20 @@ try {
           await expect(panel).toHaveAttribute('open', '');
           await expect(page.locator('.activity-kind-tool.activity-failed')).toHaveCount(1);
           await expect(page.locator('.activity-kind-run.activity-failed')).toHaveCount(1);
+          // The long edit path ellipsizes inside the list instead of widening it, so every
+          // row keeps its status icon (here the failure mark) inside the card.
+          const failedStatus = page.locator(
+            '.activity-kind-tool.activity-failed .chat-step-status',
+          );
+          const fits = await failedStatus.evaluate((icon) => {
+            const list = icon.closest('.chat-steps');
+            const box = list.getBoundingClientRect();
+            return (
+              list.scrollWidth <= list.clientWidth + 1 &&
+              icon.getBoundingClientRect().right <= box.right + 1
+            );
+          });
+          assert.equal(fits, true, `Step rows overflow their list at ${width}px`);
           await page.getByRole('tab', { name: 'Details', exact: true }).click();
           await expect(page.locator('.session-tool-total dd')).toHaveText('2');
           await page.screenshot({

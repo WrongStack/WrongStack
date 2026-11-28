@@ -1,3 +1,4 @@
+import { Bot } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
@@ -67,6 +68,8 @@ export function AgentModeControl({
         error || list.modes.find((mode) => mode.id === current)?.description || t('agentMode.title')
       }
     >
+      <Bot size={12} />
+      <span className="composer-setting-name">{t('composer.settings.mode')}</span>
       <select
         aria-label={t('agentMode.label')}
         value={current}

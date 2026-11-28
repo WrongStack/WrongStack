@@ -1,6 +1,7 @@
 import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
-import { ChevronDown, TriangleAlert, Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Brain, ChevronDown, Fingerprint, TriangleAlert, Zap } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AcpRuntimeSettings, AcpSessionModes } from './AcpRuntimeSettings';
 import { effortNames, sessionEffort, sessionReasoning } from './composer-model';
 import { useDesktopText } from './desktop-i18n';
@@ -15,11 +16,14 @@ export function SessionModelControls({
   command,
   send,
   onSettings,
+  settingsTarget,
 }: {
   state: EngineState;
   command: EngineCommand;
   send: EngineSend;
   onSettings: () => void;
+  /** Where the session's model settings (effort, reasoning, identity, ACP) are drawn; inline when unset. */
+  settingsTarget?: HTMLElement | null | undefined;
 }) {
   const { t } = useDesktopText();
   const [open, setOpen] = useState(false),
@@ -69,31 +73,8 @@ export function SessionModelControls({
       setBusy(false);
     }
   };
-  return (
-    <div className="session-model-controls">
-      <button
-        type="button"
-        className="composer-chip model-selector"
-        aria-label={t('modelControls.choose')}
-        disabled={!state.connected || busy}
-        title={t('modelControls.title', { provider: state.provider, model: state.model })}
-        onClick={() => {
-          if (state.needsSetup) {
-            onSettings();
-            return;
-          }
-          setError('');
-          setOpen(true);
-        }}
-      >
-        <span className={`status-dot ${state.connected ? 'running' : 'starting'}`} />
-        <span>
-          {state.needsSetup
-            ? t('modelControls.connect')
-            : state.model || t('modelControls.connecting')}
-        </span>
-        <ChevronDown size={11} />
-      </button>
+  const settingsGroup: ReactNode = (
+    <div className="session-model-controls composer-setting-group">
       {state.provider === 'acp' && state.sessionId && (
         <AcpSessionModes
           key={`${state.sessionId}:${state.model}`}
@@ -134,6 +115,7 @@ export function SessionModelControls({
           title={effort.reason || t('modelControls.effortTitle')}
         >
           <Zap size={12} />
+          <span className="composer-setting-name">{t('composer.settings.effort')}</span>
           <select
             aria-label={t('modelControls.effortLabel')}
             disabled={!state.connected || busy || state.needsSetup}
@@ -159,6 +141,8 @@ export function SessionModelControls({
       )}
       {state.provider !== 'acp' && reasoning && !reasoning.alwaysOn && (
         <label className="composer-chip effort-control" title={t('modelControls.reasoningTitle')}>
+          <Brain size={12} />
+          <span className="composer-setting-name">{t('composer.settings.reasoning')}</span>
           <select
             aria-label={t('modelControls.reasoningLabel')}
             disabled={!state.connected || busy || state.needsSetup}
@@ -194,6 +178,8 @@ export function SessionModelControls({
               : t('modelControls.identityTitle')
           }
         >
+          <Fingerprint size={12} />
+          <span className="composer-setting-name">{t('composer.settings.identity')}</span>
           <select
             aria-label={t('modelControls.identityLabel')}
             disabled={!state.connected || busy || state.needsSetup}
@@ -227,6 +213,38 @@ export function SessionModelControls({
           <TriangleAlert size={14} />
         </span>
       )}
+    </div>
+  );
+  return (
+    <div className="session-model-controls">
+      <button
+        type="button"
+        className="composer-chip model-selector"
+        aria-label={t('modelControls.choose')}
+        disabled={!state.connected || busy}
+        title={t('modelControls.title', { provider: state.provider, model: state.model })}
+        onClick={() => {
+          if (state.needsSetup) {
+            onSettings();
+            return;
+          }
+          setError('');
+          setOpen(true);
+        }}
+      >
+        <span className={`status-dot ${state.connected ? 'running' : 'starting'}`} />
+        <span>
+          {state.needsSetup
+            ? t('modelControls.connect')
+            : state.model || t('modelControls.connecting')}
+        </span>
+        <ChevronDown size={11} />
+      </button>
+      {/* Undefined: no popover, draw inline. Null: the popover's slot has not mounted yet, so
+          draw nothing rather than mount the group twice (ACP mode reads would run twice). */}
+      {settingsTarget === undefined
+        ? settingsGroup
+        : settingsTarget && createPortal(settingsGroup, settingsTarget)}
       {!open && error && (
         <p className="composer-error" role="alert">
           {error}

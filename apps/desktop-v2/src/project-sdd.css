@@ -46,7 +46,7 @@
   min-width: 0;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   padding: 20px;
 }
 .sdd-start {
@@ -74,7 +74,7 @@
 .sdd-reply textarea {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 12px;
   color: var(--text);
   font: inherit;
@@ -103,7 +103,7 @@
 }
 .sdd-chip {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--corner-xl);
   padding: 5px 10px;
   font-size: 12px;
   white-space: nowrap;
@@ -117,7 +117,7 @@
 .sdd-agent {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   padding: 14px 16px;
 }
 .sdd-exchange p,
@@ -206,7 +206,7 @@
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .sdd-list h2 {
   margin-top: 0;
@@ -224,7 +224,7 @@
   width: 100%;
   border: 1px solid var(--border);
   background: transparent;
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   text-align: left;
   padding: 12px;
   margin-top: 8px;
@@ -272,7 +272,7 @@
 .sdd-task-detail {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 12px;
   margin-bottom: 8px;
   font-size: 13px;
@@ -316,7 +316,7 @@
   text-align: left;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -340,7 +340,7 @@
   height: 420px;
   margin-top: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   overflow: hidden;
   background: var(--surface);
 }
@@ -348,7 +348,7 @@
   background: var(--raised);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 13px;
   padding: 12px;
   width: 200px;
@@ -403,7 +403,7 @@
   color: var(--text);
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 10px;
   font: inherit;
   min-width: 0;
@@ -448,7 +448,7 @@
   padding: 16px;
   margin-top: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
 }
 .sdd-lifecycle-confirm label {

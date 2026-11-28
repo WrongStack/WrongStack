@@ -335,6 +335,8 @@ export async function exerciseNativeComposerResources({
   await idle();
 
   await input().fill('Keep this draft while inspecting context.');
+  // The journal is an item of the composer's "more" menu.
+  await page.locator('.composer-options').getByLabel('Composer options', { exact: true }).click();
   await page.getByRole('button', { name: 'Prompt journal', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Prompt journal', exact: true });
   await dialog.getByRole('region', { name: 'Project prompt journal', exact: true }).waitFor();

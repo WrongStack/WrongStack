@@ -30,7 +30,7 @@
   background: var(--base);
   border: 1px solid var(--border);
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   min-width: 0;
 }
 .git-history-toolbar input {
@@ -51,7 +51,7 @@
   padding: 8px;
   border: 1px solid var(--border);
   font-size: 11px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   max-width: 190px;
 }
 .git-history-body {
@@ -104,7 +104,7 @@
   flex-shrink: 0;
 }
 .git-merge-dot {
-  border-radius: 2px;
+  border-radius: var(--corner-xs);
   transform: rotate(45deg);
 }
 .git-commit-list :where(button) > div {
@@ -145,7 +145,7 @@
   font-weight: 500;
   padding: 3px 5px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
   color: var(--accent);
 }
 .git-commit-list > .git-history-more {
@@ -210,7 +210,7 @@
   color: var(--accent);
   padding: 5px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .git-commit-stats {
   display: flex;
@@ -262,7 +262,7 @@
 }
 .git-commit-diff {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   overflow: hidden;
 }
 .git-commit-diff > header {

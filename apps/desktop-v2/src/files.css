@@ -39,7 +39,7 @@
   padding: 7px 11px;
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   color: var(--subtle);
 }
 .file-workspace-search input {
@@ -154,7 +154,7 @@
 }
 .file-git-status {
   font: 10px var(--user-font-code, Consolas, monospace);
-  color: var(--accent);
+  color: var(--git-tone, var(--accent));
   font-weight: 500;
   margin-left: auto;
 }
@@ -162,12 +162,26 @@
   /* The status is exposed separately as the tree item's accessible description. */
   content: attr(data-git-status);
 }
-.status-D,
-.status-U {
-  color: var(--danger);
+/* Each git change kind has one tone: the row badge, the tree letter and the summary bar. */
+.file-change-list .status-M,
+.file-git-status[data-git-status="M"] {
+  --git-tone: hsl(var(--ws-warning));
 }
-.status-untracked {
-  color: light-dark(#397239, #94c788);
+.file-change-list .status-A,
+.file-git-status[data-git-status="A"] {
+  --git-tone: hsl(var(--ws-success));
+}
+.file-change-list :is(.status-D, .status-U),
+.file-git-status:is([data-git-status="D"], [data-git-status="U"]) {
+  --git-tone: var(--danger);
+}
+.file-change-list :is(.status-R, .status-C),
+.file-git-status:is([data-git-status="R"], [data-git-status="C"]) {
+  --git-tone: hsl(var(--ws-info));
+}
+.file-change-list .status-untracked,
+.file-git-status[data-git-status="?"] {
+  --git-tone: light-dark(#397239, #94c788);
 }
 .file-center {
   display: flex;
@@ -245,7 +259,7 @@
   background: var(--raised);
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   padding: 4px 8px;
 }
 .file-folder-list {
@@ -285,7 +299,7 @@
   min-width: 0;
   color: var(--text);
 }
-.file-folder-row > :where(span:first-child) > svg {
+.file-folder-row > :where(span:first-child) > svg:not(.file-kind) {
   color: var(--subtle);
 }
 .file-folder-row small {
@@ -340,7 +354,7 @@
   align-items: center;
   gap: 5px;
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   white-space: nowrap;
   color: var(--muted);
 }
@@ -686,7 +700,7 @@
 .file-stage-row {
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   font-size: 15px;
   color: var(--accent);
 }
@@ -732,14 +746,14 @@
   display: flex;
   gap: 2px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   padding: 2px;
 }
 .file-mode-switch > button {
   padding: 3px 5px;
   display: flex;
   color: var(--subtle);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .file-mode-switch > button[aria-pressed="true"] {
   background: var(--accent-soft);
@@ -932,7 +946,7 @@
   max-height: calc(100dvh - 12px);
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   box-shadow: 0 10px 30px oklch(0 0 0 / 0.2);
   padding: 6px;
@@ -954,7 +968,7 @@
   padding: 10px 8px;
   text-align: left;
   font-size: 12px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .file-context-menu > button:hover {
   background: var(--accent-soft);
@@ -1001,7 +1015,7 @@
   color: var(--text);
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   font-family: inherit;
   font-size: 13px;
   line-height: 1.7;
@@ -1275,7 +1289,7 @@ div.file-review-empty > p {
   margin-left: 8px;
   padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
   font-size: 11px;
   font-weight: 500;
@@ -1292,4 +1306,117 @@ div.file-review-empty > p {
 }
 .file-change-list section > h3:has(> .file-stage-all) > span {
   margin-left: auto;
+}
+
+/* Change list: a summary bar split by change kind, then rows with a tinted kind badge. */
+.file-change-summary {
+  display: grid;
+  gap: 8px;
+  margin: 4px 12px 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-md);
+  background: var(--raised);
+}
+.file-change-summary-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--corner-pill);
+}
+.file-change-summary-bar > i {
+  flex-basis: 0;
+  min-width: 4px;
+  background: var(--git-tone, var(--accent));
+}
+.file-change-summary-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--muted);
+}
+.file-change-summary-kinds > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.file-change-summary-kinds > li > b,
+.file-change-row .file-git-status {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 3px;
+  border-radius: var(--corner-xs);
+  background: color-mix(in srgb, var(--git-tone, var(--accent)) 16%, transparent);
+  color: var(--git-tone, var(--accent));
+  font: 600 10px / 1 var(--user-font-code, Consolas, monospace);
+}
+.file-change-summary-kinds > .file-change-summary-lines {
+  margin-left: auto;
+  gap: 6px;
+}
+.file-change-ratio {
+  display: inline-flex;
+  gap: 1px;
+  width: 40px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--corner-pill);
+}
+.file-change-ratio > i {
+  flex-basis: 0;
+  background: hsl(var(--ws-success));
+}
+.file-change-ratio > i + i {
+  background: var(--danger);
+}
+.file-change-row {
+  position: relative;
+}
+.file-change-row > button:first-child > svg {
+  flex-shrink: 0;
+  color: var(--git-tone, var(--subtle));
+}
+.file-change-row[data-git-kind="M"] {
+  --git-tone: hsl(var(--ws-warning));
+}
+.file-change-row[data-git-kind="A"] {
+  --git-tone: hsl(var(--ws-success));
+}
+.file-change-row:is([data-git-kind="D"], [data-git-kind="U"]) {
+  --git-tone: var(--danger);
+}
+.file-change-row:is([data-git-kind="R"], [data-git-kind="C"]) {
+  --git-tone: hsl(var(--ws-info));
+}
+.file-change-row[data-git-kind="untracked"] {
+  --git-tone: light-dark(#397239, #94c788);
+}
+.file-change-row:not(.selected):hover {
+  background: var(--raised);
+}
+.file-change-row.selected::before {
+  content: "";
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 2px;
+  border-radius: var(--corner-pill);
+  background: var(--accent);
+}
+.file-stage-row {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.file-stage-row:hover:not(:disabled) {
+  color: var(--accent);
 }

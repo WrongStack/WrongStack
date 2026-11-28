@@ -1,96 +1,172 @@
+/* Project explorer: one row per project, its sessions below it.
+
+   Every row keeps its name on one line and never grows past the explorer:
+   actions float over the row's end on hover, focus or selection (always on a
+   touch screen), so a narrow explorer still reaches stop, remove and new. */
 .explorer .project-tree {
   container: project-list / inline-size;
+  overflow-x: hidden;
 }
 .app-shell .explorer .project-branch {
-  margin-block-end: 9px;
+  min-width: 0;
+  margin-block-end: 6px;
 }
 .app-shell .explorer .project-branch-heading {
   position: relative;
-  min-height: 38px;
-  padding-inline: 2px 3px;
-  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--text) 3%, transparent);
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 34px;
+  padding-inline-start: 24px;
+  border-radius: var(--corner-md);
+  transition: background-color 120ms ease;
+}
+.app-shell .explorer .project-branch-heading:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 .app-shell .explorer .project-branch-heading[data-selected="true"] {
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
-  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .app-shell .explorer .project-branch-heading .project-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
   min-height: 34px;
-  padding: 3px 4px;
-  gap: 7px;
+  padding: 4px 6px 4px 2px;
+  gap: 8px;
+  border-radius: var(--corner-md);
+  background: transparent;
   color: var(--text);
+  font-size: 13px;
   font-weight: 600;
   text-align: start;
 }
-.app-shell .explorer .project-branch-heading .project-item.selected {
-  background: transparent;
-}
-.app-shell .explorer .project-branch-heading .project-item:hover {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
+.app-shell .explorer .project-item > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .app-shell .explorer .project-item > .project-folder-icon {
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: 23px;
-  block-size: 23px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--text) 7%, transparent);
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--corner-sm);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.app-shell .explorer .project-branch-heading[data-selected="true"] .project-folder-icon {
+  background: var(--accent);
+  color: var(--on-accent, var(--base));
+}
+.project-session-count {
+  pointer-events: none;
+  flex: none;
+  min-inline-size: 20px;
+  margin-inline-end: 6px;
+  padding: 1px 6px;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
   color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
-.app-shell .explorer .project-item.selected > .project-folder-icon {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent-ink);
-}
-.app-shell .explorer .project-branch-sessions:not(:empty) {
+
+/* The grip sits in the row's leading gutter and appears with the row. */
+.app-shell .explorer .project-drag-handle {
+  position: absolute;
+  inset-block: 5px;
+  inset-inline-start: 0;
+  z-index: 1;
+  width: 24px;
+  height: auto;
+  min-height: 24px;
+  padding: 0;
+  border-radius: var(--corner-xs);
+  background: transparent;
   display: grid;
-  gap: 2px;
-  margin-block-start: 4px;
-  margin-inline-start: 12px;
-  padding-inline-start: 6px;
-  border-inline-start: 1px solid var(--border);
+  place-items: center;
+  color: var(--muted);
+  opacity: 0;
 }
-.app-shell .explorer .project-branch-heading[data-selected="true"] + .project-branch-sessions {
-  border-inline-start-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+
+/* Row actions: drawn over the name's end with the row's own surface behind them. */
+.project-actions,
+.tree-session-actions {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding-inline: 18px 3px;
+  border-radius: 0 var(--corner-md) var(--corner-md) 0;
+  background: linear-gradient(to right, transparent, var(--row-surface, var(--sidebar)) 16px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
-.app-shell
-  .explorer
-  .project-branch-heading
-  :is(.project-drag-handle, .project-remove):not(:disabled) {
-  opacity: 0.72;
+.app-shell .explorer .project-branch-heading {
+  --row-surface: color-mix(in srgb, var(--text) 5%, var(--sidebar));
+}
+.app-shell .explorer .project-branch-heading[data-selected="true"] {
+  --row-surface: color-mix(in srgb, var(--accent) 12%, var(--sidebar));
 }
 .app-shell
   .explorer
   .project-branch-heading:is(:hover, :focus-within)
-  :is(.project-drag-handle, .project-remove):not(:disabled) {
+  :is(.project-actions, .project-drag-handle),
+.app-shell .explorer .project-branch-heading[data-drop] .project-drag-handle {
   opacity: 1;
 }
-@container project-list (inline-size < 155px) {
-  .app-shell .explorer .project-branch-heading {
-    padding-inline: 0;
+.app-shell .explorer .project-branch-heading:is(:hover, :focus-within) .project-session-count {
+  visibility: hidden;
+}
+@media (hover: none) {
+  .project-actions,
+  .tree-session-actions,
+  .app-shell .explorer .project-drag-handle {
+    opacity: 1;
   }
-  .app-shell .explorer .project-branch-heading .project-item {
-    padding-inline: 1px;
-    gap: 3px;
-  }
-  .app-shell .explorer .project-item > .project-folder-icon {
-    inline-size: 16px;
-    background: transparent;
-  }
-  .app-shell .explorer .project-item > .project-folder-icon svg {
-    inline-size: 13px;
+  .project-session-count {
+    display: none;
   }
 }
-.project-drag-handle,
-.project-remove {
+.project-actions > button {
   display: grid;
   place-items: center;
-  flex-shrink: 0;
   width: 24px;
-  height: 27px;
+  height: 26px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
+}
+/* The faded backdrop never swallows a click meant for the name under it; the buttons do. */
+.project-actions > button,
+.tree-session-actions > button {
+  pointer-events: auto;
+}
+.project-actions > button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+/* Sessions hang from their project on a quiet guide line. */
+.app-shell .explorer .project-branch-sessions:not(:empty) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  margin-block-start: 2px;
+  margin-inline-start: 33px;
+  padding-inline-start: 4px;
+  border-inline-start: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+.app-shell .explorer .project-branch-heading[data-selected="true"] + .project-branch-sessions {
+  border-inline-start-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 .project-drag-handle:not(:disabled) {
   cursor: grab;
@@ -98,12 +174,11 @@
 .project-drag-handle:active:not(:disabled) {
   cursor: grabbing;
 }
-.project-drag-handle:hover:not(:disabled),
-.project-remove:hover:not(:disabled) {
-  background: var(--raised);
+.app-shell .explorer .project-drag-handle:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
   color: var(--text);
 }
-.project-remove:hover:not(:disabled) {
+.project-actions > .project-remove:hover:not(:disabled) {
   color: var(--danger);
 }
 .project-drag-handle:disabled,
@@ -205,4 +280,29 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* A project's sessions can be folded away; the count badge still says how many there are. */
+.app-shell .explorer .project-branch-sessions[hidden] {
+  display: none;
+}
+.project-actions > .project-collapse > svg {
+  transition: transform 120ms ease;
+}
+.project-actions > .project-collapse[aria-expanded="false"] > svg {
+  transform: rotate(-90deg);
+}
+/* A narrow explorer keeps two row actions; New session stays in the title bar and menus. */
+@container project-list (inline-size < 200px) {
+  .project-actions > .project-new-session {
+    display: none;
+  }
+  /* Two buttons would cover a short row's middle, so one stays: stop while the session runs,
+     remove once it has stopped. */
+  .tree-session-actions:has(> button:not(.danger)) > button.danger {
+    display: none;
+  }
+  .tree-session-actions {
+    padding-inline-start: 10px;
+  }
 }

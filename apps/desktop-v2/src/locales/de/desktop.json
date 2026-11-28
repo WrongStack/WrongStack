@@ -102,7 +102,7 @@
     "findAnything": "Alles finden",
     "workspace": "Arbeitsbereich {{name}}",
     "projects": "Projekte",
-"views": "Ansichten",
+    "views": "Ansichten",
     "addProject": "Projekt hinzufügen",
     "newSessionIn": "Neue Sitzung in {{name}}",
     "newSession": "Neue Sitzung",
@@ -114,7 +114,9 @@
     "removeBody": "Die Sitzung verschwindet aus dieser Liste; ihr Desktop-Protokoll und ihre Entwürfe werden gelöscht. Eine laufende Sitzung wird zuerst gestoppt. Eine Agent-Unterhaltung bleibt im Verlauf des Projekts und kann dort fortgesetzt werden.",
     "removeConfirm": "Entfernen",
     "cancel": "Abbrechen",
-    "olderHost": "Der laufende Sitzungs-Host ist älter als dieser Desktop. Stoppe seine Sitzungen und starte den Desktop neu, um Sitzungen zu entfernen."
+    "olderHost": "Der laufende Sitzungs-Host ist älter als dieser Desktop. Stoppe seine Sitzungen und starte den Desktop neu, um Sitzungen zu entfernen.",
+    "showSessions": "Sitzungen von {{name}} anzeigen",
+    "hideSessions": "Sitzungen von {{name}} ausblenden"
   },
   "topbar": {
     "live": "{{count}} aktiv",
@@ -300,6 +302,17 @@
       "text": "Dein Eingabefeld enthält bereits einen Entwurf.",
       "replace": "Entwurf ersetzen",
       "keep": "Aktuellen Entwurf behalten"
+    },
+    "settings": {
+      "label": "Sitzungseinstellungen",
+      "model": "Modell",
+      "run": "Ausführung",
+      "effort": "Aufwand",
+      "reasoning": "Reasoning",
+      "identity": "Identität",
+      "continuation": "Fortsetzung",
+      "mode": "Agentenmodus",
+      "auto": "Auto"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Kompakt zeigt mehr von einer Unterhaltung, wie die kompakte Ansicht der WebUI.",
       "comfortable": "Komfortabel",
       "compact": "Kompakt"
+    },
+    "corners": {
+      "title": "Ecken",
+      "body": "Weich rundet Karten, Menüs und Bedienelemente ab; Scharf hält jede Kante eckig.",
+      "soft": "Weich",
+      "sharp": "Scharf"
     },
     "sounds": {
       "title": "Töne",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Einfacher Texteditor",
     "loadingEditor": "Code-Editor wird geladen…",
     "editorUnavailable": "Der Code-Editor konnte nicht geladen werden, daher öffnet sich diese Datei im einfachen Texteditor.",
-    "plainText": "Nur Text"
+    "plainText": "Nur Text",
+    "gitStatus": {
+      "M_one": "{{count}} geändert",
+      "M": "{{count}} geändert",
+      "A_one": "{{count}} hinzugefügt",
+      "A": "{{count}} hinzugefügt",
+      "D_one": "{{count}} gelöscht",
+      "D": "{{count}} gelöscht",
+      "R_one": "{{count}} umbenannt",
+      "R": "{{count}} umbenannt",
+      "C_one": "{{count}} kopiert",
+      "C": "{{count}} kopiert",
+      "U_one": "{{count}} mit Konflikt",
+      "U": "{{count}} mit Konflikt",
+      "untracked_one": "{{count}} nicht verfolgt",
+      "untracked": "{{count}} nicht verfolgt"
+    }
   },
   "find": {
     "placeholder": "Suchen",

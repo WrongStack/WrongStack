@@ -102,7 +102,7 @@
     "findAnything": "Trova qualsiasi cosa",
     "workspace": "Area di lavoro {{name}}",
     "projects": "Progetti",
-"views": "Viste",
+    "views": "Viste",
     "addProject": "Aggiungi progetto",
     "newSessionIn": "Nuova sessione in {{name}}",
     "newSession": "Nuova sessione",
@@ -114,7 +114,9 @@
     "removeBody": "Esce da questo elenco e la sua trascrizione desktop e le bozze vengono eliminate. Una sessione in esecuzione viene prima arrestata. Una conversazione dell’agente resta nella cronologia del progetto, da cui può essere ripresa.",
     "removeConfirm": "Rimuovi",
     "cancel": "Annulla",
-    "olderHost": "L’host delle sessioni in esecuzione è più vecchio di questo desktop. Arresta le sue sessioni e riavvia il desktop per rimuovere le sessioni."
+    "olderHost": "L’host delle sessioni in esecuzione è più vecchio di questo desktop. Arresta le sue sessioni e riavvia il desktop per rimuovere le sessioni.",
+    "showSessions": "Mostra le sessioni di {{name}}",
+    "hideSessions": "Nascondi le sessioni di {{name}}"
   },
   "topbar": {
     "live": "{{count}} attive",
@@ -300,6 +302,17 @@
       "text": "Il campo di scrittura contiene già una bozza.",
       "replace": "Sostituisci la bozza",
       "keep": "Mantieni la bozza attuale"
+    },
+    "settings": {
+      "label": "Impostazioni sessione",
+      "model": "Modello",
+      "run": "Esecuzione",
+      "effort": "Sforzo",
+      "reasoning": "Ragionamento",
+      "identity": "Identità",
+      "continuation": "Continuazione",
+      "mode": "Modalità agente",
+      "auto": "Auto"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Compatta mostra più conversazione sullo schermo, come la vista compatta della WebUI.",
       "comfortable": "Comoda",
       "compact": "Compatta"
+    },
+    "corners": {
+      "title": "Angoli",
+      "body": "Morbidi arrotonda schede, menu e controlli; Netti mantiene ogni bordo squadrato.",
+      "soft": "Morbidi",
+      "sharp": "Netti"
     },
     "sounds": {
       "title": "Suoni",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Editor di testo semplice",
     "loadingEditor": "Caricamento dell’editor di codice…",
     "editorUnavailable": "Impossibile caricare l’editor di codice, quindi questo file si apre nell’editor di testo semplice.",
-    "plainText": "Testo semplice"
+    "plainText": "Testo semplice",
+    "gitStatus": {
+      "M_one": "{{count}} modificato",
+      "M": "{{count}} modificati",
+      "A_one": "{{count}} aggiunto",
+      "A": "{{count}} aggiunti",
+      "D_one": "{{count}} eliminato",
+      "D": "{{count}} eliminati",
+      "R_one": "{{count}} rinominato",
+      "R": "{{count}} rinominati",
+      "C_one": "{{count}} copiato",
+      "C": "{{count}} copiati",
+      "U_one": "{{count}} in conflitto",
+      "U": "{{count}} in conflitto",
+      "untracked_one": "{{count}} non tracciato",
+      "untracked": "{{count}} non tracciati"
+    }
   },
   "find": {
     "placeholder": "Trova",

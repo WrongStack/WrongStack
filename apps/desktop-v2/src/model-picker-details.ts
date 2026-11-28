@@ -16,6 +16,9 @@ const positive = (value: unknown): value is number =>
 const price = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
+/** A catalog price without binary-float noise: 0.6000000000000001 reads as 0.6. */
+const catalogPrice = (value: number) => Number(value.toFixed(6));
+
 /** Reads one `provider.models` entry, keeping only well-formed facts. */
 export function pickerModel(raw: Record<string, unknown>): PickerModel {
   return {
@@ -23,8 +26,8 @@ export function pickerModel(raw: Record<string, unknown>): PickerModel {
     name: String(raw['name'] ?? raw['id']),
     ...(positive(raw['contextWindow']) ? { contextWindow: raw['contextWindow'] } : {}),
     ...(positive(raw['maxOutput']) ? { maxOutput: raw['maxOutput'] } : {}),
-    ...(price(raw['inputCost']) ? { inputCost: raw['inputCost'] } : {}),
-    ...(price(raw['outputCost']) ? { outputCost: raw['outputCost'] } : {}),
+    ...(price(raw['inputCost']) ? { inputCost: catalogPrice(raw['inputCost']) } : {}),
+    ...(price(raw['outputCost']) ? { outputCost: catalogPrice(raw['outputCost']) } : {}),
     capabilities: Array.isArray(raw['capabilities'])
       ? (raw['capabilities'] as unknown[]).filter(
           (item): item is string => typeof item === 'string',

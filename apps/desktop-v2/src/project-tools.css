@@ -35,7 +35,7 @@
   gap: 9px;
   width: 100%;
   padding: 7px 9px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--text);
   font-size: 13px;
   text-align: left;
@@ -73,55 +73,102 @@
   background: var(--accent);
 }
 
-/* Overview: cards in pairs, each with the tool's icon, name and summary. */
+/* Overview: a grid of tool tiles, tinted by their group, one line of summary each. */
 .project-tools-menu.overview {
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  margin: 24px 0 38px;
+  gap: 22px;
+  margin: 8px 0 38px;
+}
+.project-tools-menu.overview .project-tools-group > h3 {
+  margin: 0 0 10px;
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.project-tools-menu.overview .project-tools-group {
+  --tool-tone: var(--accent);
+}
+.project-tools-menu.overview .project-tools-group[data-group="knowledge"] {
+  --tool-tone: oklch(0.68 0.16 300);
+}
+.project-tools-menu.overview .project-tools-group[data-group="agents"] {
+  --tool-tone: hsl(var(--ws-info));
+}
+.project-tools-menu.overview .project-tools-group[data-group="quality"] {
+  --tool-tone: hsl(var(--ws-success));
+}
+.project-tools-menu.overview .project-tools-group[data-group="system"] {
+  --tool-tone: hsl(var(--ws-warning));
 }
 .project-tools-menu.overview .project-tools-items {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
 }
 .project-tools-menu.overview .project-tool {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  padding: 19px 22px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  text-align: left;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: var(--corner-lg);
+  background: var(--raised);
+  text-align: start;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease,
+    background-color 120ms ease;
 }
 .project-tools-menu.overview .project-tool:hover {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--tool-tone) 55%, var(--border));
+  background: color-mix(in srgb, var(--tool-tone) 6%, var(--raised));
 }
-.project-tools-menu.overview .project-tool > svg:first-child {
-  flex-shrink: 0;
-  color: var(--accent);
+@media (prefers-reduced-motion: no-preference) {
+  .project-tools-menu.overview .project-tool:hover {
+    transform: translateY(-1px);
+  }
 }
-.project-tools-menu.overview .project-tool > svg:last-child {
+.project-tool-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--corner-md);
+  background: color-mix(in srgb, var(--tool-tone, var(--accent)) 15%, transparent);
+  color: var(--tool-tone, var(--accent));
+}
+.project-tools-menu.overview .project-tool > .project-tool-arrow {
   flex-shrink: 0;
   margin-left: auto;
   color: var(--subtle);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.project-tools-menu.overview .project-tool:is(:hover, :focus-visible) > .project-tool-arrow {
+  opacity: 1;
 }
 .project-tools-menu.overview .project-tool-copy {
+  display: grid;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 .project-tools-menu.overview .project-tool-copy strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
-.project-tools-menu.overview .project-tool-copy span {
-  display: block;
+/* The whole summary shows: a clamp would hide words with no other place to read them. */
+.project-tools-menu.overview .project-tool-copy > span {
   color: var(--muted);
-  font-size: 11px;
-  line-height: 1.7;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 /* The agent workspace: the roster and the live fleet that runs beside it. */
@@ -133,7 +180,7 @@
 }
 .agent-workspace-tabs button {
   padding: 9px 13px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
   font-size: 13px;
 }
@@ -143,4 +190,53 @@
 .agent-workspace-tabs button[aria-current="page"] {
   background: var(--accent-soft);
   color: var(--accent-ink);
+}
+
+/* The open tool in the project breadcrumb carries its tinted icon, as on its overview tile. */
+.project-breadcrumb-page {
+  --tool-tone: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.project-breadcrumb-page[data-group="knowledge"] {
+  --tool-tone: oklch(0.68 0.16 300);
+}
+.project-breadcrumb-page[data-group="agents"] {
+  --tool-tone: hsl(var(--ws-info));
+}
+.project-breadcrumb-page[data-group="quality"] {
+  --tool-tone: hsl(var(--ws-success));
+}
+.project-breadcrumb-page[data-group="system"] {
+  --tool-tone: hsl(var(--ws-warning));
+}
+.project-breadcrumb-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--corner-sm);
+  background: color-mix(in srgb, var(--tool-tone) 16%, transparent);
+  color: var(--tool-tone);
+}
+
+/* The sidebar launcher tints each tool's icon by its group, as the overview tiles do. */
+.project-tools-menu.launcher .project-tools-group {
+  --tool-tone: var(--accent);
+}
+.project-tools-menu.launcher .project-tools-group[data-group="knowledge"] {
+  --tool-tone: oklch(0.68 0.16 300);
+}
+.project-tools-menu.launcher .project-tools-group[data-group="agents"] {
+  --tool-tone: hsl(var(--ws-info));
+}
+.project-tools-menu.launcher .project-tools-group[data-group="quality"] {
+  --tool-tone: hsl(var(--ws-success));
+}
+.project-tools-menu.launcher .project-tools-group[data-group="system"] {
+  --tool-tone: hsl(var(--ws-warning));
+}
+.project-tools-menu.launcher .project-tool > svg:first-child {
+  color: var(--tool-tone);
 }

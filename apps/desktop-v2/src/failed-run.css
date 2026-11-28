@@ -8,7 +8,7 @@
   font-size: 13px;
   color: var(--danger);
   background: var(--danger-soft);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .failed-run > svg {
   flex: none;

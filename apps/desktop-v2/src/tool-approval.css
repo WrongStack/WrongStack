@@ -17,7 +17,7 @@
 .approval-diff,
 .approval-pattern {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   margin: 12px 0;
   padding: 10px;
   min-width: 0;
@@ -94,7 +94,7 @@
   background: var(--base);
   border: 1px solid var(--border);
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .approval-scope small {
   color: var(--muted);
@@ -121,7 +121,7 @@
   margin: 12px 0;
   padding: 12px 14px;
   border: 1px solid color-mix(in oklch, var(--approval-tone) 55%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: color-mix(in oklch, var(--approval-tone) 7%, var(--raised));
 }
 .approval-card.tool-approval.approval-banner.approval-destructive {
@@ -142,7 +142,7 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: color-mix(in oklch, var(--approval-tone) 16%, transparent);
   color: var(--approval-tone);
 }
@@ -199,7 +199,7 @@
   height: 17px;
   padding: 0 4px;
   border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   font: 600 10px / 1 var(--user-font-code, Consolas, monospace);
   opacity: 0.85;
 }

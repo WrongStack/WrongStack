@@ -1,11 +1,32 @@
-/* Desktop v2 has no rounded corners. Keep this the first cascade layer so the
-   invariant also wins over lazy widgets, portal content and normal inline styles. */
+/* Corner geometry.
+
+   Soft (the default) draws every surface from one radius scale. Sharp is an
+   Appearance choice: it squares everything, and it stays the first cascade
+   layer so it also wins over lazy widgets, portal content and inline styles. */
+:root {
+  --corner-xs: 4px;
+  --corner-sm: 6px;
+  --corner-md: 8px;
+  --corner-lg: 12px;
+  --corner-xl: 16px;
+  --corner-pill: 999px;
+}
+
+:root[data-corners="sharp"] {
+  --corner-xs: 0;
+  --corner-sm: 0;
+  --corner-md: 0;
+  --corner-lg: 0;
+  --corner-xl: 0;
+  --corner-pill: 0;
+}
+
 @layer desktop-geometry {
-  *,
-  *::before,
-  *::after {
-    /* design-ignore: radius.hardcoded -- Zero is invariant across themes. */
-    /* biome-ignore lint/complexity/noImportantStyles: the square-corner invariant must beat inline and portal styles. */
+  :root[data-corners="sharp"] *,
+  :root[data-corners="sharp"] *::before,
+  :root[data-corners="sharp"] *::after {
+    /* design-ignore: radius.hardcoded -- Sharp corners are zero across themes. */
+    /* biome-ignore lint/complexity/noImportantStyles: sharp corners must beat inline and portal styles. */
     border-radius: 0 !important;
   }
 
@@ -16,21 +37,42 @@
      borders that only read as radio-wave arcs on a circle (squared, they pulse as
      chevrons), and its read/search lens is a ring. They must stay in this layer: an
      !important in a later layer or in unlayered CSS loses to the rule above. */
-  .agent-working-orb,
-  .agent-working-orb::before,
-  .agent-working-orb::after,
-  .agent-office__scene.is-tool-web .agent-office__activity-fx > :is(span, i, b),
-  .agent-office__scene:is(.is-tool-read, .is-tool-search) .agent-office__activity-fx > span {
+  :root[data-corners="sharp"]
+    :is(
+      .agent-working-orb,
+      .agent-working-orb::before,
+      .agent-working-orb::after,
+      .agent-office__scene.is-tool-web .agent-office__activity-fx > :is(span, i, b),
+      .agent-office__scene:is(.is-tool-read, .is-tool-search) .agent-office__activity-fx > span
+    ) {
     /* design-ignore: radius.hardcoded -- These animated indicators are circular by design. */
-    /* biome-ignore lint/complexity/noImportantStyles: only an !important rule in this layer beats the square-corner invariant. */
+    /* biome-ignore lint/complexity/noImportantStyles: only an !important rule in this layer beats sharp corners. */
     border-radius: 50% !important;
   }
+}
 
-  ::-webkit-scrollbar-track,
-  ::-webkit-scrollbar-thumb,
-  ::-webkit-scrollbar-corner {
-    /* design-ignore: radius.hardcoded -- Zero is invariant across themes. */
-    /* biome-ignore lint/complexity/noImportantStyles: the square-corner invariant must beat inline and portal styles. */
-    border-radius: 0 !important;
-  }
+/* The shared project surfaces are compiled with square Tailwind radii; soft
+   corners give their common shapes the desktop scale. */
+:root:not([data-corners="sharp"]) .ws-surfaces {
+  --radius: var(--corner-md);
+}
+
+:root:not([data-corners="sharp"]) .ws-surfaces :is(.rounded-sm, .rounded-xs) {
+  border-radius: var(--corner-xs);
+}
+
+:root:not([data-corners="sharp"]) .ws-surfaces :is(.rounded, .rounded-md) {
+  border-radius: var(--corner-sm);
+}
+
+:root:not([data-corners="sharp"]) .ws-surfaces .rounded-lg {
+  border-radius: var(--corner-md);
+}
+
+:root:not([data-corners="sharp"]) .ws-surfaces :is(.rounded-xl, .rounded-2xl) {
+  border-radius: var(--corner-lg);
+}
+
+:root:not([data-corners="sharp"]) .ws-surfaces .rounded-full {
+  border-radius: var(--corner-pill);
 }

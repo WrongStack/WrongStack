@@ -16,7 +16,7 @@
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   font-size: 13px;
   color: var(--muted);
 }
@@ -56,7 +56,7 @@
 .agent-plan-route {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 14px;
   display: grid;
   /* A shorter lane beside a taller one spread its fields down the card. */
@@ -94,7 +94,7 @@
 .agent-plan-confirm {
   margin: 16px 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   padding: 12px;
 }
 .agent-plan-confirm button {

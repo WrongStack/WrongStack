@@ -1,6 +1,8 @@
 import { ArrowLeft, ChevronRight, Folder } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import type { Project } from './model';
+import { owningTool, projectToolGroups } from './project-tools';
+import './project-tools.css';
 import type { DesktopController } from './useDesktop';
 
 /**
@@ -10,6 +12,9 @@ import type { DesktopController } from './useDesktop';
 export function ProjectBreadcrumb({ project, vm }: { project: Project; vm: DesktopController }) {
   const { t } = useDesktopText();
   const overview = vm.projectPage === 'overview';
+  const owner = owningTool(vm.projectPage);
+  const group = projectToolGroups.find((entry) => entry.tools.some((tool) => tool.id === owner));
+  const ToolIcon = group?.tools.find((tool) => tool.id === owner)?.Icon;
   return (
     <nav className="project-breadcrumb" aria-label={t('project.breadcrumb')}>
       <button
@@ -26,7 +31,14 @@ export function ProjectBreadcrumb({ project, vm }: { project: Project; vm: Deskt
       {!overview && (
         <>
           <ChevronRight size={13} className="project-breadcrumb-separator" aria-hidden />
-          <span aria-current="page">{t(`pages.${vm.projectPage}`)}</span>
+          <span aria-current="page" className="project-breadcrumb-page" data-group={group?.id}>
+            {ToolIcon && (
+              <span className="project-breadcrumb-icon" aria-hidden="true">
+                <ToolIcon size={13} />
+              </span>
+            )}
+            {t(`pages.${vm.projectPage}`)}
+          </span>
         </>
       )}
     </nav>

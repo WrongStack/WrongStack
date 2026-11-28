@@ -50,7 +50,7 @@
   color: var(--text);
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   padding: 11px;
   font: inherit;
 }

@@ -132,9 +132,8 @@ export async function exerciseNativeAgentRoster({
   };
   const pick = async (title) => {
     const picker = page.getByRole('dialog', { name: title, exact: true });
-    await picker
-      .getByLabel('Session model provider', { exact: true })
-      .selectOption('desktop-local');
+    // Providers are a list of buttons beside the models.
+    await picker.locator('.model-picker-providers [data-provider="desktop-local"]').click();
     await picker.locator('.composer-model-list button').filter({ hasText: fixtureModel }).click();
     await picker.waitFor({ state: 'hidden' });
   };

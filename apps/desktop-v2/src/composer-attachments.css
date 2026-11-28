@@ -11,7 +11,7 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 7px;
   max-width: 260px;
   min-width: 0;
@@ -21,7 +21,7 @@
   width: 42px;
   height: 42px;
   object-fit: cover;
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .draft-attachment > span,
 .attachment-document > span {
@@ -48,7 +48,7 @@
   max-width: 190px;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   overflow: hidden;
 }
 .attachment-image > img {

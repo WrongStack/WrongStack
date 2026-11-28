@@ -102,7 +102,7 @@
     "findAnything": "Find anything",
     "workspace": "{{name}} workspace",
     "projects": "Projects",
-"views": "Views",
+    "views": "Views",
     "addProject": "Add project",
     "newSessionIn": "New session in {{name}}",
     "newSession": "New session",
@@ -114,7 +114,9 @@
     "removeBody": "It leaves this list, and its desktop transcript and drafts are deleted. A running session is stopped first. An agent conversation stays in the project’s history, where it can be resumed.",
     "removeConfirm": "Remove",
     "cancel": "Cancel",
-    "olderHost": "The running session host is older than this desktop. Stop its sessions and restart the desktop to remove sessions."
+    "olderHost": "The running session host is older than this desktop. Stop its sessions and restart the desktop to remove sessions.",
+    "showSessions": "Show the sessions of {{name}}",
+    "hideSessions": "Hide the sessions of {{name}}"
   },
   "topbar": {
     "live": "{{count}} live",
@@ -300,6 +302,17 @@
       "text": "Your composer already contains a draft.",
       "replace": "Replace draft",
       "keep": "Keep current draft"
+    },
+    "settings": {
+      "label": "Session settings",
+      "model": "Model",
+      "run": "Run",
+      "effort": "Effort",
+      "reasoning": "Reasoning",
+      "identity": "Identity",
+      "continuation": "Continuation",
+      "mode": "Agent mode",
+      "auto": "Auto"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Compact puts more of a conversation on screen, as the WebUI's compact view does.",
       "comfortable": "Comfortable",
       "compact": "Compact"
+    },
+    "corners": {
+      "title": "Corners",
+      "body": "Soft corners round cards, menus and controls; Sharp keeps every edge square.",
+      "soft": "Soft",
+      "sharp": "Sharp"
     },
     "sounds": {
       "title": "Sounds",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Plain text editor",
     "loadingEditor": "Loading the code editor…",
     "editorUnavailable": "The code editor could not load, so this file opens in the plain text editor.",
-    "plainText": "Plain text"
+    "plainText": "Plain text",
+    "gitStatus": {
+      "M_one": "{{count}} modified",
+      "M": "{{count}} modified",
+      "A_one": "{{count}} added",
+      "A": "{{count}} added",
+      "D_one": "{{count}} deleted",
+      "D": "{{count}} deleted",
+      "R_one": "{{count}} renamed",
+      "R": "{{count}} renamed",
+      "C_one": "{{count}} copied",
+      "C": "{{count}} copied",
+      "U_one": "{{count}} conflicted",
+      "U": "{{count}} conflicted",
+      "untracked_one": "{{count}} untracked",
+      "untracked": "{{count}} untracked"
+    }
   },
   "find": {
     "placeholder": "Find",

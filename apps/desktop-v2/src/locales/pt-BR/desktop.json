@@ -102,7 +102,7 @@
     "findAnything": "Encontrar qualquer coisa",
     "workspace": "Espaço de trabalho {{name}}",
     "projects": "Projetos",
-"views": "Visualizações",
+    "views": "Visualizações",
     "addProject": "Adicionar projeto",
     "newSessionIn": "Nova sessão em {{name}}",
     "newSession": "Nova sessão",
@@ -114,7 +114,9 @@
     "removeBody": "Ela sai desta lista, e a transcrição da área de trabalho e os rascunhos são excluídos. Uma sessão em execução é parada primeiro. Uma conversa de agente continua no histórico do projeto, de onde pode ser retomada.",
     "removeConfirm": "Remover",
     "cancel": "Cancelar",
-    "olderHost": "O host de sessões em execução é mais antigo que este desktop. Pare as sessões dele e reinicie o desktop para remover sessões."
+    "olderHost": "O host de sessões em execução é mais antigo que este desktop. Pare as sessões dele e reinicie o desktop para remover sessões.",
+    "showSessions": "Mostrar as sessões de {{name}}",
+    "hideSessions": "Ocultar as sessões de {{name}}"
   },
   "topbar": {
     "live": "{{count}} ativas",
@@ -300,6 +302,17 @@
       "text": "Sua área de escrita já contém um rascunho.",
       "replace": "Substituir rascunho",
       "keep": "Manter o rascunho atual"
+    },
+    "settings": {
+      "label": "Configurações da sessão",
+      "model": "Modelo",
+      "run": "Execução",
+      "effort": "Esforço",
+      "reasoning": "Raciocínio",
+      "identity": "Identidade",
+      "continuation": "Continuação",
+      "mode": "Modo do agente",
+      "auto": "Auto"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Compacta mostra mais da conversa na tela, como a visão compacta da WebUI.",
       "comfortable": "Confortável",
       "compact": "Compacta"
+    },
+    "corners": {
+      "title": "Cantos",
+      "body": "Suaves arredonda cartões, menus e controles; Retos mantém cada borda quadrada.",
+      "soft": "Suaves",
+      "sharp": "Retos"
     },
     "sounds": {
       "title": "Sons",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Editor de texto simples",
     "loadingEditor": "Carregando o editor de código…",
     "editorUnavailable": "Não foi possível carregar o editor de código, então este arquivo abre no editor de texto simples.",
-    "plainText": "Texto simples"
+    "plainText": "Texto simples",
+    "gitStatus": {
+      "M_one": "{{count}} modificado",
+      "M": "{{count}} modificados",
+      "A_one": "{{count}} adicionado",
+      "A": "{{count}} adicionados",
+      "D_one": "{{count}} excluído",
+      "D": "{{count}} excluídos",
+      "R_one": "{{count}} renomeado",
+      "R": "{{count}} renomeados",
+      "C_one": "{{count}} copiado",
+      "C": "{{count}} copiados",
+      "U_one": "{{count}} em conflito",
+      "U": "{{count}} em conflito",
+      "untracked_one": "{{count}} não rastreado",
+      "untracked": "{{count}} não rastreados"
+    }
   },
   "find": {
     "placeholder": "Localizar",

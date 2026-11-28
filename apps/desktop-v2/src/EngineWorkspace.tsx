@@ -54,7 +54,11 @@ import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
 import { TranscriptPins } from './TranscriptPins';
 import { type TranscriptHandle, TranscriptVirtualizer } from './TranscriptVirtualizer';
 import { AgentWorking, LiveRunActivity } from './TurnTools';
-import { useTranscriptEndScroll, useTranscriptFollowHandlers } from './transcript-follow';
+import {
+  useFollowOnSend,
+  useTranscriptEndScroll,
+  useTranscriptFollowHandlers,
+} from './transcript-follow';
 import { useTranscriptReadingPosition } from './transcript-reading-position';
 import { useComposerCollapse } from './useComposerCollapse';
 import { useDesignDraftPreparation } from './useDesignDraftPreparation';
@@ -207,6 +211,7 @@ export function EngineWorkspace({
     resetFollowing();
   };
   const followHandlers = useTranscriptFollowHandlers(following, pauseFollowing, resumeFollowing);
+  const composerOps = useFollowOnSend(send, command, resumeFollowing);
   const [showConversation, setShowConversation] = useState(false);
   const hadQuestions = useRef(false);
   useEffect(() => {
@@ -656,8 +661,8 @@ export function EngineWorkspace({
                   <SessionComposer
                     key={id}
                     state={state}
-                    send={send}
-                    command={command}
+                    send={composerOps.send}
+                    command={composerOps.command}
                     draft={draft}
                     mode={mode}
                     onModeChange={onModeChange}

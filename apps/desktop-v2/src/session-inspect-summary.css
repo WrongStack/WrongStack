@@ -2,7 +2,7 @@
   margin: 0 0 16px;
   padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   font-size: 13px;
 }
@@ -19,7 +19,7 @@
 .inspect-stats > div {
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
 }
 .inspect-stats dt {

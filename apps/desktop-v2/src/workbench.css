@@ -53,7 +53,7 @@
   place-items: center;
   color: var(--subtle);
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .project-new-session:hover {
   background: var(--raised);
@@ -61,35 +61,6 @@
 }
 .project-count {
   padding: 0;
-}
-.tree-session {
-  padding: 9px 8px 9px 30px;
-  color: var(--muted);
-  gap: 9px;
-  position: relative;
-  border-radius: 5px;
-}
-.tree-session::before {
-  content: "";
-  position: absolute;
-  left: 20px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--border);
-}
-.tree-session.chosen {
-  color: var(--text);
-  background: var(--accent-soft);
-}
-.tree-session small {
-  color: var(--subtle);
-  margin-left: auto;
-}
-.tree-session span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .sidebar-bottom {
   margin: 12px -13px 0;
@@ -263,7 +234,7 @@
   gap: 5px;
   padding: 2px 7px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   color: var(--muted);
   font-size: 10px;
   white-space: nowrap;
@@ -320,13 +291,6 @@
   font-size: 14px;
   line-height: 1.9;
 }
-.native-composer {
-  margin: 0 max(18px, calc((100% - 860px) / 2)) 16px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--raised);
-  padding: 13px 14px;
-}
 .native-usage {
   padding: 7px 18px;
 }
@@ -338,7 +302,7 @@
   max-height: min(800px, calc(100dvh - 64px));
   padding: 28px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   background: var(--base);
   color: var(--text);
   box-shadow: 0 28px 100px oklch(0.05 0 0 / 0.35);
@@ -366,7 +330,7 @@
   padding: 12px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
 }
 .tools-search input {
@@ -416,7 +380,7 @@
   width: 100%;
   text-align: left;
   padding: 10px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .tool-groups button:hover {
   background: var(--accent-soft);
@@ -590,7 +554,7 @@
   color: var(--text);
   background: var(--base);
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   outline: none;
 }
 .session-tab-list > .new-session-tab {
@@ -600,44 +564,6 @@
 .sessions-region {
   container: fleet / inline-size;
   min-width: 0;
-}
-.metrics-strip.fleet-kpis {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  margin: 0 0 16px;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  background: none;
-}
-.fleet-kpis .metric,
-.fleet-kpis .metric:last-child {
-  min-width: 0;
-  padding: 4px 16px 16px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-}
-.fleet-kpis .metric-label {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  letter-spacing: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.fleet-kpis .metric > strong {
-  margin-top: 8px;
-  font-size: 26px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-}
-.fleet-kpis .metric p {
-  margin: 4px 0 0;
-  line-height: 1.5;
-}
-.fleet-kpis .metric-live-dot {
-  width: 6px;
-  height: 6px;
 }
 .project-session-group > header > div {
   min-width: 0;
@@ -739,13 +665,6 @@
   white-space: nowrap;
 }
 @container fleet (max-width: 600px) {
-  .metrics-strip.fleet-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 16px;
-  }
-  .fleet-kpis .metric {
-    padding-inline: 8px;
-  }
   .section-toolbar {
     flex-direction: column;
     gap: 12px;

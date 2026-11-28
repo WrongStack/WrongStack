@@ -28,6 +28,20 @@ describe('model picker details', () => {
     expect(
       modelDetailLine(pickerModel({ id: 'free', inputCost: 0, outputCost: 0, capabilities: [] })),
     ).toBe('no catalog price');
+    // Prices computed upstream carry binary-float noise; the picker shows the price, not the noise.
+    expect(
+      modelDetailLine(
+        pickerModel({
+          id: 'noisy',
+          inputCost: 0.6000000000000001,
+          outputCost: 1.7999999999999998,
+          capabilities: [],
+        }),
+      ),
+    ).toBe('$0.6 / $1.8 per 1M');
+    expect(pickerModel({ id: 'tiny', inputCost: 0.000075, capabilities: [] }).inputCost).toBe(
+      0.000075,
+    );
   });
   it('refuses malformed facts from the reply', () => {
     const model = pickerModel({

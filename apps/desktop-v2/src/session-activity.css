@@ -28,7 +28,7 @@
 .session-activity-header nav button {
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   color: var(--muted);
   font-size: 12px;
 }
@@ -43,7 +43,7 @@
 }
 .activity-entry {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
   overflow: hidden;
 }
@@ -120,7 +120,7 @@
   align-items: center;
   gap: 6px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   padding: 6px;
   text-align: left;
   min-width: 0;
@@ -139,7 +139,7 @@
 .chat-run-activity {
   margin: 10px 0;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   padding: 8px 10px;
 }
 .chat-run-activity > summary {
@@ -254,7 +254,7 @@
   padding: 2px 6px;
   font-size: 11px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
 }
 .tool-exit.ok {
   color: var(--muted);
@@ -276,7 +276,7 @@
 }
 .activity-entry-body .approval-arguments {
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   margin: 6px 0;
   background: color-mix(in srgb, var(--text) 4%, transparent);
 }

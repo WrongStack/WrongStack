@@ -75,16 +75,22 @@ export async function exerciseNativeAppearance({ page, rpc, waitFor, artifactDir
           document.body.append(probe);
           const button = getComputedStyle(probe);
           const body = getComputedStyle(document.body);
+          // Same colour within one step per channel: CSS and canvas round an HSL channel that
+          // lands on .5 (e.g. 100 45% 38% → green 140.5) in opposite directions.
+          const same = (a, b) => {
+            const [x, y] = [rgba(a).split(','), rgba(b).split(',')];
+            return x.every((value, index) => Math.abs(Number(value) - Number(y[index])) <= 1);
+          };
           const measured = {
             accent: button.backgroundColor,
-            exactPrimary: rgba(button.backgroundColor) === rgba('hsl(' + primary + ')'),
-            exactSecondary:
-              rgba(
-                getComputedStyle(document.documentElement)
-                  .getPropertyValue('--brand-secondary')
-                  .trim(),
-              ) === rgba('hsl(' + secondary + ')'),
-            exactBackground: rgba(body.backgroundColor) === rgba('hsl(' + background + ')'),
+            exactPrimary: same(button.backgroundColor, 'hsl(' + primary + ')'),
+            exactSecondary: same(
+              getComputedStyle(document.documentElement)
+                .getPropertyValue('--brand-secondary')
+                .trim(),
+              'hsl(' + secondary + ')',
+            ),
+            exactBackground: same(body.backgroundColor, 'hsl(' + background + ')'),
             button: ratio(luminance(button.color), luminance(button.backgroundColor)),
             body: ratio(luminance(body.color), luminance(body.backgroundColor)),
           };
@@ -98,7 +104,11 @@ export async function exerciseNativeAppearance({ page, rpc, waitFor, artifactDir
           background: brandNeutrals[mode.toLowerCase()].background,
         },
       );
-      assert.equal(contrast.exactPrimary, true, mode + ' ' + name + ': canonical primary');
+      assert.equal(
+        contrast.exactPrimary,
+        true,
+        `${mode} ${name}: canonical primary (button ${contrast.accent}, expected hsl(${palette[mode.toLowerCase()].primary}))`,
+      );
       assert.equal(contrast.exactSecondary, true, mode + ' ' + name + ': canonical paired accent');
       assert.equal(
         contrast.exactBackground,

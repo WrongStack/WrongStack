@@ -2,7 +2,7 @@
   margin: 0 16px 8px;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 13px;
 }
 .scheduled-jobs.overdue {
@@ -40,7 +40,7 @@
 .scheduled-job-status {
   padding: 0 6px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   font-size: 12px;
 }
 .scheduled-job-status.active {

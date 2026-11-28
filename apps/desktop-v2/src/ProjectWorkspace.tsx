@@ -12,7 +12,16 @@ import {
   Terminal,
   Workflow,
 } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { projectHttp } from './engine-http';
 import { entries, record } from './engine-values';
@@ -128,6 +137,11 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
   useEffect(() => {
     if (vm.projectPage !== 'files' && vm.projectPage !== 'changes') setFileTarget('');
   }, [vm.projectPage]);
+  // Every page shares one scroller; a page opened from far down the overview starts at its top.
+  const pageContent = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (pageContent.current) pageContent.current.scrollTop = 0;
+  }, [vm.projectPage, project.id]);
   if (!state.connected)
     return (
       <div className="runtime-state">
@@ -136,7 +150,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       </div>
     );
   return (
-    <div className="project-page-content">
+    <div className="project-page-content" ref={pageContent}>
       {vm.projectPage === 'files' || vm.projectPage === 'changes' ? (
         <FileWorkspace
           command={command}
@@ -439,6 +453,8 @@ function ProjectOverview({
   const sessions = vm.snapshot.sessions.filter((session) => session.projectId === project.id);
   const tasks = boards.reduce((sum, board) => sum + Number(board['taskCount'] ?? 0), 0);
   const live = sessions.filter(isLive).length;
+  const byStatus = (status: ReturnType<typeof sessionStatus>) =>
+    sessions.filter((session) => sessionStatus(session) === status).length;
   return (
     <section className="project-overview">
       <header className="overview-identity">
@@ -464,24 +480,33 @@ function ProjectOverview({
           label={t('overview.kpi.live')}
           value={live}
           live={live > 0}
+          segments={[
+            { value: byStatus('active'), tone: 'accent', label: t('fleetView.status.active') },
+            { value: byStatus('paused'), tone: 'warning', label: t('fleetView.status.paused') },
+            { value: byStatus('error'), tone: 'danger', label: t('fleetView.status.error') },
+            { value: byStatus('stopped'), tone: 'muted', label: t('fleetView.status.stopped') },
+          ]}
           note={t('overview.kpi.sessions', { count: sessions.length })}
         />
         <Metric
           icon={<Brain size={14} />}
           label={t('pages.memory')}
           value={memories ?? '—'}
+          tone="violet"
           note={t('overview.kpi.memories')}
         />
         <Metric
           icon={<KanbanSquare size={14} />}
           label={t('pages.kanban')}
           value={tasks}
+          tone="warning"
           note={t('overview.kpi.boards', { count: boards.length })}
         />
         <Metric
           icon={<Boxes size={14} />}
           label={t('pages.atlas')}
           value={packages ?? '—'}
+          tone="info"
           note={t('overview.kpi.packages')}
         />
       </div>
@@ -533,7 +558,9 @@ function ProjectOverview({
       </section>
       <div className="overview-tool-links">
         <button type="button" onClick={() => vm.setProjectPage('memory')}>
-          <Brain size={18} aria-hidden="true" />
+          <span className="project-tool-icon tone-violet" aria-hidden="true">
+            <Brain size={20} />
+          </span>
           <span>
             <strong>{t('pages.memory')}</strong>
             <small>{t('overview.memory.body')}</small>
@@ -541,7 +568,9 @@ function ProjectOverview({
           <ArrowRight size={14} aria-hidden="true" />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('kanban')}>
-          <KanbanSquare size={18} aria-hidden="true" />
+          <span className="project-tool-icon tone-warning" aria-hidden="true">
+            <KanbanSquare size={20} />
+          </span>
           <span>
             <strong>{t('pages.kanban')}</strong>
             <small>{t('overview.kanban.body')}</small>
@@ -549,7 +578,9 @@ function ProjectOverview({
           <ArrowRight size={14} aria-hidden="true" />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('atlas')}>
-          <Network size={18} aria-hidden="true" />
+          <span className="project-tool-icon tone-info" aria-hidden="true">
+            <Network size={20} />
+          </span>
           <span>
             <strong>{t('pages.atlas')}</strong>
             <small>{t('overview.atlas.body')}</small>
@@ -572,12 +603,14 @@ function ProjectOverview({
                 className="project-tool"
                 onClick={() => vm.openWrongStackSettings()}
               >
-                <Settings size={21} />
+                <span className="project-tool-icon" aria-hidden="true">
+                  <Settings size={18} />
+                </span>
                 <div className="project-tool-copy">
                   <strong>{t('rail.settings')}</strong>
                   <span>{t('overview.links.settings')}</span>
                 </div>
-                <ArrowRight size={16} />
+                <ArrowRight size={15} className="project-tool-arrow" />
               </button>
             </div>
           </section>

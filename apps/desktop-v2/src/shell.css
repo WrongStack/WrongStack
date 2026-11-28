@@ -61,7 +61,7 @@
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--accent);
   color: var(--on-accent);
   font-size: 11px;
@@ -113,7 +113,7 @@
   width: 100%;
   height: auto;
   padding: 7px 9px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
   font-size: 13px;
   text-align: left;
@@ -139,7 +139,7 @@
   top: -6px;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   box-shadow: 0 10px 30px color-mix(in srgb, var(--text) 14%, transparent);
 }
@@ -162,41 +162,6 @@
 .explorer .project-tree {
   flex: 1;
   overflow-y: auto;
-}
-.explorer .project-branch-heading {
-  display: flex;
-  align-items: center;
-}
-.explorer .project-item {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 9px;
-  border-radius: 6px;
-  font-size: 13px;
-}
-.explorer .project-item.selected {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-}
-.explorer .project-new-session {
-  display: flex;
-  padding: 5px;
-  color: var(--muted);
-  border-radius: 5px;
-}
-.explorer .tree-session {
-  padding: 5px 9px 5px 33px;
-  border-radius: 6px;
-  font-size: 13px;
-}
-.explorer .tree-session.chosen {
-  background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
-  color: var(--text);
-}
-.explorer .tree-session small {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 11px;
 }
 .explorer .add-project {
   padding: 8px 9px;
@@ -454,7 +419,8 @@
   min-height: 40px;
   padding-block: 4px;
 }
-.workspace-shell .project-page-content {
+/* Edge-to-edge pages (files, canvases) keep no gutter: it would show as a band of window colour. */
+.workspace-shell .project-page-content:not(:has(> .file-workspace, > .ws-surface-frame.is-fill)) {
   padding-top: 16px;
 }
 
@@ -489,7 +455,7 @@
     width: 100%;
     padding: 9px 10px;
     border: 1px solid var(--border);
-    border-radius: 5px;
+    border-radius: var(--corner-sm);
     background: var(--raised);
     color: var(--text);
     font-size: 14px;
@@ -545,7 +511,7 @@
   width: 110px;
   padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
   color: var(--text);
 }
@@ -659,9 +625,6 @@
 }
 .topbar .topbar-title {
   flex: 1;
-}
-.explorer .tree-session.chosen {
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 /* Tabs share the editor edge; the active tab has a top rule rather than a floating frame. */
 .workspace-shell .session-tabs {

@@ -34,7 +34,7 @@
   flex: 1;
   border: 1px solid var(--border);
   background: var(--raised);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 10px 12px;
   min-width: 170px;
 }
@@ -55,7 +55,7 @@
   background: var(--raised);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   font-size: 13px;
   padding: 9px 12px;
   max-width: 100%;
@@ -205,7 +205,7 @@
 .history-message {
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   margin: 16px 0;
   min-width: 0;
@@ -234,7 +234,7 @@
   padding: 12px 14px;
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   display: flex;
   gap: 7px;
   flex-direction: column;
@@ -249,7 +249,7 @@
 .history-thinking {
   border: 1px solid var(--border);
   background: var(--base);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   margin: 10px 0;
   padding: 14px;
   font-size: 13px;
@@ -273,7 +273,7 @@
 .history-reuse-preview {
   padding: 15px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--base);
 }
 @media (max-width: 1150px) {
@@ -322,7 +322,7 @@
   max-height: 420px;
   margin-top: 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   object-fit: contain;
 }
 .project-usage-summary {
@@ -382,7 +382,7 @@
   gap: 8px;
   margin-top: 8px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   color: var(--text);
   background: var(--danger-soft);
   font-size: 13px;

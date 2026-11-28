@@ -1,167 +1,13 @@
 /* The dialog chrome the composer shares with dialogs opened outside a session. */
 @import "./composer-dialog.css";
+@import "./composer-acp.css";
 
 /* The composer's centred side margin, shared by the panels stacked above it so they line up
    with it and the transcript (a narrow box, like a dialog, keeps 18 px). */
 :root {
   --composer-inline: max(18px, calc((100% - 860px) / 2));
 }
-.native-composer-stack {
-  container: composer / inline-size;
-  flex-shrink: 0;
-  min-width: 0;
-  background: var(--base);
-}
-.native-composer-stack .native-composer {
-  position: relative;
-  margin-top: 0;
-  padding: 12px;
-}
-.native-composer-stack .native-composer textarea {
-  padding: 8px 2px;
-  resize: none;
-  min-height: 62px;
-  max-height: 180px;
-}
-.composer-toolbar,
-.session-model-controls,
-.composer-actions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-.native-composer-stack .session-model-controls {
-  display: flex;
-  gap: 4px;
-}
-/* Controls pack from the left; the actions keep the right edge through their auto margin.
-   The generic composer footer spreads its children apart, which left wide, uneven holes
-   between the controls once the toolbar wrapped. */
-/* The composer box shows keyboard focus; its borderless textarea would otherwise draw the
-   baseline focus outline as a second frame inside it. */
-.native-composer:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-.native-composer textarea:focus-visible {
-  outline: none;
-}
-.native-composer footer.composer-toolbar {
-  justify-content: flex-start;
-  padding-top: 8px;
-  gap: 4px;
-}
-.composer-actions {
-  margin-left: auto;
-  flex-shrink: 0;
-  max-width: 100%;
-  justify-content: flex-end;
-}
-.composer-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 6px;
-  min-height: 32px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm, 0);
-  color: var(--muted);
-  background: transparent;
-  max-width: 100%;
-}
-.composer-chip:hover {
-  color: var(--text);
-  background: var(--raised);
-}
-.composer-chip.model-selector {
-  margin-left: 0;
-  font-size: 12px;
-  max-width: 260px;
-}
-.composer-chip.model-selector > span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.composer-chip select {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  /* One line per chip: a wrapped value made one chip twice as tall as the row. */
-  white-space: nowrap;
-  max-width: 220px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.composer-chip select option {
-  background: var(--base);
-  color: var(--text);
-}
-.composer-send {
-  min-width: 35px;
-  min-height: 34px;
-  padding: 7px;
-}
-.composer-options {
-  position: static;
-}
-.composer-options > summary {
-  display: flex;
-  cursor: pointer;
-  padding: 8px;
-  color: var(--muted);
-  list-style: none;
-  border-radius: 5px;
-}
-.composer-options:where([open]) > summary,
-.composer-options > summary:where(:hover) {
-  color: var(--accent);
-  background: var(--raised);
-}
-.composer-options > div {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  right: 12px;
-  z-index: 25;
-  width: 260px;
-  max-width: min(65vw, calc(100cqw - 32px));
-  max-height: min(420px, 45dvh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid var(--border);
-  background: var(--raised);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
-  border-radius: var(--radius-sm, 0);
-  padding: 6px;
-  display: grid;
-  gap: 2px;
-}
-.composer-options :is(button, label) {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 9px;
-  text-align: left;
-  font-size: 12px;
-}
-.composer-options button:hover {
-  background: var(--base);
-}
-.composer-options input[type="checkbox"] {
-  width: 24px;
-  height: 24px;
-  margin: 0;
-  flex: none;
-}
-.composer-options small {
-  color: var(--muted);
-  font-size: 11px;
-  padding: 0 9px 6px;
-  line-height: 1.7;
-}
+
 .composer-effort-hint {
   font-size: 11px;
   color: var(--muted);
@@ -190,7 +36,7 @@
 .composer-notice.composer-output {
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
   color: var(--text);
   font-family: var(--user-font-code, Consolas, "Cascadia Code", monospace);
@@ -211,7 +57,7 @@
 .composer-queue {
   margin: 8px var(--composer-inline);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 12px;
 }
 .composer-queue > summary {
@@ -277,7 +123,7 @@
 }
 .refine-versions button {
   padding: 7px 12px;
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   font-size: 12px;
   color: var(--muted);
 }
@@ -308,7 +154,7 @@
   overflow-y: auto;
   padding: 12px 15px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   color: var(--text);
   font: inherit;
@@ -361,7 +207,7 @@
   margin: 0;
   padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--base);
   line-height: 1.8;
   white-space: pre-wrap;
@@ -377,7 +223,7 @@
 .btw-receipts {
   margin: 8px var(--composer-inline);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 12px;
 }
 .btw-receipts > summary {
@@ -391,77 +237,6 @@
   margin: 6px 0;
   padding: 0;
   list-style: none;
-}
-.model-compare-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 9px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.model-comparison {
-  display: grid;
-  gap: 10px;
-}
-.model-comparison > button {
-  justify-self: start;
-}
-.model-comparison-scroll {
-  max-height: 350px;
-  overflow: auto;
-}
-.model-comparison table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-.model-comparison :where(th, td) {
-  padding: 7px 9px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-  overflow-wrap: anywhere;
-}
-.model-comparison :where(thead th) {
-  display: table-cell;
-}
-.model-comparison :where(thead small) {
-  display: block;
-  color: var(--muted);
-  font-weight: 400;
-}
-.model-comparison td.best {
-  color: var(--accent);
-  font-weight: 600;
-}
-.model-comparison :where(td) > small {
-  color: var(--muted);
-  font-weight: 400;
-}
-.composer-model-recents {
-  border: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 0;
-  font-size: 11px;
-  color: var(--muted);
-}
-.composer-model-recents button {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-}
-.composer-model-recents button small {
-  color: var(--muted);
-}
-.composer-model-recents legend {
-  float: left;
-  margin-right: 4px;
 }
 .composer-chip.dictation-listening {
   color: var(--danger, #c0392b);
@@ -485,128 +260,426 @@
   cursor: help;
 }
 
-/* ACP advertises its own model/effort independently of the selected session agent.
-   Anchor its disclosure to the composer, not to the toolbar row it would resize. */
-.session-model-controls .acp-runtime-controls {
+/* One card: the draft on top, one row of controls under it. The row's lead holds what
+   shapes the next turn (attach, dictate, model, session settings); its end holds what acts
+   on the draft (more, delivery mode, send). Every value control beyond the model lives in
+   the session settings popover, so the row never wraps into a second line of selects. */
+.native-composer-stack {
+  container: composer / inline-size;
+  flex-shrink: 0;
   min-width: 0;
-  max-width: 100%;
-  border: 0;
-  padding: 0;
-  color: var(--text);
+  background: var(--base);
 }
-.session-model-controls .acp-runtime-controls > summary {
+.native-composer {
+  position: relative;
+  margin: 0 var(--composer-inline) 14px;
+  padding: 4px 6px 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: var(--corner-lg);
+  background: var(--raised);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, black 18%, transparent),
+    0 8px 24px -12px color-mix(in srgb, black 30%, transparent);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+.native-composer:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 8px 24px -12px color-mix(in srgb, black 30%, transparent);
+}
+.native-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  max-height: 200px;
+  padding: 10px 8px 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+}
+.native-composer textarea::placeholder {
+  color: var(--subtle);
+}
+.native-composer textarea:focus-visible {
+  outline: none;
+}
+
+.native-composer footer.composer-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 3px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm, 5px);
-  color: var(--muted);
-  list-style: none;
-}
-.session-model-controls .acp-runtime-controls > summary::-webkit-details-marker {
-  display: none;
-}
-.session-model-controls .acp-runtime-controls > summary > span {
+  justify-content: space-between;
+  /* One row while it fits; a narrow, busy composer (a run's Stop, an error) wraps its end group
+     to a second row rather than pushing Send out of the window. */
+  flex-wrap: wrap;
+  gap: 4px 6px;
   min-width: 0;
-  max-width: 15ch;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.session-model-controls .acp-runtime-controls > summary > span:first-child {
-  max-width: none;
-  white-space: normal;
-}
-.session-model-controls .acp-runtime-controls > summary::after {
-  content: "";
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border: solid currentColor;
-  border-width: 0 1px 1px 0;
-  transform: translateY(-2px) rotate(45deg);
-}
-.session-model-controls .acp-runtime-controls:is(:hover, [open]) > summary {
-  color: var(--text);
-  background: var(--raised);
-  border-color: var(--border);
-}
-.session-model-controls .acp-runtime-controls[open] > summary::after {
-  transform: translateY(1px) rotate(225deg);
-}
-.session-model-controls .acp-runtime-controls:where([open]) > div {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  inset-inline-start: 0;
-  z-index: 25;
-  display: grid;
-  gap: 10px;
-  width: min(360px, 100%);
-  max-height: min(400px, 45dvh);
-  overflow: auto;
-  overscroll-behavior: contain;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 5px);
-  padding: 12px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
-  overflow-wrap: anywhere;
-  font-size: 13px;
-}
-.session-model-controls .acp-runtime-controls > div > small,
-.session-model-controls .acp-runtime-controls label > span {
-  color: var(--muted);
-}
-.session-model-controls .acp-runtime-controls > summary > span + span {
-  /* The muted toolbar color already provides the contrast hierarchy. */
-  opacity: 1;
-}
-.session-model-controls .acp-runtime-controls select {
-  width: 100%;
-  min-height: 34px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 5px);
-  padding: 4px 8px;
-  font: inherit;
-}
-.session-model-controls .acp-runtime-controls option {
-  background: var(--base);
-  color: var(--text);
-}
-.session-model-controls .acp-runtime-controls .acp-option-desc {
-  color: var(--muted);
-  font-size: 11px;
-}
-.session-model-controls .acp-runtime-controls > div > div:last-child {
-  flex-wrap: wrap;
-  border-block-start: 1px solid var(--border);
-  padding-top: 8px;
-}
-.session-model-controls .acp-runtime-controls button {
-  min-height: 32px;
-  padding: 3px 8px;
-}
-.session-model-controls .acp-runtime-controls .acp-effort-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 0;
-  border: 0;
   padding: 2px 0 0;
-}
-.session-model-controls .acp-runtime-controls .acp-effort-pills button {
-  min-height: 26px;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 5px);
-  background: transparent;
   color: var(--muted);
   font-size: 12px;
 }
-.session-model-controls .acp-runtime-controls .acp-effort-pills button[aria-pressed="true"] {
-  border-color: var(--accent, var(--text));
-  background: color-mix(in srgb, var(--accent, var(--text)) 14%, transparent);
+.composer-lead,
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.composer-lead {
+  flex: 1 1 auto;
+}
+.composer-actions {
+  flex: none;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+.composer-settings > summary > .composer-settings-flag {
+  flex: none;
+  color: var(--accent);
+}
+.composer-settings > summary > .composer-settings-flag.is-yolo,
+.composer-settings > summary[data-yolo] {
+  color: var(--danger);
+}
+.composer-settings > summary[data-yolo] {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.session-model-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+/* In the toolbar the model controls are the lead's own items, so an error takes a line of its
+   own under the row instead of squeezing beside the model chip. */
+.composer-lead {
+  flex-wrap: wrap;
+}
+.composer-lead > .session-model-controls {
+  display: contents;
+}
+.composer-lead .composer-error {
+  order: 99;
+  flex-basis: 100%;
+  margin: 2px 4px 0;
+}
+
+/* Icon controls: attach, dictate, more. */
+.composer-chip,
+.composer-options > summary,
+.composer-settings > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--corner-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  list-style: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.composer-options > summary::-webkit-details-marker,
+.composer-settings > summary::-webkit-details-marker {
+  display: none;
+}
+.composer-chip:hover:not(:disabled),
+.composer-options > summary:hover,
+.composer-settings > summary:hover,
+.composer-options[open] > summary,
+.composer-settings[open] > summary {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
   color: var(--text);
+}
+
+/* The model is the one value always in view: a pill with its live dot. */
+.native-composer .composer-chip.model-selector {
+  min-width: 0;
+  max-width: 240px;
+  padding: 0 9px 0 8px;
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--base) 55%, transparent);
+  color: var(--text);
+  font-weight: 500;
+}
+.native-composer .composer-chip.model-selector:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+.composer-chip.model-selector > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-chip.model-selector > .status-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--corner-pill);
+}
+.composer-settings-summary {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Popovers rise from the composer's edge and scroll inside the window. */
+.composer-options,
+.composer-settings {
+  position: static;
+}
+.composer-options > div,
+.composer-settings-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  z-index: 25;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  max-height: min(460px, 55dvh);
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-lg);
+  background: var(--raised);
+  box-shadow:
+    0 16px 40px -12px color-mix(in srgb, black 55%, transparent),
+    0 2px 6px color-mix(in srgb, black 20%, transparent);
+  color: var(--text);
+}
+.composer-options > div {
+  inset-inline-end: 6px;
+  width: 260px;
+  max-width: calc(100cqw - 24px);
+}
+.composer-settings-panel {
+  inset-inline-start: 6px;
+  width: 340px;
+  max-width: calc(100cqw - 24px);
+}
+.composer-options :is(button, label) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: var(--corner-sm);
+  color: var(--text);
+  font-size: 13px;
+  text-align: start;
+}
+.composer-options :is(button, label) > svg {
+  flex: none;
+  color: var(--muted);
+}
+.composer-chip.model-selector > svg {
+  flex: none;
+  color: var(--muted);
+}
+.composer-options button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.composer-options button:disabled {
+  opacity: 0.45;
+}
+.composer-options hr {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: var(--border);
+}
+.composer-options small {
+  padding: 6px 9px 4px;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.6;
+}
+/* Short windows: tighter rows keep nearly every action in view instead of scrolling half away. */
+@media (max-height: 720px) {
+  .composer-options :is(button, label) {
+    min-height: 25px;
+    padding-block: 3px;
+  }
+  .composer-options hr {
+    margin-block: 2px;
+  }
+  .composer-options small {
+    display: none;
+  }
+}
+
+/* Session settings: one labelled row per value. */
+.composer-settings-heading {
+  margin: 6px 9px 4px;
+  color: var(--subtle);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.composer-settings-heading:first-child {
+  margin-top: 2px;
+}
+.composer-settings-panel:has(> .composer-settings-slot > .composer-setting-group:empty)
+  > .composer-settings-heading:first-child,
+.composer-settings-slot:has(> .composer-setting-group:empty) {
+  display: none;
+}
+.composer-setting-group {
+  display: grid;
+  gap: 1px;
+}
+.composer-settings-panel .composer-chip.effort-control {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  justify-content: stretch;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 6px 4px 9px;
+  border: 0;
+  border-radius: var(--corner-sm);
+  color: var(--text);
+  font-size: 13px;
+  white-space: normal;
+  cursor: default;
+}
+.composer-settings-panel .composer-chip.effort-control:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.composer-settings-panel .composer-chip.effort-control > svg {
+  color: var(--muted);
+}
+.composer-setting-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-settings-panel .composer-chip.effort-control select {
+  justify-self: end;
+  width: auto;
+  max-width: 170px;
+  min-height: 28px;
+  padding: 2px 26px 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-sm);
+  background-color: var(--base);
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.composer-settings-panel .composer-chip.effort-control select:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+.composer-settings-panel .composer-chip.effort-control input[type="checkbox"] {
+  justify-self: end;
+}
+.composer-settings-panel .composer-chip.yolo-on select,
+.composer-settings-panel .composer-chip.yolo-plus select {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  color: var(--danger);
+}
+.composer-settings-panel > small {
+  padding: 4px 9px;
+  color: var(--muted);
+}
+.composer-settings-panel .composer-effort-hint {
+  padding: 2px 9px 4px 37px;
+}
+
+/* Delivery mode and send: one control group at the row's end. */
+.native-composer .composer-actions > .composer-chip.submit-mode {
+  min-height: 30px;
+  padding: 0 4px 0 8px;
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: var(--corner-pill);
+}
+.native-composer .composer-actions > .composer-chip.submit-mode select {
+  max-width: 120px;
+  min-height: 0;
+  padding: 0 18px 0 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.native-composer .composer-actions > .composer-chip.composer-stop {
+  min-height: 30px;
+  padding: 0 11px;
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  color: var(--danger);
+  font-weight: 600;
+}
+.native-composer .composer-actions > .composer-chip.composer-stop:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+.native-composer .composer-send {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: var(--corner-md);
+}
+.native-composer .composer-send:disabled {
+  opacity: 0.4;
+}
+
+/* A narrow composer keeps the model and send; summaries give way first. */
+@container composer (inline-size < 560px) {
+  .composer-settings-summary {
+    display: none;
+  }
+  .native-composer .composer-chip.model-selector {
+    max-width: 150px;
+  }
+  .native-composer .composer-actions > .composer-chip.submit-mode select {
+    max-width: 78px;
+  }
+}
+@container composer (inline-size < 480px) {
+  .composer-stop-label {
+    display: none;
+  }
+  .native-composer .composer-actions > .composer-chip.composer-stop {
+    padding: 0 9px;
+  }
+}
+@container composer (inline-size < 400px) {
+  .native-composer .composer-chip.model-selector {
+    max-width: 110px;
+  }
+  .native-composer .composer-actions > .composer-chip.submit-mode {
+    display: none;
+  }
 }

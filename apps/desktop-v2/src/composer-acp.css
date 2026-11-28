@@ -1,0 +1,113 @@
+/* ACP advertises its own model/effort independently of the selected session agent. In the
+   session settings it is one more row that expands in place. */
+.session-model-controls .acp-runtime-controls {
+  min-width: 0;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+}
+.session-model-controls .acp-runtime-controls > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 9px;
+  border-radius: var(--corner-sm);
+  color: var(--text);
+  font-size: 13px;
+  list-style: none;
+  cursor: pointer;
+}
+.session-model-controls .acp-runtime-controls > summary::-webkit-details-marker {
+  display: none;
+}
+.session-model-controls .acp-runtime-controls > summary > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.session-model-controls .acp-runtime-controls > summary::after {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-inline-start: auto;
+  border: solid var(--muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-2px) rotate(45deg);
+}
+.session-model-controls .acp-runtime-controls:hover > summary {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.session-model-controls .acp-runtime-controls[open] > summary::after {
+  transform: translateY(1px) rotate(225deg);
+}
+.session-model-controls .acp-runtime-controls:where([open]) > div {
+  display: grid;
+  gap: 10px;
+  margin: 2px 4px 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-md);
+  background: var(--base);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.session-model-controls .acp-runtime-controls > div > small,
+.session-model-controls .acp-runtime-controls label > span {
+  color: var(--muted);
+}
+.session-model-controls .acp-runtime-controls select {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-sm);
+  padding: 4px 8px;
+  font: inherit;
+}
+.session-model-controls .acp-runtime-controls option {
+  background: var(--base);
+  color: var(--text);
+}
+.session-model-controls .acp-runtime-controls .acp-option-desc {
+  color: var(--muted);
+  font-size: 11px;
+}
+.session-model-controls .acp-runtime-controls > div > div:last-child {
+  flex-wrap: wrap;
+  border-block-start: 1px solid var(--border);
+  padding-top: 8px;
+}
+.session-model-controls .acp-runtime-controls button {
+  min-height: 30px;
+  padding: 3px 9px;
+  border-radius: var(--corner-sm);
+}
+.session-model-controls .acp-runtime-controls .acp-effort-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  border: 0;
+  padding: 2px 0 0;
+}
+.session-model-controls .acp-runtime-controls .acp-effort-pills button {
+  min-height: 26px;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.session-model-controls .acp-runtime-controls .acp-effort-pills button[aria-pressed="true"] {
+  border-color: var(--accent, var(--text));
+  background: color-mix(in srgb, var(--accent, var(--text)) 14%, transparent);
+  color: var(--text);
+}
+.session-model-controls .acp-runtime-controls > summary > span + span {
+  color: var(--muted);
+  opacity: 1;
+}

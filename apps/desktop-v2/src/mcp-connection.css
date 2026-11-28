@@ -48,7 +48,7 @@
   padding: 16px;
   margin-top: 20px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .mcp-connection-review > button {
   margin: 8px 8px 0 0;
@@ -62,7 +62,7 @@
   margin: 14px 0 0;
   padding: 12px 14px 14px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .mcp-secret-map > legend {
   padding: 0 6px;

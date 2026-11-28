@@ -17,7 +17,7 @@
   padding: 26px 28px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--accent) 7%, var(--raised)),
@@ -85,7 +85,7 @@
   gap: 12px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   text-align: left;
   transition:
@@ -121,7 +121,7 @@
   gap: 12px;
   padding: 18px 20px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
 }
 .conversation-welcome-design-head {
@@ -158,7 +158,7 @@
   gap: 7px;
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: color-mix(in srgb, var(--accent) 4%, var(--surface, var(--raised)));
   font-size: 11.5px;
   font-weight: 500;
@@ -169,7 +169,7 @@
   justify-content: center;
   width: 17px;
   height: 17px;
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
   font: 600 10px / 1 var(--user-font-code, "Cascadia Code", Consolas, monospace);
@@ -189,7 +189,7 @@
   min-width: 0;
   padding: 8px 11px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: var(--surface, var(--bg, transparent));
   color: var(--text);
   font-size: 12.5px;
@@ -217,7 +217,7 @@
 .conversation-welcome-design-presets button {
   padding: 3px 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: transparent;
   color: var(--muted);
   font: 11px / 1.4 var(--user-font-code, "Cascadia Code", Consolas, monospace);

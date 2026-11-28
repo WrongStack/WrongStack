@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { type CSSProperties, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import { displayCount } from './display-dates';
@@ -11,6 +11,8 @@ export function SessionToolSummary({ activity }: { activity: Pick<EngineState, '
   const { t } = useDesktopText();
   const { t: words } = useTranslation('sessionInspector', { i18n: surfaceI18n });
   const summary = useMemo(() => conversationToolCallCounts(activity), [activity.toolCalls]);
+  // Each tool's bar is its share of the busiest tool, so the leader always fills the row.
+  const busiest = Math.max(1, ...summary.tools.map((tool) => tool.calls));
   return (
     <section className="session-tool-summary" aria-label={t('toolStats.title')}>
       <h3>{t('toolStats.title')}</h3>
@@ -21,7 +23,11 @@ export function SessionToolSummary({ activity }: { activity: Pick<EngineState, '
           <dd>{displayCount(summary.total)}</dd>
         </div>
         {summary.tools.map((tool) => (
-          <div key={tool.name}>
+          <div
+            key={tool.name}
+            className="session-tool-row"
+            style={{ '--share': `${(tool.calls / busiest) * 100}%` } as CSSProperties}
+          >
             <dt>
               <code>{tool.name}</code>
             </dt>

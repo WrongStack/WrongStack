@@ -50,7 +50,7 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   background: var(--raised);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .design-extraction-card > header {
   display: flex;

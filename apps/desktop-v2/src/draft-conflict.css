@@ -1,7 +1,7 @@
 .draft-conflict {
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   color: var(--text);
   margin: 12px 20px;
@@ -18,7 +18,7 @@
 }
 .draft-conflict > button:not(.copy-button) {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: transparent;
   color: var(--text);
   padding: 5px 9px;
@@ -32,7 +32,7 @@
 }
 .draft-comparison section {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   min-width: 0;
   padding: 10px;
 }

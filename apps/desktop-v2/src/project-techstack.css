@@ -7,7 +7,7 @@
   min-width: 0;
   padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   color: var(--text);
   font: inherit;
@@ -34,7 +34,7 @@
   padding: 16px;
   margin: 20px 0;
   border: 1px solid var(--accent-border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--accent-soft);
 }
 .tech-job > div {
@@ -86,7 +86,7 @@
   padding: 18px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
 }
 .tech-stats small {
   font-size: 12px;
@@ -142,7 +142,7 @@
   min-width: 0;
   max-height: 680px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
 }
 .project-techstack table {
   width: 100%;
@@ -184,7 +184,7 @@
   display: inline-block;
   border: 1px solid var(--border);
   padding: 4px 7px;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   font-size: 11px;
   color: var(--muted);
 }
@@ -198,7 +198,7 @@
 .tech-dependency-detail,
 .tech-workspaces article {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   padding: 20px;
   min-width: 0;
 }
@@ -232,7 +232,7 @@
 .tech-version-grid div {
   padding: 12px;
   background: var(--raised);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .tech-version-grid dt {
   font-size: 11px;
@@ -254,7 +254,7 @@
   padding: 16px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent-border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   margin: 12px 0;
 }
 .tech-finding.severity-critical,
@@ -292,7 +292,7 @@
 .tech-evidence li {
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   margin-top: 10px;
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -349,7 +349,7 @@
   padding: 18px;
   margin: 12px 0;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   overflow-wrap: anywhere;
 }
 .tech-plan-item label {
@@ -379,7 +379,7 @@
   padding: 20px;
   border: 1px solid var(--accent-border);
   background: var(--accent-soft);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
 }
 .tech-plan-confirm button {
   margin: 6px 10px 0 0;
@@ -400,7 +400,7 @@
   overflow-x: auto;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
 }
 .tech-trend-chart > div {
   /* A few snapshots share the chart's width instead of crowding its left edge. */
@@ -419,7 +419,7 @@
 }
 .tech-trend-chart i {
   width: 18px;
-  border-radius: 3px 3px 0 0;
+  border-radius: var(--corner-xs) var(--corner-xs) 0 0;
   min-height: 1px;
 }
 .tech-outdated-bar {

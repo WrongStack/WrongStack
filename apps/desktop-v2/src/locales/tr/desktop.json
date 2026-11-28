@@ -102,7 +102,7 @@
     "findAnything": "Her şeyi bul",
     "workspace": "{{name}} çalışma alanı",
     "projects": "Projeler",
-"views": "Görünümler",
+    "views": "Görünümler",
     "addProject": "Proje ekle",
     "newSessionIn": "{{name}} içinde yeni oturum",
     "newSession": "Yeni oturum",
@@ -114,7 +114,9 @@
     "removeBody": "Bu listeden çıkar; masaüstü dökümü ve taslakları silinir. Çalışan bir oturum önce durdurulur. Agent konuşması projenin geçmişinde kalır ve oradan sürdürülebilir.",
     "removeConfirm": "Kaldır",
     "cancel": "Vazgeç",
-    "olderHost": "Çalışan oturum sunucusu bu masaüstünden eski. Oturum kaldırmak için oturumlarını durdurup masaüstünü yeniden başlat."
+    "olderHost": "Çalışan oturum sunucusu bu masaüstünden eski. Oturum kaldırmak için oturumlarını durdurup masaüstünü yeniden başlat.",
+    "showSessions": "{{name}} oturumlarını göster",
+    "hideSessions": "{{name}} oturumlarını gizle"
   },
   "topbar": {
     "live": "{{count}} canlı",
@@ -300,6 +302,17 @@
       "text": "Yazma alanında zaten bir taslak var.",
       "replace": "Taslağı değiştir",
       "keep": "Mevcut taslağı koru"
+    },
+    "settings": {
+      "label": "Oturum ayarları",
+      "model": "Model",
+      "run": "Çalıştırma",
+      "effort": "Efor",
+      "reasoning": "Akıl yürütme",
+      "identity": "Kimlik",
+      "continuation": "Devam modu",
+      "mode": "Ajan modu",
+      "auto": "Otomatik"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Sıkı, WebUI'ın sıkı görünümü gibi konuşmanın daha fazlasını ekrana sığdırır.",
       "comfortable": "Rahat",
       "compact": "Sıkı"
+    },
+    "corners": {
+      "title": "Köşeler",
+      "body": "Yumuşak; kartları, menüleri ve kontrolleri yuvarlar. Keskin her kenarı kare tutar.",
+      "soft": "Yumuşak",
+      "sharp": "Keskin"
     },
     "sounds": {
       "title": "Sesler",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Düz metin düzenleyici",
     "loadingEditor": "Kod düzenleyici yükleniyor…",
     "editorUnavailable": "Kod düzenleyici yüklenemedi; bu dosya düz metin düzenleyicide açılıyor.",
-    "plainText": "Düz metin"
+    "plainText": "Düz metin",
+    "gitStatus": {
+      "M_one": "{{count}} değişti",
+      "M": "{{count}} değişti",
+      "A_one": "{{count}} eklendi",
+      "A": "{{count}} eklendi",
+      "D_one": "{{count}} silindi",
+      "D": "{{count}} silindi",
+      "R_one": "{{count}} yeniden adlandırıldı",
+      "R": "{{count}} yeniden adlandırıldı",
+      "C_one": "{{count}} kopyalandı",
+      "C": "{{count}} kopyalandı",
+      "U_one": "{{count}} çakışmalı",
+      "U": "{{count}} çakışmalı",
+      "untracked_one": "{{count}} izlenmiyor",
+      "untracked": "{{count}} izlenmiyor"
+    }
   },
   "find": {
     "placeholder": "Bul",

@@ -38,7 +38,7 @@
 .goal-inspector select {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
@@ -55,7 +55,7 @@
   text-align: left;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   padding: 18px;
   color: var(--text);
   cursor: pointer;
@@ -87,7 +87,7 @@
   padding: 24px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
 }
 .goal-create h2 {
   margin-bottom: 5px;
@@ -145,7 +145,7 @@
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   font-size: 13px;
 }
 .goal-assessment-result ul {
@@ -187,7 +187,7 @@
 }
 .goal-chips span {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--corner-xl);
   padding: 5px 9px;
   font-size: 11px;
 }
@@ -243,7 +243,7 @@
 .goal-inspector {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--corner-md);
   padding: 16px;
   margin-bottom: 10px;
   min-width: 0;
@@ -262,7 +262,7 @@
 }
 .goal-phase-progress {
   height: 4px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   background: var(--border);
   margin: 14px 0 8px;
   overflow: hidden;
@@ -281,7 +281,7 @@
   gap: 8px;
   align-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   background: transparent;
   color: var(--text);
   padding: 9px;
@@ -315,7 +315,7 @@
   background: transparent;
   color: var(--accent);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 0 10px;
 }
 .goal-inspector h3 {
@@ -347,7 +347,7 @@
 .goal-task-actions input {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
@@ -377,7 +377,7 @@
   margin-top: 30px;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
 }
 .project-mission-heading,
@@ -422,7 +422,7 @@
 .project-mission-status {
   display: inline-block;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--corner-xl);
   padding: 5px 9px;
   font-size: 11px;
 }
@@ -439,7 +439,7 @@
 .project-mission-refined {
   padding: 12px 14px;
   background: var(--surface);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
 }
 .project-mission-refined p {
   margin: 7px 0 0;
@@ -494,7 +494,7 @@
 .project-mission-editor textarea {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   color: var(--text);
   padding: 10px 12px;
   min-height: 120px;

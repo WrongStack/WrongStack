@@ -1,7 +1,7 @@
 .next-steps-panel {
   margin: 0 var(--composer-inline) 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   background: var(--raised);
 }
 .next-steps-panel > summary {
@@ -62,7 +62,7 @@
   resize: vertical;
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .next-steps-actions {
   display: flex;
@@ -79,6 +79,6 @@
   margin: 0 0 8px;
   padding: 8px 12px;
   border: 1px solid var(--accent);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   font-size: 13px;
 }

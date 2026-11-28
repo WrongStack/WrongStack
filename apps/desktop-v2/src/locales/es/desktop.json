@@ -102,7 +102,7 @@
     "findAnything": "Buscar cualquier cosa",
     "workspace": "Espacio de trabajo de {{name}}",
     "projects": "Proyectos",
-"views": "Vistas",
+    "views": "Vistas",
     "addProject": "Añadir proyecto",
     "newSessionIn": "Nueva sesión en {{name}}",
     "newSession": "Nueva sesión",
@@ -114,7 +114,9 @@
     "removeBody": "Sale de esta lista y se borran su transcripción de escritorio y sus borradores. Una sesión en ejecución se detiene primero. Una conversación de agente sigue en el historial del proyecto, desde donde se puede reanudar.",
     "removeConfirm": "Quitar",
     "cancel": "Cancelar",
-    "olderHost": "El host de sesiones en ejecución es más antiguo que este escritorio. Detén sus sesiones y reinicia el escritorio para quitar sesiones."
+    "olderHost": "El host de sesiones en ejecución es más antiguo que este escritorio. Detén sus sesiones y reinicia el escritorio para quitar sesiones.",
+    "showSessions": "Mostrar las sesiones de {{name}}",
+    "hideSessions": "Ocultar las sesiones de {{name}}"
   },
   "topbar": {
     "live": "{{count}} en vivo",
@@ -300,6 +302,17 @@
       "text": "Tu campo de redacción ya contiene un borrador.",
       "replace": "Reemplazar borrador",
       "keep": "Conservar el borrador actual"
+    },
+    "settings": {
+      "label": "Ajustes de la sesión",
+      "model": "Modelo",
+      "run": "Ejecución",
+      "effort": "Esfuerzo",
+      "reasoning": "Razonamiento",
+      "identity": "Identidad",
+      "continuation": "Continuación",
+      "mode": "Modo de agente",
+      "auto": "Auto"
     }
   },
   "sectionInfo": {
@@ -786,6 +799,12 @@
       "body": "Compacta muestra más de la conversación en pantalla, como la vista compacta de la WebUI.",
       "comfortable": "Cómoda",
       "compact": "Compacta"
+    },
+    "corners": {
+      "title": "Esquinas",
+      "body": "Suaves redondea tarjetas, menús y controles; Rectas mantiene cada borde cuadrado.",
+      "soft": "Suaves",
+      "sharp": "Rectas"
     },
     "sounds": {
       "title": "Sonidos",
@@ -1427,7 +1446,23 @@
     "plainEditor": "Editor de texto plano",
     "loadingEditor": "Cargando el editor de código…",
     "editorUnavailable": "No se pudo cargar el editor de código, así que este archivo se abre en el editor de texto plano.",
-    "plainText": "Texto sin formato"
+    "plainText": "Texto sin formato",
+    "gitStatus": {
+      "M_one": "{{count}} modificado",
+      "M": "{{count}} modificados",
+      "A_one": "{{count}} añadido",
+      "A": "{{count}} añadidos",
+      "D_one": "{{count}} eliminado",
+      "D": "{{count}} eliminados",
+      "R_one": "{{count}} renombrado",
+      "R": "{{count}} renombrados",
+      "C_one": "{{count}} copiado",
+      "C": "{{count}} copiados",
+      "U_one": "{{count}} en conflicto",
+      "U": "{{count}} en conflicto",
+      "untracked_one": "{{count}} sin seguimiento",
+      "untracked": "{{count}} sin seguimiento"
+    }
   },
   "find": {
     "placeholder": "Buscar",

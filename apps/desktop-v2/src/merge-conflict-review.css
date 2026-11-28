@@ -33,7 +33,7 @@
 .merge-conflict-sides article {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   overflow: hidden;
 }
 .merge-conflict-sides article > header {
@@ -66,7 +66,7 @@
   color: var(--text);
   background: var(--base);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   font-family: var(--user-font-code, Consolas, monospace);
   font-size: 13px;
   line-height: 1.7;
@@ -106,7 +106,7 @@
 .merge-related-paths {
   padding: 15px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   margin-top: 20px;
   font-size: 13px;
 }

@@ -11,7 +11,7 @@
   text-align: left;
   padding: 13px 14px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   color: var(--muted);
 }
 .atlas-view-switcher > :where(button)[aria-pressed="true"] {
@@ -37,7 +37,7 @@
   min-width: 0;
   background: var(--sidebar);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 18px;
   max-height: 720px;
   overflow: auto;
@@ -73,7 +73,7 @@
   font-size: 11px;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .atlas-grouping > button[aria-pressed="true"] {
   color: var(--text);
@@ -90,7 +90,7 @@
   background: var(--base);
   border: 1px solid var(--border);
   border-top: 2px solid var(--group-color, var(--accent));
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
   min-width: 0;
 }
 .atlas-group-1 {
@@ -208,7 +208,7 @@
 .atlas-matrix-pages :where(button) {
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--corner-xs);
 }
 .atlas-matrix-scroll {
   overflow: auto;
@@ -314,7 +314,7 @@
   color: var(--text);
   border: 1px solid var(--border);
   padding: 7px;
-  border-radius: 4px;
+  border-radius: var(--corner-xs);
   width: 100%;
 }
 .atlas-impact-summary {

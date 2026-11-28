@@ -24,7 +24,7 @@
   margin-left: 0;
   padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   color: var(--text);
   font: inherit;
   background: transparent;
@@ -42,7 +42,7 @@
   width: 72px;
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   background: var(--border);
 }
 .context-meter-bar > span {
@@ -128,7 +128,7 @@ strong.context-critical {
   margin: 6px 0 18px;
   padding: 12px 14px;
   border: 1px solid var(--accent-border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   background: linear-gradient(135deg, var(--accent-soft), transparent 70%), var(--raised);
   color: var(--muted);
   font-size: 12px;
@@ -201,7 +201,7 @@ strong.context-critical {
 .agent-working-elapsed {
   padding: 1px 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   font-variant-numeric: tabular-nums;
 }
 .agent-working-dots {
@@ -276,7 +276,7 @@ strong.context-critical {
   margin-left: 8px;
   padding: 1px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--corner-pill);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   vertical-align: 1px;

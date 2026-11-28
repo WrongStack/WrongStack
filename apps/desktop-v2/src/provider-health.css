@@ -26,7 +26,7 @@
 .provider-quota-card,
 .provider-health-entries article {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   padding: 18px;
   background: var(--raised);
   overflow-wrap: anywhere;
@@ -78,7 +78,7 @@
   margin: 24px 0;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
 }
 .provider-audit article {
   padding: 12px 0;

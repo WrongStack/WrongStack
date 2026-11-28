@@ -28,7 +28,7 @@
   min-width: 0;
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   background: var(--raised);
 }
 .project-requirements label {
@@ -43,7 +43,7 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
   padding: 10px;
   font: inherit;
   min-width: 0;
@@ -64,7 +64,7 @@
   margin-top: 10px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   color: var(--text);
   cursor: pointer;
 }
@@ -98,7 +98,7 @@
   padding: 14px;
   background: var(--surface);
   border-left: 2px solid var(--accent);
-  border-radius: 5px;
+  border-radius: var(--corner-sm);
 }
 .requirement-pair {
   display: grid;
@@ -132,7 +132,7 @@
 .requirement-questions article {
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   margin-top: 9px;
   font-size: 13px;
 }
@@ -146,7 +146,7 @@
 }
 .requirement-confirm {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 14px;
   margin-top: 16px;
 }
@@ -207,7 +207,7 @@
 .requirement-resource-editor form {
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   margin-top: 10px;
 }
 .requirement-resource-editor form button {
@@ -229,7 +229,7 @@
   display: grid;
   gap: 5px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 12px;
   font-size: 13px;
 }
@@ -252,7 +252,7 @@
 }
 .requirement-suggestions article {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--corner-md);
   padding: 12px;
 }
 .requirement-suggestions header {
@@ -285,7 +285,7 @@
 }
 .requirement-append {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   margin-top: 16px;
   padding: 14px;
   font-size: 13px;
@@ -301,7 +301,7 @@
   margin-top: 16px;
   padding: 12px 15px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   font-size: 13px;
   background: var(--raised);
 }

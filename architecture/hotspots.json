@@ -291,11 +291,11 @@
       "relativeImports": 6
     },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
-      "lines": 853,
+      "lines": 854,
       "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
-      "lines": 787,
+      "lines": 792,
       "relativeImports": 61
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
@@ -343,8 +343,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/SessionComposer.tsx": {
-      "lines": 1083,
-      "relativeImports": 40
+      "lines": 998,
+      "relativeImports": 37
     },
     "apps/desktop-v2/src/SkillLibrary.tsx": {
       "lines": 898,
@@ -359,7 +359,7 @@
       "relativeImports": 19
     },
     "apps/desktop-v2/src/WrongStackSettings.tsx": {
-      "lines": 785,
+      "lines": 786,
       "relativeImports": 49
     }
   }

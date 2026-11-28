@@ -19,7 +19,7 @@
   min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   color: var(--text);
   background: var(--surface);
   font: inherit;
@@ -35,7 +35,7 @@
   text-align: left;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -61,7 +61,7 @@
   min-width: 0;
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--corner-xl);
   background: var(--surface);
 }
 .kit-detail > header {
@@ -81,7 +81,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   font-size: 13px;
   white-space: nowrap;
@@ -109,7 +109,7 @@
 }
 .kit-parameters {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--corner-lg);
   padding: 16px;
   min-width: 0;
   margin: 12px 0;
@@ -155,7 +155,7 @@
 .kit-request {
   padding: 20px;
   border: 1px solid var(--accent);
-  border-radius: 12px;
+  border-radius: var(--corner-lg);
 }
 .kit-request > header {
   display: flex;
@@ -265,7 +265,7 @@ dl.kit-values {
   margin-block: 10px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--corner-md);
   background: var(--raised);
   font-size: 13px;
   line-height: 1.6;
@@ -279,7 +279,7 @@ dl.kit-values {
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--corner-sm);
 }
 .kit-draft-status {
   display: flex;
