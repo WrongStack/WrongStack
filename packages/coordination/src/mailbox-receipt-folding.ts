@@ -283,6 +283,10 @@ export function applyAckToMessage(
     didChange = true;
   }
 
+  // The message-level `outcome` is a legacy aggregate of the completer's
+  // outcome. Capture whose completion it currently reflects before the
+  // aggregate fields below are rewritten.
+  const reflectedCompleter = message.completedBy;
   message.recipientState = {
     ...message.recipientState,
     [ack.readerId]: state,
@@ -296,6 +300,15 @@ export function applyAckToMessage(
     delete message.completedBy;
     delete message.completedAt;
   }
-  message.outcome = state.outcome;
+  // An ack with no outcome of its own must not erase the aggregate outcome
+  // recorded by a DIFFERENT completer. Fan-out messages have no stored
+  // `completedBy` (the store strips aggregate completion), so a completer
+  // re-acking there still keeps its own receipt outcome — as does any actor
+  // whose state actually carries an outcome.
+  const wipesAnotherActorsOutcome =
+    state.outcome === undefined &&
+    reflectedCompleter !== undefined &&
+    reflectedCompleter !== ack.readerId;
+  if (!wipesAnotherActorsOutcome) message.outcome = state.outcome;
   return { state, didChange };
 }

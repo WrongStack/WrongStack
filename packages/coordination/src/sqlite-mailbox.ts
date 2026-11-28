@@ -104,6 +104,13 @@ export const SQLITE_MAILBOX_FILE = '_mailbox.sqlite';
  */
 const HEARTBEAT_TRACKING_MAX_ENTRIES = 512;
 const HEARTBEAT_TRACKING_TTL_MS = 30 * 60_000;
+/**
+ * Largest epoch-ms value an ECMAScript Date can represent (±100,000,000 days),
+ * matching the ceiling the CLI's TTL parser uses (utils/hq-ttl.ts). A send's
+ * `ttlMs` has no upper bound at any boundary, so an unrepresentable expiry
+ * must be clamped rather than thrown from `toISOString()`.
+ */
+const MAX_EXPIRES_AT_MS = 8_640_000_000_000_000;
 
 export class SqliteMailbox implements Mailbox {
   readonly databasePath: string;
@@ -258,7 +265,11 @@ export class SqliteMailbox implements Mailbox {
       ...(input.senderSessionId !== undefined ? { senderSessionId: input.senderSessionId } : {}),
       ...(input.sessionAffinity !== undefined ? { sessionAffinity: input.sessionAffinity } : {}),
       ...(input.ttlMs !== undefined
-        ? { expiresAt: new Date(Date.now() + input.ttlMs).toISOString() }
+        ? {
+            expiresAt: new Date(
+              Math.min(Date.now() + input.ttlMs, MAX_EXPIRES_AT_MS),
+            ).toISOString(),
+          }
         : {}),
     };
     this.persistMessage(message);

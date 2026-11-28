@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T13:01:28.757Z
+**Generated:** 2026-11-28T13:02:44.537Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6671 |
-| Production source lines | 1367953 |
-| Test files | 6584 |
+| Production source lines | 1367992 |
+| Test files | 6586 |
 | Workspace dependency edges | 268 |
 | Relative module edges | 19577 |
 | Non-command slash imports | 0 |
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/codebase | 115 | 14 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 133 | 15 | @wrongstack/kanban, @wrongstack/primitives |
-| @wrongstack/coordination | 193 | 246 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/coordination | 193 | 248 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 665 | 869 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 591 | 420 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 65 | 41 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake-mcp, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/worktree |
@@ -135,12 +135,12 @@ None.
 | 761 | `packages/coordination/src/agent-monitor.ts` |
 | 761 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 760 | `packages/tools/src/read.ts` |
+| 759 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 758 | `packages/tools/src/process-registry.ts` |
 | 758 | `packages/vector-memory/src/store.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 754 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
-| 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 744 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 741 | `packages/builtin-plugins/src/auto-review-plugin.ts` |
 

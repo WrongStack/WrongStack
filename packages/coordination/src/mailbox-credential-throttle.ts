@@ -79,7 +79,7 @@ export class CredentialVerifyThrottle {
   recordFailure(credentialId: string, now = Date.now()): void {
     const record = this.records.get(credentialId);
     if (record === undefined || now - record.windowStartedAt > this.windowMs) {
-      this.evictIfFull();
+      this.evictIfFull(now);
       this.records.set(credentialId, { failures: 1, windowStartedAt: now, blockedUntil: 0 });
       return;
     }
@@ -106,10 +106,25 @@ export class CredentialVerifyThrottle {
     this.records.clear();
   }
 
-  private evictIfFull(): void {
+  /**
+   * Make room for a new id. Ids come from the caller, so an attacker can force
+   * evictions by churning fabricated ids. An id that is STILL REFUSED must not
+   * be the victim: its cooldown lives only in this record, and dropping it
+   * would re-open the guessing oracle on that credential. Prefer the oldest
+   * id whose block has expired; if every tracked id is still blocked, fall
+   * back to the oldest so the map stays bounded.
+   */
+  private evictIfFull(now: number): void {
     if (this.records.size < MAX_TRACKED_IDS) return;
-    const oldest = this.records.keys().next();
-    if (!oldest.done) this.records.delete(oldest.value);
+    let oldest: string | undefined;
+    for (const [id, record] of this.records) {
+      oldest ??= id;
+      if (record.blockedUntil <= now) {
+        this.records.delete(id);
+        return;
+      }
+    }
+    if (oldest !== undefined) this.records.delete(oldest);
   }
 }
 

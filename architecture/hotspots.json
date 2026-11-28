@@ -75,7 +75,7 @@
       "relativeImports": 4
     },
     "packages/coordination/src/sqlite-mailbox.ts": {
-      "lines": 748,
+      "lines": 759,
       "relativeImports": 14
     },
     "packages/coordination/src/subagent-budget.ts": {

@@ -92,4 +92,25 @@ describe('CredentialVerifyThrottle', () => {
       throttle.recordFailure('cred_last', 1000);
     expect(throttle.check('cred_last', 1000).allowed).toBe(false);
   });
+
+  it('keeps an active cooldown while caller-supplied ids churn past the cap', () => {
+    const throttle = new CredentialVerifyThrottle();
+    const start = 1000;
+    for (let i = 0; i < CREDENTIAL_VERIFY_MAX_FAILURES; i++) throttle.recordFailure(ID, start);
+    expect(throttle.check(ID, start).allowed).toBe(false);
+
+    // Eviction of unrelated ids must not discard the one record whose
+    // cooldown is still running — that would re-open the guessing oracle.
+    for (let i = 0; i < 6000; i++) throttle.recordFailure(`attacker_${i}`, start);
+
+    expect(throttle.check(ID, start)).toEqual({
+      allowed: false,
+      retryAfterMs: CREDENTIAL_VERIFY_COOLDOWN_MS,
+    });
+    // The block is time-bound, not permanent: an expired cooldown still
+    // admits the next attempt, and unrelated ids remain unaffected.
+    const after = start + CREDENTIAL_VERIFY_COOLDOWN_MS + 1;
+    expect(throttle.check(ID, after).allowed).toBe(true);
+    expect(throttle.check('attacker_5999', start).allowed).toBe(true);
+  });
 });
