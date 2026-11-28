@@ -427,7 +427,7 @@ export function ProjectSessionHistory({
         </select>
       </div>
       <div className="history-catalog-status">
-        <span>
+        <span hidden={busy && !rows.length}>
           {t('historyView.catalogStatus', {
             count: visible.length,
             from: rows.length ? page.offset + 1 : 0,
@@ -590,7 +590,7 @@ export function ProjectSessionHistory({
                 }}
               />
             </>
-          ) : (
+          ) : busy && !rows.length ? null : (
             <div className="history-empty-reader">
               <History size={30} />
               <h2>{t('historyView.emptyTitle')}</h2>

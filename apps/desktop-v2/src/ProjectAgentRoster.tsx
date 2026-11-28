@@ -551,7 +551,7 @@ export function ProjectAgentRoster({
           )}
         </aside>
         <div className="roster-inspector">
-          {!row ? (
+          {!row && !loaded ? null : !row ? (
             <div className="roster-empty">
               <Users size={36} />
               <h2>{t('roster.choose')}</h2>

@@ -259,13 +259,10 @@ describe('the project pages in the display language', () => {
   it('show the agent roster in English, then in Turkish', async () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount(roster('roster-en'));
-    for (const text of [
-      'Agent Roster',
-      'Refresh roster',
-      'Loading actual roster…',
-      'Choose a role',
-    ])
+    for (const text of ['Agent Roster', 'Refresh roster', 'Loading the roster…'])
       expect(page.text).toContain(text);
+    // While the roster loads there is nothing to choose yet, so the inspector stays empty.
+    expect(page.text).not.toContain('Choose a role');
     expect(page.labels).toContain('Search project agent roles');
     page = await mount(checklist());
     expect(page.text).toContain('Loading checklist…');
@@ -273,13 +270,9 @@ describe('the project pages in the display language', () => {
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(roster('roster-tr'));
-    for (const text of [
-      'Ajan Kadrosu',
-      'Kadroyu yenile',
-      'Gerçek kadro yükleniyor…',
-      'bir rol seç',
-    ])
+    for (const text of ['Ajan Kadrosu', 'Kadroyu yenile', 'Kadro yükleniyor…'])
       expect(page.text).toContain(text);
+    expect(page.text).not.toContain('bir rol seç');
     expect(page.labels).toContain('Proje ajan rollerinde ara');
     page = await mount(checklist());
     expect(page.text).toContain('Kontrol listesi yükleniyor…');

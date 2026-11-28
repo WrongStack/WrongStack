@@ -1850,7 +1850,7 @@
       "custom": "Project-created",
       "modified": "With project files"
     },
-    "loading": "Loading actual roster…",
+    "loading": "Loading the roster…",
     "kind": {
       "project": "Project role",
       "builtin": "Built-in",

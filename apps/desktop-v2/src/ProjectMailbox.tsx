@@ -431,7 +431,7 @@ export function ProjectMailbox({
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <small>
+          <small hidden={!loaded}>
             {t('mailboxPage.loadedCount', {
               messages: t('mailboxPage.messageCount', { count: messages.length }),
               threads: t('mailboxPage.threadCount', { count: threads.length }),
@@ -671,7 +671,7 @@ export function ProjectMailbox({
                 </article>
               ))}
             </>
-          ) : (
+          ) : !loaded || !shown.length ? null : (
             <div className="mailbox-empty">
               <Mail size={32} />
               <h3>{t('mailboxPage.followTitle')}</h3>

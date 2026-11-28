@@ -412,7 +412,7 @@ export function ProjectChronicle({
             <strong>
               {view === 'timeline' ? t('chronicleView.timeline') : t('chronicleView.lineage')}
             </strong>
-            <span>
+            <span hidden={busy && !rows.length}>
               {view === 'timeline'
                 ? t('chronicleView.loaded', {
                     loaded: displayCount(rows.length),
@@ -538,7 +538,7 @@ export function ProjectChronicle({
             onOpenFile={onOpenFile}
             onOpenSession={onOpenSession}
           />
-        ) : (
+        ) : busy && !rows.length ? null : (
           <aside className="chronicle-inspector chronicle-inspector-empty">
             <GitBranch size={30} />
             <h2>{t('chronicleView.followTitle')}</h2>

@@ -223,7 +223,10 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
         </p>
       )}
       {!snapshot ? (
-        <p role="status">{busy ? t('brainPolicy.reading') : t('brainPolicy.unavailable')}</p>
+        // A failed read already says why in the alert above; a second "unavailable" line repeated it.
+        busy || !error ? (
+          <p role="status">{busy ? t('brainPolicy.reading') : t('brainPolicy.unavailable')}</p>
+        ) : null
       ) : (
         <>
           <div className="brain-facts">

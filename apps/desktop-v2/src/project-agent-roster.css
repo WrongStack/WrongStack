@@ -83,6 +83,11 @@
   top: 12px;
   align-self: start;
 }
+.roster-catalog > p[role='status'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .roster-catalog > label {
   display: grid;
   gap: 6px;

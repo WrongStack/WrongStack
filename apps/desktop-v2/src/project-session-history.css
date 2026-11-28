@@ -93,6 +93,10 @@
   border-block: 1px solid var(--border);
   scrollbar-gutter: stable;
 }
+/* With no rows its two borders met as a stray line. */
+.history-catalog:empty {
+  border-block: 0;
+}
 .history-catalog > button {
   text-align: left;
   padding: 12px 14px;
@@ -315,6 +319,10 @@
 .history-page-controls p {
   color: var(--muted);
   font-size: 13px;
+}
+/* One page of history (or none yet) has nowhere to page to: two disabled buttons said nothing. */
+.history-page-controls:not(:has(button:enabled, p)) {
+  display: none;
 }
 .history-image {
   display: block;

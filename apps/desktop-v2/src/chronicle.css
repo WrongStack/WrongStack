@@ -101,6 +101,10 @@
   gap: 22px;
   align-items: start;
 }
+/* While the journal loads there is no inspector beside the timeline; it takes the full width. */
+.chronicle-body:not(:has(> .chronicle-inspector)) {
+  grid-template-columns: minmax(0, 1fr);
+}
 .chronicle-main {
   min-width: 0;
 }
