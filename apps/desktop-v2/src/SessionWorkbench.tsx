@@ -155,34 +155,43 @@ export function SessionWorkbench({
             <Plus size={15} />
           </button>
         </div>
-        {session.kind === 'agent' && <div className="session-view-slot" ref={setViewTabsSlot} />}
-        {session.kind === 'agent' && isLive(session) && (
-          <SandboxChip key={session.id} sessionId={session.id} />
-        )}
-        {session.kind === 'terminal' && terminal?.dock && (
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Dock terminal"
-            title="Dock terminal"
-            ref={terminal.dockButtonRef}
-            onClick={terminal.dock}
-          >
-            <PanelBottom size={16} aria-hidden="true" />
-          </button>
-        )}
-        {isLive(session) && (
-          <button
-            type="button"
-            className="session-stop"
-            title={t('workbench.stopTitle')}
-            onClick={() => void run(() => request('session.kill', { id: session.id }))}
-          >
-            <Square size={10} />
-            {t('workbench.stop')}
-          </button>
-        )}
       </nav>
+      {/* The open session's own bar, under its tab: its views (Chat, Files, Changes, Tools) and
+          repository on the left, its sandbox and Stop on the right. Beside the tabs, the views
+          were squeezed against the tab list's end. */}
+      {(session.kind === 'agent' || isLive(session) || terminal?.dock) && (
+        <div className="session-bar">
+          {session.kind === 'agent' && <div className="session-view-slot" ref={setViewTabsSlot} />}
+          <div className="session-bar-end">
+            {session.kind === 'agent' && isLive(session) && (
+              <SandboxChip key={session.id} sessionId={session.id} />
+            )}
+            {session.kind === 'terminal' && terminal?.dock && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Dock terminal"
+                title="Dock terminal"
+                ref={terminal.dockButtonRef}
+                onClick={terminal.dock}
+              >
+                <PanelBottom size={16} aria-hidden="true" />
+              </button>
+            )}
+            {isLive(session) && (
+              <button
+                type="button"
+                className="session-stop"
+                title={t('workbench.stopTitle')}
+                onClick={() => void run(() => request('session.kill', { id: session.id }))}
+              >
+                <Square size={10} />
+                {t('workbench.stop')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <section
         className="session-workspace focused-session"
         role="tabpanel"

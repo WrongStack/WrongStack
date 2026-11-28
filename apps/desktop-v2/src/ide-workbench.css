@@ -229,16 +229,24 @@
   min-height: 40px;
 }
 
-/* The tab list takes the room its tabs need; the view switcher follows
-   them instead of being pushed to the far end of an empty strip. */
-.app-shell .workspace-shell .session-tab-list {
-  flex: 0 1 auto;
+/* The open session's bar under its tab: the open tab and the bar share the work surface, so the
+   tab reads as the bar's own heading. Views and repository on the left, sandbox and Stop at the
+   end. A slim row: it is the third band above the conversation. */
+.app-shell .workspace-shell .session-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px 0 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--base);
 }
-
-.app-shell .workspace-shell .session-view-slot {
-  margin-left: 0;
-  padding-left: 12px;
-  border-left: 1px solid var(--border);
+.app-shell .workspace-shell .session-bar-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
 }
 
 .app-shell .workspace-shell .session-tab {
@@ -276,13 +284,9 @@
   color: var(--text);
 }
 
-/* The view switcher is its own group of tabs, told apart by a rule. */
-.app-shell .workspace-shell .session-view-slot {
-  padding-left: 12px;
-  border-left: 1px solid var(--border);
-}
-
 .app-shell .workspace-shell .session-view-slot .workspace-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 2px;
   padding: 0;
 }

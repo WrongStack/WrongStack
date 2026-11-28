@@ -313,9 +313,8 @@
   }
 }
 
-/* Conversation screen: the session tabs carry the stop control, no path footer. */
-.session-tabs .session-stop {
-  margin-left: auto;
+/* Conversation screen: the session bar carries the stop control, no path footer. */
+.session-bar .session-stop {
   align-self: center;
   min-height: 32px;
   padding: 0 14px;
@@ -676,18 +675,7 @@
     font-size: 0;
     gap: 0;
   }
-  .workspace-shell .session-tabs:has(> .session-tab-list) {
-    flex-wrap: wrap;
-    gap: 0;
-    padding: 4px 8px;
-  }
-  .workspace-shell .session-tab-list {
-    flex: 1 0 100%;
-    min-height: 36px;
-  }
   .workspace-shell .session-view-slot {
-    flex: 1 1 260px;
-    min-width: 0;
     margin: 0;
     padding: 0;
   }
@@ -701,7 +689,7 @@
   .session-view-slot .workspace-tabs button {
     padding-inline: 5px;
   }
-  .session-tabs .session-stop {
+  .session-bar .session-stop {
     min-width: 32px;
     min-height: 32px;
     padding: 8px;

@@ -225,9 +225,8 @@
 .session-stop:hover {
   color: var(--danger);
 }
-/* The conversation engine's sandbox posture, before the stop action at the strip's end. */
-.session-tabs .sandbox-chip {
-  margin-left: auto;
+/* The conversation engine's sandbox posture, before the stop action at the session bar's end. */
+.session-bar .sandbox-chip {
   align-self: center;
   display: inline-flex;
   align-items: center;
@@ -239,12 +238,9 @@
   font-size: 10px;
   white-space: nowrap;
 }
-.session-tabs .sandbox-chip.sandbox-enforced {
+.session-bar .sandbox-chip.sandbox-enforced {
   color: hsl(var(--ws-success));
   border-color: color-mix(in srgb, hsl(var(--ws-success)) 45%, var(--border));
-}
-.session-tabs .sandbox-chip + .session-stop {
-  margin-left: 0;
 }
 .workspace-tabs {
   padding: 8px 16px;
@@ -471,10 +467,8 @@
   }
 }
 
-/* One strip for the conversation: its session tabs on the left, its views (Chat, Files,
-   Changes, Tools) and Stop on the right. The views used to be a second bar under the tabs,
-   so a conversation started below three bars of chrome. The tabs scroll on their own when
-   there are many; the views keep their place. */
+/* The session tabs have their strip to themselves and scroll on their own when there are many;
+   the open session's views, repository, sandbox and Stop are its session bar below. */
 .session-tabs:has(> .session-tab-list) {
   overflow: visible;
 }
@@ -490,9 +484,8 @@
 .session-view-slot {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
-  margin-left: auto;
-  padding-bottom: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .session-view-slot > .workspace-tabs {
   flex-wrap: nowrap;
@@ -500,11 +493,6 @@
   padding: 0 4px;
   border: 0;
   background: transparent;
-}
-.session-view-slot ~ .sandbox-chip,
-.session-view-slot ~ .session-stop {
-  margin-left: 0;
-  padding-bottom: 6px;
 }
 /* Sharing the strip, tabs narrow (their titles end in an ellipsis) before the list scrolls, so
    the new-session button stays in reach on a narrow window. */

@@ -427,20 +427,14 @@ strong.context-critical {
   .git-added {
   color: hsl(var(--ws-success));
 }
-/* A narrower strip keeps the diff and drops the branch name, then the chip itself; the Changes
-   view stays one tab away. */
-@media (max-width: 1180px) {
-  .app-shell .workspace-shell .session-view-slot .session-chat-navigation > button.git-chip strong,
-  .app-shell
-    .workspace-shell
-    .session-view-slot
-    .session-chat-navigation
-    > button.git-chip
-    > span:not([class]) {
+/* The session bar has the row to itself, so the chip keeps its branch; a narrow window drops the
+   counts, then the chip (the Changes view stays one tab away). */
+@media (max-width: 760px) {
+  .app-shell .workspace-shell .session-view-slot .session-chat-navigation > button.git-chip > span {
     display: none;
   }
 }
-@media (max-width: 960px) {
+@media (max-width: 560px) {
   .app-shell .workspace-shell .session-view-slot .session-chat-navigation > button.git-chip {
     display: none;
   }
