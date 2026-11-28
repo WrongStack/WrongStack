@@ -313,29 +313,32 @@ export function ProjectLiveFleet({
         </div>
       </header>
       {sessions.length > 0 && <FleetBroadcast http={http} read={read} onSent={() => void load()} />}
-      <div className="live-fleet-metrics">
-        <span>
-          <Trans
-            i18n={surfaceI18n}
-            ns="desktop"
-            i18nKey="liveFleet.runtimes"
-            count={sessions.length}
-            values={{ n: sessions.length }}
-            components={{ strong: <strong /> }}
-          />
-        </span>
-        <span>
-          <Trans
-            i18n={surfaceI18n}
-            ns="desktop"
-            i18nKey="liveFleet.agents"
-            count={agentCount}
-            values={{ n: agentCount }}
-            components={{ strong: <strong /> }}
-          />
-        </span>
-        <small>{loadError ? t('liveFleet.refreshFailed') : t('liveFleet.polling')}</small>
-      </div>
+      {/* Counts, search and the refresh note describe a read registry; before one there is none. */}
+      {loaded && (
+        <div className="live-fleet-metrics">
+          <span>
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="liveFleet.runtimes"
+              count={sessions.length}
+              values={{ n: sessions.length }}
+              components={{ strong: <strong /> }}
+            />
+          </span>
+          <span>
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="liveFleet.agents"
+              count={agentCount}
+              values={{ n: agentCount }}
+              components={{ strong: <strong /> }}
+            />
+          </span>
+          <small>{loadError ? t('liveFleet.refreshFailed') : t('liveFleet.polling')}</small>
+        </div>
+      )}
       {loadError && (
         <p className="session-error" role="alert">
           {loadError}
@@ -351,39 +354,42 @@ export function ProjectLiveFleet({
           {notice}
         </p>
       )}
-      <div className="live-fleet-toolbar">
-        <label>
-          <Search size={14} />
-          <input
-            aria-label={t('liveFleet.search')}
-            placeholder={t('liveFleet.searchPlaceholder')}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-        <div className="feature-actions">
-          <button
-            type="button"
-            className="button secondary"
-            aria-pressed={map}
-            onClick={() => setMap(true)}
-          >
-            <Network size={14} />
-            {t('liveFleet.map')}
-          </button>
-          <button
-            type="button"
-            className="button secondary"
-            aria-pressed={!map}
-            onClick={() => setMap(false)}
-          >
-            <Users size={14} />
-            {t('liveFleet.list')}
-          </button>
+      {loaded && (
+        <div className="live-fleet-toolbar">
+          <label>
+            <Search size={14} />
+            <input
+              aria-label={t('liveFleet.search')}
+              placeholder={t('liveFleet.searchPlaceholder')}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="feature-actions">
+            <button
+              type="button"
+              className="button secondary"
+              aria-pressed={map}
+              onClick={() => setMap(true)}
+            >
+              <Network size={14} />
+              {t('liveFleet.map')}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              aria-pressed={!map}
+              onClick={() => setMap(false)}
+            >
+              <Users size={14} />
+              {t('liveFleet.list')}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       {!loaded ? (
-        <p role="status">{loadError ? t('liveFleet.unavailable') : t('liveFleet.reading')}</p>
+        // A failed first read is already the alert above; "unavailable" under it repeated it.
+        !loadError && <p role="status">{t('liveFleet.reading')}</p>
       ) : !visible.length ? (
         <div className="live-fleet-empty">
           <Network size={32} />

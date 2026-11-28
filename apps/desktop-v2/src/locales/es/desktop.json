@@ -5624,7 +5624,6 @@
     "searchPlaceholder": "Sesión, agente o herramienta actual…",
     "map": "Mapa de ejecución",
     "list": "Lista de entornos de ejecución",
-    "unavailable": "Registro en vivo no disponible. Actualiza para reintentar.",
     "reading": "Leyendo los entornos de ejecución del proyecto…",
     "noMatches": "Ningún entorno de ejecución coincide.",
     "empty": "No hay entornos de ejecución de conversación registrados.",

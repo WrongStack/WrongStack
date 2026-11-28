@@ -5624,7 +5624,6 @@
     "searchPlaceholder": "Sessão, agente ou ferramenta atual…",
     "map": "Mapa de execução",
     "list": "Lista de runtimes",
-    "unavailable": "Registro ao vivo indisponível. Atualize para tentar novamente.",
     "reading": "Lendo os runtimes do projeto…",
     "noMatches": "Nenhum runtime correspondente.",
     "empty": "Nenhum runtime de conversa registrado.",

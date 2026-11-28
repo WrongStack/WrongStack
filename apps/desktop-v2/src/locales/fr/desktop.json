@@ -5624,7 +5624,6 @@
     "searchPlaceholder": "Session, agent ou outil en cours…",
     "map": "Carte d’exécution",
     "list": "Liste des runtimes",
-    "unavailable": "Registre en direct indisponible. Actualisez pour réessayer.",
     "reading": "Lecture des runtimes du projet…",
     "noMatches": "Aucun runtime correspondant.",
     "empty": "Aucun runtime de conversation enregistré.",

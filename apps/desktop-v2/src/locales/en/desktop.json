@@ -5624,7 +5624,6 @@
     "searchPlaceholder": "Session, agent or current tool…",
     "map": "Execution map",
     "list": "Runtime list",
-    "unavailable": "Live registry unavailable. Refresh to retry.",
     "reading": "Reading project runtimes…",
     "noMatches": "No matching runtimes.",
     "empty": "No registered conversation runtimes.",
