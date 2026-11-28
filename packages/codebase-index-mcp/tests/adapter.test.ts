@@ -424,6 +424,24 @@ describe('createCodebaseIndexMcpServer', () => {
     );
   });
 
+  it('surfaces a failed repo-map query as a JSON-RPC error on resources/read (F2732)', async () => {
+    const server = createCodebaseIndexMcpServer('C:/project', {
+      dependencies: { executeTool: vi.fn().mockRejectedValue(new Error('daemon failed')) },
+    });
+    const raw = await server.handleMessage(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 31,
+        method: 'resources/read',
+        params: { uri: 'codebase://repo-map' },
+      }),
+    );
+    const res = JSON.parse(raw!) as { error?: { message: string }; result?: unknown };
+    // Error prose must not be served as a successful application/json resource.
+    expect(res.result).toBeUndefined();
+    expect(res.error?.message).toContain('daemon failed');
+  });
+
   it('propagates JSON-RPC cancellation into a running index tool', async () => {
     let observedSignal: AbortSignal | undefined;
     let started!: () => void;

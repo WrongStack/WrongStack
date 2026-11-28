@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T12:25:10.658Z",
+  "generatedAt": "2026-11-28T13:01:28.757Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 51,
     "sourceFiles": 6671,
     "testFiles": 6584,
-    "sourceLines": 1367935,
+    "sourceLines": 1367953,
     "workspaceEdges": 268,
     "moduleEdges": 19577,
     "nonCommandSlashImports": 0,
@@ -42262,7 +42262,7 @@
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 774,
+      "lines": 777,
       "relativeImports": 3
     },
     {
@@ -42718,14 +42718,14 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/mailbox-mcp/src/adapter.ts",
+      "lines": 777,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/mailbox-mcp/src/adapter.ts",
-      "lines": 774,
-      "relativeImports": 3
     },
     {
       "file": "packages/webui-server/src/server/provider-routes.ts",

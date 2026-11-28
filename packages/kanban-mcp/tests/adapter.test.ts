@@ -527,6 +527,24 @@ describe('createKanbanMcpServer', () => {
     expect(rendered.result.messages[0]?.content.text).toContain('board-1');
   });
 
+  it('surfaces a failed workbench query as a JSON-RPC error on resources/read (F2735)', async () => {
+    const server = createKanbanMcpServer('C:/project', {
+      dependencies: { executeKanban: vi.fn().mockRejectedValue(new Error('kanban daemon failed')) },
+    });
+    const raw = await server.handleMessage(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'resources/read',
+        params: { uri: 'kanban://workbench' },
+      }),
+    );
+    const res = JSON.parse(raw!) as { error?: { message: string }; result?: unknown };
+    // Error prose must not be served as a successful application/json resource.
+    expect(res.result).toBeUndefined();
+    expect(res.error?.message).toContain('kanban daemon failed');
+  });
+
   it('ignores non-board IPC events and trims boardId in kanban_watch', async () => {
     let subscriber: ((event: KanbanServerEvent) => void) | undefined;
     const host = createKanbanMcpServer('C:/project', {

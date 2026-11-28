@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import type { MemoryPort } from '@wrongstack/contracts/types';
 import type { MCPServer } from '@wrongstack/mcp';
 import { ProjectSageMemoryPort, SqliteMemoryPort } from '@wrongstack/sage';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSageMcpServer, createSageMcpToolHost, requireSageService } from '../src/adapter.js';
 
 type RpcResponse = Record<string, unknown> | null;
@@ -62,6 +62,29 @@ describe('createSageMcpServer (read-only default)', () => {
     expect(result['protocolVersion']).toBe('2024-11-05');
     expect((result['serverInfo'] as { name: string }).name).toBe('wrongstack-sage-mcp');
     expect((result['capabilities'] as Record<string, unknown>)['tools']).toBeDefined();
+  });
+
+  it('surfaces a failed brief query as a JSON-RPC error on resources/read (F2736)', async () => {
+    const service = requireSageService(port) as unknown as {
+      searchSage: (...a: unknown[]) => Promise<unknown>;
+    };
+    const spy = vi.spyOn(service, 'searchSage').mockRejectedValue(new Error('sage search failed'));
+    try {
+      const server = createSageMcpServer(port);
+      const res = await call(server, {
+        jsonrpc: '2.0',
+        id: 9,
+        method: 'resources/read',
+        params: { uri: 'sage://project/brief' },
+      });
+      // Error prose must not be served as a successful application/json resource.
+      expect(res?.result).toBeUndefined();
+      expect((res?.error as { message?: string } | undefined)?.message).toContain(
+        'sage search failed',
+      );
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('lists only read-only tools by default', async () => {

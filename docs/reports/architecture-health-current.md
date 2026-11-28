@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T12:25:10.658Z
+**Generated:** 2026-11-28T13:01:28.757Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6671 |
-| Production source lines | 1367935 |
+| Production source lines | 1367953 |
 | Test files | 6584 |
 | Workspace dependency edges | 268 |
 | Relative module edges | 19577 |
@@ -126,8 +126,8 @@ None.
 | 786 | `apps/desktop-v2/src/WrongStackSettings.tsx` |
 | 786 | `packages/vibeui/src/lib/use-session.ts` |
 | 780 | `packages/tools/src/design.ts` |
+| 777 | `packages/mailbox-mcp/src/adapter.ts` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 774 | `packages/mailbox-mcp/src/adapter.ts` |
 | 770 | `packages/webui-server/src/server/provider-routes.ts` |
 | 767 | `apps/desktop-v2/src/useFileWorkspace.ts` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |

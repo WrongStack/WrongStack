@@ -44,6 +44,29 @@ describe('createRequirementIntakeMcpToolHost', () => {
     expect(String(result.content)).toContain('not exposed');
   });
 
+  it('surfaces a failed list query as a JSON-RPC error on resources/read (F2738)', async () => {
+    const server = createRequirementIntakeMcpServer('C:/project', {
+      dependencies: {
+        service: {
+          listIntakes: vi.fn().mockRejectedValue(new Error('intake store failed')),
+        } as never,
+        resolveProjectId: async () => 'proj-1',
+      },
+    });
+    const raw = await server.handleMessage(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 9,
+        method: 'resources/read',
+        params: { uri: 'intake://open' },
+      }),
+    );
+    const res = JSON.parse(raw!) as { error?: { message: string }; result?: unknown };
+    // Error prose must not be served as a successful application/json resource.
+    expect(res.result).toBeUndefined();
+    expect(res.error?.message).toContain('intake store failed');
+  });
+
   it('submits an intake record and preserves the original request verbatim', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'intake-mcp-adapter-'));
     try {

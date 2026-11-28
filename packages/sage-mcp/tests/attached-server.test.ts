@@ -65,6 +65,20 @@ describe('attached SAGE MCP (external coding agents)', () => {
     expect(candidates.inputSchema.properties['action']?.enum).toEqual(['list', 'propose']);
   });
 
+  it('surfaces a disposed host as a JSON-RPC error on resources/read (F2736)', async () => {
+    const attached = createAttachedSageMcp(port, { projectRoot: dir, origin: 'claude-code' });
+    attached.dispose();
+    const res = await call(attached.server, {
+      jsonrpc: '2.0',
+      id: 9,
+      method: 'resources/read',
+      params: { uri: 'sage://project/brief' },
+    });
+    // The disposed-host error must not be served as a successful JSON resource.
+    expect(res?.result).toBeUndefined();
+    expect((res?.error as { message?: string } | undefined)?.message).toContain('disposed');
+  });
+
   it('refuses review actions and stamps the origin on proposals', async () => {
     const { server } = createAttachedSageMcp(port, { projectRoot: dir, origin: 'codex' });
 

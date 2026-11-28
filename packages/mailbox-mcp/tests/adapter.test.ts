@@ -723,6 +723,26 @@ describe('createMailboxMcpServer', () => {
     );
   });
 
+  it('surfaces a failed inbox query as a JSON-RPC error on resources/read (F2737)', async () => {
+    const server = createMailboxMcpServer(
+      backend({ query: vi.fn().mockRejectedValue(new Error('mailbox daemon failed')) }),
+      new MailboxEventEmitter(),
+      { actor: 'external-agent' },
+    );
+    const raw = await server.handleMessage(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'resources/read',
+        params: { uri: 'mailbox://inbox/unread' },
+      }),
+    );
+    const res = JSON.parse(raw!) as { error?: { message: string }; result?: unknown };
+    // Error prose must not be served as a successful application/json resource.
+    expect(res.result).toBeUndefined();
+    expect(res.error?.message).toContain('mailbox daemon failed');
+  });
+
   it('serves tiered tools and calls them through MCP JSON-RPC', async () => {
     const server = createMailboxMcpServer(backend(), new MailboxEventEmitter(), {
       actor: 'external-agent',

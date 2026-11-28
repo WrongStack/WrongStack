@@ -131,7 +131,7 @@
       "relativeImports": 4
     },
     "packages/mailbox-mcp/src/adapter.ts": {
-      "lines": 774,
+      "lines": 777,
       "relativeImports": 3
     },
     "packages/plugins/src/adversary-mode/evaluator.ts": {

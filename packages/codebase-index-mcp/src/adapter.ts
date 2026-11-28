@@ -490,6 +490,9 @@ export function createCodebaseIndexMcpServer(
         if (uri !== 'codebase://repo-map') return null;
         const res = await host.callTool('codebase_repo_map', {}, callOpts);
         const text = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        // A failed query must reach the client as a JSON-RPC error, never as
+        // error prose served under the resource's application/json mime type.
+        if (res.isError) throw new Error(text);
         return [{ uri, mimeType: 'application/json', text }];
       },
     },
