@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T10:42:57.846Z",
+  "generatedAt": "2026-11-28T10:54:43.160Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6653,
-    "testFiles": 6576,
-    "sourceLines": 1365385,
+    "sourceFiles": 6656,
+    "testFiles": 6578,
+    "sourceLines": 1366094,
     "workspaceEdges": 268,
-    "moduleEdges": 19532,
+    "moduleEdges": 19544,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -785,7 +785,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 274,
+      "sourceFiles": 276,
       "testFiles": 57,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1201,7 +1201,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 805,
-      "testFiles": 603,
+      "testFiles": 604,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1227,7 +1227,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 603
+          "testFiles": 604
         }
       ]
     },
@@ -1257,8 +1257,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 365,
-      "testFiles": 455,
+      "sourceFiles": 366,
+      "testFiles": 456,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1293,7 +1293,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 455
+          "testFiles": 456
         }
       ]
     },
@@ -35071,6 +35071,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/github-create.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/github-item.test.ts",
         "projects": [
           "root-node"
@@ -37838,6 +37844,12 @@
       },
       {
         "file": "packages/webui/tests/components/generated-image-preview.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/github-create-form.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

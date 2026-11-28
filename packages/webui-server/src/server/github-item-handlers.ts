@@ -18,9 +18,12 @@ import {
   type GitHubSeams,
   GitHubStatusError,
   type GitHubToken,
+  gitHubWriteStatus,
   githubApi,
   githubPage,
   login,
+  readGitHubWriteBody,
+  refuseGitHubWrite,
   replyJson,
   resolveRepository,
   resolveRequestProject,
@@ -261,25 +264,6 @@ export async function handleGitHubItemRead(
   }
 }
 
-async function readActionBody(req: IncomingMessage): Promise<Record<string, unknown> | null> {
-  const type = (req.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
-  if (type !== 'application/json') return null;
-  let raw = '';
-  req.setEncoding('utf8');
-  for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > 32_000) return null;
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 type LineTarget = { path: string; line: number; side: 'LEFT' | 'RIGHT' };
 
 /** A line of the pull request's diff: a repository path, a positive line, a side. */
@@ -482,14 +466,6 @@ function actionCall(repository: string, input: ValidAction) {
   }
 }
 
-function actionStatus(error: GitHubStatusError): GitHubActionResult['status'] {
-  if (error.httpStatus === 409) return 'conflict';
-  if (error.httpStatus === 405 || error.httpStatus === 422) return 'rejected';
-  if (error.status === 'not-found') return 'not-found';
-  if (error.status === 'needs-auth' || error.status === 'rate-limited') return error.status;
-  return 'unavailable';
-}
-
 /** `POST /api/github/action?sessionId=…` with a {@link GitHubActionRequest} body. */
 export async function handleGitHubAction(
   req: IncomingMessage,
@@ -499,19 +475,8 @@ export async function handleGitHubAction(
   invalidate: (repository: string) => void,
   accessTokenOk: boolean,
 ): Promise<void> {
-  // Same rule as the server's global mutation gate: a write comes from a page
-  // (the global guard already checked its Origin against Host) or from a
-  // client holding the access token (the desktop bridge sends no Origin).
-  // Neither is authentication on the token-less loopback default: a local
-  // process that sets a matching Origin can still call this route, as it can
-  // the automation routes; configuring the access token is what closes that.
-  if (!req.headers.origin && !accessTokenOk) {
-    replyJson(res, 403, {
-      error: 'GitHub writes need the WebUI page or the access token',
-    });
-    return;
-  }
-  const raw = await readActionBody(req);
+  if (refuseGitHubWrite(req, res, accessTokenOk)) return;
+  const raw = await readGitHubWriteBody(req);
   if (!raw) {
     replyJson(res, 400, { error: 'Send a JSON object body' });
     return;
@@ -569,7 +534,7 @@ export async function handleGitHubAction(
     if (!(error instanceof GitHubStatusError)) throw error;
     return reply({
       ok: false,
-      status: actionStatus(error),
+      status: gitHubWriteStatus(error),
       ...(error.detail ? { message: error.detail } : {}),
     });
   }

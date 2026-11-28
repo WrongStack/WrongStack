@@ -84,6 +84,15 @@ export function agentPrompt(intent: AgentIntent, repository: string, number: num
   }
 }
 
+/**
+ * The chat prompt for pushing the checked-out branch so a pull request can be
+ * opened from it. The server never pushes; the agent does, with the user's
+ * say on anything risky.
+ */
+export function pushBranchPrompt(repository: string, branch: string): string {
+  return `Push the checked-out branch \`${branch}\` of this project to origin (${repository}) with \`git push -u origin ${branch}\`, so a pull request can be opened from it. First run \`git status\` and \`git branch --show-current\`: if another branch is checked out now, stop and tell me. Never force-push; if the push is rejected, stop and ask me how to proceed.`;
+}
+
 /** Which hand-offs make sense for a pull request in its current state. */
 export function pullIntents(pull: {
   fromFork: boolean;

@@ -6046,6 +6046,32 @@
     "loadMore": "Charger plus",
     "loadingMore": "Chargement…",
     "emptyFiltered": "Rien dans cet état ne correspond à ces filtres.",
-    "filterLoadedOnly": "Le filtre texte ne cherche que dans les éléments déjà chargés."
+    "filterLoadedOnly": "Le filtre texte ne cherche que dans les éléments déjà chargés.",
+    "create": {
+      "newPull": "Nouvelle pull request",
+      "newIssue": "Nouvelle issue",
+      "pullTitle": "Nouvelle pull request",
+      "issueTitle": "Nouvelle issue",
+      "fromBranch": "Depuis la branche",
+      "branch": {
+        "detached": "Aucune branche n'est active dans ce projet : rien à partir de quoi ouvrir une pull request.",
+        "default": "La branche active est la branche par défaut {{base}}. Passez sur une branche de travail pour ouvrir une pull request.",
+        "unsupported": "Ce nom de branche ne peut pas servir ici de source à une pull request.",
+        "not-pushed": "GitHub n'a pas encore cette branche. Poussez-la d'abord, puis vérifiez à nouveau.",
+        "out-of-sync": "La copie de cette branche sur GitHub est sur un autre commit que la vôtre. La pull request montrera les commits de GitHub ; poussez d'abord si les vôtres sont plus récents.",
+        "ready": "GitHub a cette branche sur votre dernier commit."
+      },
+      "openPull": "Une pull request est déjà ouverte depuis cette branche : #{{number}} {{title}}",
+      "showOpenPull": "Afficher",
+      "askToPush": "Demander à l'agent de la pousser",
+      "checkAgain": "Vérifier à nouveau",
+      "titleLabel": "Titre",
+      "bodyLabel": "Description",
+      "baseLabel": "Branche cible",
+      "draft": "Ouvrir en brouillon",
+      "submitPull": "Ouvrir la pull request",
+      "submitIssue": "Ouvrir l'issue",
+      "branchChanged": "Une autre branche est active maintenant. Vérifiez à nouveau avant d'ouvrir la pull request."
+    }
   }
 }

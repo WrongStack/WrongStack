@@ -8,6 +8,7 @@ import {
   GitPullRequestClosed,
   GitPullRequestDraft,
   MessageSquare,
+  Plus,
   RefreshCw,
   Search,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import { PageMotif } from '../ui/PageMotif';
+import { GitHubCreateForm } from './GitHubCreateForm';
 import { GitHubItemDetail } from './GitHubItemDetail';
 import {
   filterGitHubItems,
@@ -248,6 +250,16 @@ export function GitHubView() {
   });
   const [round, setRound] = useState(0);
   const view = state.view;
+  // The new-item form belongs to one repository and session, like a selection.
+  const [creatingIn, setCreatingIn] = useState<{
+    kind: 'pull' | 'issue';
+    session: string;
+    repository: string;
+  } | null>(null);
+  const creating =
+    creatingIn && view?.repository === creatingIn.repository && state.session === creatingIn.session
+      ? creatingIn.kind
+      : null;
   // A selection belongs to one repository: switching the session (and so the
   // project) must never leave a merge button pointing at another repo's #N.
   const [picked, setPicked] = useState<
@@ -289,6 +301,12 @@ export function GitHubView() {
     setRound((value) => value + 1);
   };
   const filtered = !isDefaultGitHubFilter(tab, filter);
+  const canWrite = view?.status === 'ok' && view.tokenSource !== 'none';
+  const startCreating = () => {
+    if (view?.repository)
+      setCreatingIn({ kind, session: state.session, repository: view.repository });
+    setPicked(null);
+  };
   const repositoryUrl = view?.repository
     ? safeGitHubUrl(`https://github.com/${view.repository}`)
     : undefined;
@@ -316,6 +334,18 @@ export function GitHubView() {
           )}
         </div>
         <div className="flex min-w-0 flex-wrap gap-2">
+          {canWrite && (
+            <Button size="sm" onClick={startCreating}>
+              <Plus className="h-4 w-4" />
+              <span className="ml-2">
+                {t(
+                  tab === 'pulls'
+                    ? 'activity:github.create.newPull'
+                    : 'activity:github.create.newIssue',
+                )}
+              </span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -357,7 +387,7 @@ export function GitHubView() {
           <div
             className={cn(
               'min-h-0 min-w-0 flex-1 flex-col md:flex md:max-w-[min(46rem,55%)] md:border-r md:border-border',
-              selected ? 'hidden' : 'flex',
+              selected || creating ? 'hidden' : 'flex',
             )}
           >
             <div className="flex flex-wrap items-center gap-3 border-b border-border/60 px-4 py-3 sm:px-6">
@@ -449,7 +479,10 @@ export function GitHubView() {
                       item={item}
                       locale={i18n.language}
                       selected={selected?.kind === kind && selected.number === item.number}
-                      onSelect={() => setSelected({ kind, number: item.number })}
+                      onSelect={() => {
+                        setCreatingIn(null);
+                        setSelected({ kind, number: item.number });
+                      }}
                     />
                   ))}
                 </ul>
@@ -475,7 +508,19 @@ export function GitHubView() {
               )}
             </div>
           </div>
-          {selected ? (
+          {creating && view.repository ? (
+            <GitHubCreateForm
+              key={creating}
+              kind={creating}
+              repository={view.repository}
+              onCancel={() => setCreatingIn(null)}
+              onCreated={(next) => {
+                setCreatingIn(null);
+                refresh();
+                setSelected(next);
+              }}
+            />
+          ) : selected ? (
             <GitHubItemDetail
               key={`${selected.kind}:${selected.number}`}
               selection={selected}

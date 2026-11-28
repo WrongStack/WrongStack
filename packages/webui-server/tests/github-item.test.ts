@@ -24,6 +24,7 @@ function seams(route: Route, token: boolean = true) {
   });
   return {
     readRemote: vi.fn(async () => 'https://github.com/octo/repo.git'),
+    readBranch: vi.fn(async () => ({ name: 'main', head: 'c'.repeat(40), subject: '' })),
     resolveToken: vi.fn(async () => (token ? { token: 'tkn', source: 'env' as const } : null)),
     fetch: fetch as unknown as typeof globalThis.fetch,
     now: () => 0,

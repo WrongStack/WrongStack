@@ -6046,6 +6046,32 @@
     "loadMore": "Load more",
     "loadingMore": "Loading…",
     "emptyFiltered": "Nothing in this state matches these filters.",
-    "filterLoadedOnly": "The text filter searches only the items loaded so far."
+    "filterLoadedOnly": "The text filter searches only the items loaded so far.",
+    "create": {
+      "newPull": "New pull request",
+      "newIssue": "New issue",
+      "pullTitle": "New pull request",
+      "issueTitle": "New issue",
+      "fromBranch": "From branch",
+      "branch": {
+        "detached": "No branch is checked out in this project, so there is nothing to open a pull request from.",
+        "default": "The checked-out branch is the default branch {{base}}. Check out a feature branch to open a pull request.",
+        "unsupported": "This branch name cannot be used as a pull request head here.",
+        "not-pushed": "GitHub does not have this branch yet. Push it first, then check again.",
+        "out-of-sync": "GitHub's copy of this branch is at another commit than yours. The pull request will show GitHub's commits; push first if yours are newer.",
+        "ready": "GitHub has this branch at your latest commit."
+      },
+      "openPull": "Pull request #{{number}} is already open from this branch: {{title}}",
+      "showOpenPull": "Show it",
+      "askToPush": "Ask the agent to push it",
+      "checkAgain": "Check again",
+      "titleLabel": "Title",
+      "bodyLabel": "Description",
+      "baseLabel": "Base branch",
+      "draft": "Open as draft",
+      "submitPull": "Open pull request",
+      "submitIssue": "Open issue",
+      "branchChanged": "Another branch is checked out now. Check again before opening the pull request."
+    }
   }
 }

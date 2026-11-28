@@ -6046,6 +6046,32 @@
     "loadMore": "Carregar mais",
     "loadingMore": "Carregando…",
     "emptyFiltered": "Nada neste estado corresponde a estes filtros.",
-    "filterLoadedOnly": "O filtro de texto busca apenas nos itens carregados até agora."
+    "filterLoadedOnly": "O filtro de texto busca apenas nos itens carregados até agora.",
+    "create": {
+      "newPull": "Novo pull request",
+      "newIssue": "Nova issue",
+      "pullTitle": "Novo pull request",
+      "issueTitle": "Nova issue",
+      "fromBranch": "Do branch",
+      "branch": {
+        "detached": "Nenhum branch está ativo neste projeto, então não há de onde abrir um pull request.",
+        "default": "O branch ativo é o branch padrão {{base}}. Mude para um branch de trabalho para abrir um pull request.",
+        "unsupported": "Este nome de branch não pode ser usado aqui como origem de um pull request.",
+        "not-pushed": "O GitHub ainda não tem este branch. Envie-o primeiro e verifique de novo.",
+        "out-of-sync": "A cópia deste branch no GitHub está em outro commit que a sua. O pull request mostrará os commits do GitHub; envie primeiro se os seus forem mais novos.",
+        "ready": "O GitHub tem este branch no seu commit mais recente."
+      },
+      "openPull": "Já existe um pull request aberto deste branch: #{{number}} {{title}}",
+      "showOpenPull": "Mostrar",
+      "askToPush": "Pedir ao agente para enviá-lo",
+      "checkAgain": "Verificar de novo",
+      "titleLabel": "Título",
+      "bodyLabel": "Descrição",
+      "baseLabel": "Branch de destino",
+      "draft": "Abrir como rascunho",
+      "submitPull": "Abrir pull request",
+      "submitIssue": "Abrir issue",
+      "branchChanged": "Outro branch está ativo agora. Verifique de novo antes de abrir o pull request."
+    }
   }
 }

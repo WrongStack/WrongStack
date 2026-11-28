@@ -6046,6 +6046,32 @@
     "loadMore": "Daha fazla yükle",
     "loadingMore": "Yükleniyor…",
     "emptyFiltered": "Bu durumda bu filtrelere uyan kayıt yok.",
-    "filterLoadedOnly": "Metin filtresi yalnızca şimdiye kadar yüklenen kayıtlarda arar."
+    "filterLoadedOnly": "Metin filtresi yalnızca şimdiye kadar yüklenen kayıtlarda arar.",
+    "create": {
+      "newPull": "Yeni pull request",
+      "newIssue": "Yeni issue",
+      "pullTitle": "Yeni pull request",
+      "issueTitle": "Yeni issue",
+      "fromBranch": "Kaynak dal",
+      "branch": {
+        "detached": "Bu projede etkin bir dal yok; pull request açılacak bir dal bulunmuyor.",
+        "default": "Etkin dal, varsayılan dal {{base}}. Pull request açmak için bir özellik dalına geçin.",
+        "unsupported": "Bu dal adı burada pull request kaynağı olarak kullanılamaz.",
+        "not-pushed": "Bu dal GitHub'da henüz yok. Önce gönderin, sonra yeniden kontrol edin.",
+        "out-of-sync": "Bu dalın GitHub'daki kopyası sizinkinden farklı bir commit'te. Pull request GitHub'daki commit'leri gösterir; sizinkiler daha yeniyse önce gönderin.",
+        "ready": "GitHub'daki dal son commit'inizde."
+      },
+      "openPull": "Bu daldan açık bir pull request zaten var: #{{number}} {{title}}",
+      "showOpenPull": "Göster",
+      "askToPush": "Ajana göndermesini söyle",
+      "checkAgain": "Yeniden kontrol et",
+      "titleLabel": "Başlık",
+      "bodyLabel": "Açıklama",
+      "baseLabel": "Hedef dal",
+      "draft": "Taslak olarak aç",
+      "submitPull": "Pull request aç",
+      "submitIssue": "Issue aç",
+      "branchChanged": "Şu an başka bir dal etkin. Pull request açmadan önce yeniden kontrol edin."
+    }
   }
 }

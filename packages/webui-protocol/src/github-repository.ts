@@ -225,3 +225,55 @@ export interface GitHubActionResult {
   /** GitHub's own explanation, capped plain text. */
   message?: string;
 }
+
+/**
+ * Whether the project's current branch can become a pull request, from
+ * `GET /api/github/create-context`. "Pushed" is GitHub's ref compared with the
+ * local HEAD, never a local remote-tracking ref.
+ */
+export type GitHubBranchState =
+  /** No branch checked out. */
+  | 'detached'
+  /** The branch is the repository's default branch. */
+  | 'default'
+  /** The name cannot be used as a pull request head here. */
+  | 'unsupported'
+  /** GitHub has no branch of that name. */
+  | 'not-pushed'
+  /** GitHub's branch is at another commit than the local one. */
+  | 'out-of-sync'
+  /** GitHub's branch is at the local commit. */
+  | 'ready';
+
+export interface GitHubCreateContext {
+  status: GitHubRepositoryStatus;
+  repository: string | null;
+  tokenSource: GitHubTokenSource;
+  defaultBranch: string | null;
+  branch: {
+    name: string | null;
+    state: GitHubBranchState;
+    /** The last commit's subject, a title suggestion. */
+    subject: string;
+    /** An open pull request from this branch, opened instead of a duplicate. */
+    openPull: { number: number; title: string; url: string } | null;
+  } | null;
+}
+
+/** `POST /api/github/create?sessionId=…`. A pull request's head is the project's current branch. */
+export type GitHubCreateRequest =
+  | { kind: 'issue'; title: string; body?: string }
+  | {
+      kind: 'pull';
+      title: string;
+      body?: string;
+      base: string;
+      draft?: boolean;
+      /** The branch the form showed; refused as a conflict if another is checked out now. */
+      head: string;
+    };
+
+export interface GitHubCreateResult extends GitHubActionResult {
+  /** The created item, when `ok`. */
+  item?: { kind: GitHubItemKind; number: number; url: string };
+}

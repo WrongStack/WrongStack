@@ -54,6 +54,7 @@ function seams(overrides: Partial<GitHubSeams> = {}) {
   );
   return {
     readRemote: vi.fn(async () => 'git@github.com:WrongStack/WrongStack.git'),
+    readBranch: vi.fn(async () => ({ name: 'main', head: 'c'.repeat(40), subject: '' })),
     resolveToken: vi.fn(async () => ({ token: 'secret-token', source: 'gh' as const })),
     fetch: fetch as unknown as typeof globalThis.fetch,
     now: () => Date.parse('2026-11-27T00:00:00Z'),

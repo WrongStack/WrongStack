@@ -1,7 +1,8 @@
-import type { ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getSessionRegistry } from '@wrongstack/core/storage';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type {
+  GitHubActionResult,
   GitHubIssueSummary,
   GitHubLabel,
   GitHubPullSummary,
@@ -30,9 +31,17 @@ export interface GitHubToken {
   source: Exclude<GitHubTokenSource, 'none'>;
 }
 
+/** The project's checked-out branch (`name` null when HEAD is detached). */
+export interface GitHubLocalBranch {
+  name: string | null;
+  head: string;
+  subject: string;
+}
+
 /** Injectable edges, so tests never spawn git/gh or reach GitHub. */
 export interface GitHubSeams {
   readRemote(projectRoot: string): Promise<string>;
+  readBranch(projectRoot: string): Promise<GitHubLocalBranch>;
   resolveToken(): Promise<GitHubToken | null>;
   fetch: typeof fetch;
   now(): number;
@@ -68,6 +77,16 @@ async function readRemote(projectRoot: string): Promise<string> {
   return first ? (await git(['remote', 'get-url', first.trim()])).trim() : '';
 }
 
+async function readBranch(projectRoot: string): Promise<GitHubLocalBranch> {
+  const git = makeGit(projectRoot);
+  const [name, head, subject] = await Promise.all([
+    git(['symbolic-ref', '--quiet', '--short', 'HEAD']),
+    git(['rev-parse', '--verify', '--quiet', 'HEAD']),
+    git(['log', '-1', '--format=%s']),
+  ]);
+  return { name: name.trim() || null, head: head.trim(), subject: subject.trim().slice(0, 256) };
+}
+
 function validToken(value: string | undefined): string | null {
   const token = value?.trim();
   return token && token.length <= 512 && !/\s/.test(token) ? token : null;
@@ -101,6 +120,7 @@ async function resolveToken(): Promise<GitHubToken | null> {
 
 export const defaultGitHubSeams: GitHubSeams = {
   readRemote,
+  readBranch,
   resolveToken,
   fetch: (input, init) => fetch(input, init),
   now: () => Date.now(),
@@ -199,11 +219,26 @@ function statusFor(response: Response, authenticated: boolean): GitHubRepository
   return 'unavailable';
 }
 
-/** GitHub's own `message`, as capped single-paragraph plain text. */
+/**
+ * GitHub's own `message`, plus the reasons a 422 lists in `errors` ("A pull
+ * request already exists…"), as capped single-paragraph plain text.
+ */
 function errorMessage(raw: string): string {
   try {
-    const message = (JSON.parse(raw) as { message?: unknown }).message;
-    return typeof message === 'string' ? message.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+    const parsed = JSON.parse(raw) as { message?: unknown; errors?: unknown };
+    const reasons = Array.isArray(parsed.errors)
+      ? parsed.errors.flatMap((entry) => {
+          const message = (entry as { message?: unknown } | null)?.message;
+          return typeof message === 'string' ? [message] : [];
+        })
+      : [];
+    const message = typeof parsed.message === 'string' ? parsed.message : '';
+    return [message, ...reasons]
+      .filter(Boolean)
+      .join(': ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 300);
   } catch {
     return '';
   }
@@ -356,4 +391,54 @@ export function toIssue(raw: unknown, repository: string): GitHubIssueSummary | 
   // The issues endpoint also lists pull requests; those carry `pull_request`.
   if (!raw || typeof raw !== 'object' || 'pull_request' in raw) return null;
   return toBaseItem(raw as Record<string, unknown>, repository, 'issue');
+}
+
+/**
+ * The write gate of every GitHub write, as the server's global mutation gate:
+ * a request from a page (the global guard already checked its Origin against
+ * Host) or from a client holding the access token (the desktop bridge sends
+ * no Origin). Neither is authentication on the token-less loopback default:
+ * a local process that sets a matching Origin can still call it, as it can
+ * the automation routes; configuring the access token is what closes that.
+ * Replies and returns true when the write is refused.
+ */
+export function refuseGitHubWrite(
+  req: IncomingMessage,
+  res: ServerResponse,
+  accessTokenOk: boolean,
+): boolean {
+  if (req.headers.origin || accessTokenOk) return false;
+  replyJson(res, 403, { error: 'GitHub writes need the WebUI page or the access token' });
+  return true;
+}
+
+/** A write's JSON object body (32 kB at most), or null. */
+export async function readGitHubWriteBody(
+  req: IncomingMessage,
+): Promise<Record<string, unknown> | null> {
+  const type = (req.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
+  if (type !== 'application/json') return null;
+  let raw = '';
+  req.setEncoding('utf8');
+  for await (const chunk of req) {
+    raw += chunk;
+    if (raw.length > 32_000) return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** How a refused GitHub write reads in the view. */
+export function gitHubWriteStatus(error: GitHubStatusError): GitHubActionResult['status'] {
+  if (error.httpStatus === 409) return 'conflict';
+  if (error.httpStatus === 405 || error.httpStatus === 422) return 'rejected';
+  if (error.status === 'not-found') return 'not-found';
+  if (error.status === 'needs-auth' || error.status === 'rate-limited') return error.status;
+  return 'unavailable';
 }

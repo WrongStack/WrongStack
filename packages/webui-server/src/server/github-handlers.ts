@@ -18,6 +18,7 @@ import {
   toIssue,
   toPull,
 } from './github-client.js';
+import { handleGitHubCreate, handleGitHubCreateContext } from './github-create-handlers.js';
 import { handleGitHubAction, handleGitHubItemRead } from './github-item-handlers.js';
 import { handleGitHubListRead } from './github-list-handlers.js';
 
@@ -131,6 +132,8 @@ async function handleGitHubRepositoryRead(
  *  - `GET  /api/github/list`    one page of pull requests or issues in any state
  *  - `GET  /api/github/item`    one pull request or issue (`kind`, `number`)
  *  - `POST /api/github/action`  comment, review, merge, close or reopen
+ *  - `GET  /api/github/create-context`  what a new issue or pull request can use
+ *  - `POST /api/github/create`  open an issue, or a pull request from the current branch
  */
 export async function handleGitHubRoutes(
   req: IncomingMessage,
@@ -144,6 +147,8 @@ export async function handleGitHubRoutes(
     '/api/github/list': 'GET',
     '/api/github/item': 'GET',
     '/api/github/action': 'POST',
+    '/api/github/create-context': 'GET',
+    '/api/github/create': 'POST',
   };
   const method = routes[url.pathname];
   if (!method) return false;
@@ -160,6 +165,10 @@ export async function handleGitHubRoutes(
     if (url.pathname === '/api/github') await handleGitHubRepositoryRead(res, url, deps);
     else if (url.pathname === '/api/github/list') await handleGitHubListRead(res, url, deps);
     else if (url.pathname === '/api/github/item') await handleGitHubItemRead(res, url, deps);
+    else if (url.pathname === '/api/github/create-context')
+      await handleGitHubCreateContext(res, url, deps);
+    else if (url.pathname === '/api/github/create')
+      await handleGitHubCreate(req, res, url, deps, invalidateGitHubView, auth.accessTokenOk);
     else await handleGitHubAction(req, res, url, deps, invalidateGitHubView, auth.accessTokenOk);
   } catch (error) {
     if (!res.headersSent) replyJson(res, 500, { error: sanitizeApiError(error) });

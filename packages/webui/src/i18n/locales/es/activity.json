@@ -6046,6 +6046,32 @@
     "loadMore": "Cargar más",
     "loadingMore": "Cargando…",
     "emptyFiltered": "Nada en este estado coincide con estos filtros.",
-    "filterLoadedOnly": "El filtro de texto solo busca entre los elementos cargados hasta ahora."
+    "filterLoadedOnly": "El filtro de texto solo busca entre los elementos cargados hasta ahora.",
+    "create": {
+      "newPull": "Nuevo pull request",
+      "newIssue": "Nuevo issue",
+      "pullTitle": "Nuevo pull request",
+      "issueTitle": "Nuevo issue",
+      "fromBranch": "Desde la rama",
+      "branch": {
+        "detached": "Este proyecto no tiene ninguna rama activa desde la que abrir un pull request.",
+        "default": "La rama activa es la rama predeterminada {{base}}. Cambia a una rama de trabajo para abrir un pull request.",
+        "unsupported": "Este nombre de rama no se puede usar aquí como origen de un pull request.",
+        "not-pushed": "GitHub aún no tiene esta rama. Súbela primero y vuelve a comprobar.",
+        "out-of-sync": "La copia de esta rama en GitHub está en otro commit que la tuya. El pull request mostrará los commits de GitHub; sube primero si los tuyos son más recientes.",
+        "ready": "GitHub tiene esta rama en tu último commit."
+      },
+      "openPull": "Ya hay un pull request abierto desde esta rama: #{{number}} {{title}}",
+      "showOpenPull": "Mostrarlo",
+      "askToPush": "Pedir al agente que la suba",
+      "checkAgain": "Volver a comprobar",
+      "titleLabel": "Título",
+      "bodyLabel": "Descripción",
+      "baseLabel": "Rama base",
+      "draft": "Abrir como borrador",
+      "submitPull": "Abrir pull request",
+      "submitIssue": "Abrir issue",
+      "branchChanged": "Ahora hay otra rama activa. Vuelve a comprobar antes de abrir el pull request."
+    }
   }
 }

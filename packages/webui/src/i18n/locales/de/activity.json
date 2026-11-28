@@ -6046,6 +6046,32 @@
     "loadMore": "Mehr laden",
     "loadingMore": "Wird geladen…",
     "emptyFiltered": "Nichts in diesem Status passt zu diesen Filtern.",
-    "filterLoadedOnly": "Der Textfilter durchsucht nur die bisher geladenen Einträge."
+    "filterLoadedOnly": "Der Textfilter durchsucht nur die bisher geladenen Einträge.",
+    "create": {
+      "newPull": "Neuer Pull Request",
+      "newIssue": "Neues Issue",
+      "pullTitle": "Neuer Pull Request",
+      "issueTitle": "Neues Issue",
+      "fromBranch": "Von Branch",
+      "branch": {
+        "detached": "In diesem Projekt ist kein Branch ausgecheckt, aus dem ein Pull Request geöffnet werden könnte.",
+        "default": "Der ausgecheckte Branch ist der Standard-Branch {{base}}. Checke einen Feature-Branch aus, um einen Pull Request zu öffnen.",
+        "unsupported": "Dieser Branch-Name kann hier nicht als Quelle eines Pull Requests dienen.",
+        "not-pushed": "GitHub kennt diesen Branch noch nicht. Pushe ihn zuerst und prüfe dann erneut.",
+        "out-of-sync": "Die Kopie dieses Branches auf GitHub steht auf einem anderen Commit als deine. Der Pull Request zeigt die Commits auf GitHub; pushe zuerst, wenn deine neuer sind.",
+        "ready": "GitHub hat diesen Branch auf deinem neuesten Commit."
+      },
+      "openPull": "Von diesem Branch ist bereits Pull Request #{{number}} offen: {{title}}",
+      "showOpenPull": "Anzeigen",
+      "askToPush": "Den Agenten pushen lassen",
+      "checkAgain": "Erneut prüfen",
+      "titleLabel": "Titel",
+      "bodyLabel": "Beschreibung",
+      "baseLabel": "Ziel-Branch",
+      "draft": "Als Entwurf öffnen",
+      "submitPull": "Pull Request öffnen",
+      "submitIssue": "Issue öffnen",
+      "branchChanged": "Inzwischen ist ein anderer Branch ausgecheckt. Prüfe erneut, bevor du den Pull Request öffnest."
+    }
   }
 }
