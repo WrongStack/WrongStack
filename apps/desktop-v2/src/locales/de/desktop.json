@@ -530,7 +530,7 @@
       "label": "HQ-Client-Token",
       "description": "Das von WrongStack HQ ausgestellte Client-Token.",
       "unset": "Ein gespeichertes Token wird hier nie angezeigt.",
-      "placeholder": "Gib ein neues Token ein, um das gespeicherte zu ersetzen"
+      "placeholder": "Neues Token eingeben"
     },
     "hqRawContent": {
       "label": "Rohinhalte für HQ",

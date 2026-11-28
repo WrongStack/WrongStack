@@ -530,7 +530,7 @@
       "label": "HQ client token",
       "description": "The client token issued by WrongStack HQ.",
       "unset": "A saved token is never shown here.",
-      "placeholder": "Type a new token to replace the saved one"
+      "placeholder": "Type a new token"
     },
     "hqRawContent": {
       "label": "Raw HQ content",

@@ -530,7 +530,7 @@
       "label": "Jeton client HQ",
       "description": "Le jeton client délivré par WrongStack HQ.",
       "unset": "Un jeton enregistré n'est jamais affiché ici.",
-      "placeholder": "Saisissez un nouveau jeton pour remplacer celui enregistré"
+      "placeholder": "Saisissez un nouveau jeton"
     },
     "hqRawContent": {
       "label": "Contenu HQ brut",

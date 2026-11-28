@@ -530,7 +530,7 @@
       "label": "HQ istemci token'ı",
       "description": "WrongStack HQ'nun verdiği istemci token'ı.",
       "unset": "Kayıtlı bir token burada asla gösterilmez.",
-      "placeholder": "Kayıtlı olanın yerine yeni bir token yaz"
+      "placeholder": "Yeni token yaz"
     },
     "hqRawContent": {
       "label": "Ham HQ içeriği",

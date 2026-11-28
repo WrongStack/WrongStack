@@ -530,7 +530,7 @@
       "label": "Token de cliente do HQ",
       "description": "O token de cliente emitido pelo WrongStack HQ.",
       "unset": "Um token salvo nunca é exibido aqui.",
-      "placeholder": "Digite um novo token para substituir o salvo"
+      "placeholder": "Digite um novo token"
     },
     "hqRawContent": {
       "label": "Conteúdo bruto no HQ",

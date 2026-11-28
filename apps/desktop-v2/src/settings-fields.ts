@@ -347,7 +347,7 @@ export const settingsSections = [
         label: 'HQ client token',
         description: 'The client token issued by WrongStack HQ.',
         kind: 'secret',
-        placeholder: 'Type a new token to replace the saved one',
+        placeholder: 'Type a new token',
         unsetNote: 'A saved token is never shown here.',
       },
       {
