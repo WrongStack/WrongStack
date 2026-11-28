@@ -128,7 +128,8 @@ export function FileWorkspace(props: Parameters<typeof useFileWorkspace>[0]) {
             ) : (
               <FileWorkspaceFolder model={view} />
             ))}
-          {mode === 'changes' && (
+          {/* Notes are added from a diff; until one exists the tray was a footer of zeros. */}
+          {mode === 'changes' && (notes.length > 0 || !!reviewNotes.error) && (
             <ReviewNotesTray
               notes={notes}
               busy={reviewNotes.busy}

@@ -199,6 +199,10 @@
   background: var(--sidebar);
   align-items: stretch;
 }
+/* No open file: the strip was an empty band above the "select a file" state. */
+.file-open-tabs:empty {
+  display: none;
+}
 .file-open-tabs > button,
 .file-open-tabs > div {
   display: flex;
