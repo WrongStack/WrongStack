@@ -10,8 +10,8 @@ import { byteText, durationText, record } from './engine-values';
 import { type PolicyProps, ProfileSelect } from './ModelPolicySettings';
 import { ModelReferenceField } from './ModelReferenceField';
 import { modelRef, modelRefPatch } from './model-reference-options';
-import { removeModelTier, validSettingsName, withoutSetting } from './settings-save-model';
 import { ModelCatalogProvider } from './saved-model-catalog';
+import { removeModelTier, validSettingsName, withoutSetting } from './settings-save-model';
 
 type Row = Record<string, unknown>;
 type LimitKey = (typeof LIMITS_SCALAR_KEYS)[number] | (typeof LIMITS_BUDGET_KEYS)[number];
@@ -25,7 +25,10 @@ export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft
       ? byteText(value, i18n.language)
       : unit === 'ms'
         ? durationText(value, i18n.language)
-        : t(`limitsPolicy.unit.${unit}`, { value: value.toLocaleString(i18n.language) });
+        : t(`limitsPolicy.unit.${unit}`, {
+            count: value,
+            value: value.toLocaleString(i18n.language),
+          });
   const range = (key: LimitKey) => {
     const { min, max, unit, maxNote } = LIMIT_BOUNDS[key];
     if (max !== undefined)

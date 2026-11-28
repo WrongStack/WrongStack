@@ -21,7 +21,9 @@
   gap: 22px;
   min-width: 0;
 }
-.model-policy-settings label {
+/* Not a settings row's label: those are its title (14px, text) like on every other page; this
+   rule, loaded later, shrank Resource limits' titles below their own descriptions. */
+.model-policy-settings label:not(.setting-row label) {
   display: flex;
   flex-direction: column;
   gap: 7px;

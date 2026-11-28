@@ -76,6 +76,8 @@ describe('refinement, limits and tier settings in the display language', () => {
     ])
       expect(english).toContain(text);
     expect(english).not.toContain('(max: none)');
+    // One is singular: the worker tool-call floor read "At least 1 calls".
+    expect(english).toContain('At least 1 call<');
     const turkish = await limits('tr');
     for (const text of [
       'En az 20 mesaj; en fazla modelin penceresi (sıkıştırma)',

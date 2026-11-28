@@ -7674,10 +7674,15 @@
       "subagentResultChars": "le résultat entier"
     },
     "unit": {
+      "tokens_one": "{{value}} token",
       "tokens": "{{value}} tokens",
+      "chars_one": "{{value}} caractère",
       "chars": "{{value}} caractères",
+      "messages_one": "{{value}} message",
       "messages": "{{value}} messages",
+      "iterations_one": "{{value}} itération",
       "iterations": "{{value}} itérations",
+      "calls_one": "{{value}} appel",
       "calls": "{{value}} appels"
     },
     "range": "{{min}} – {{max}}",

@@ -7674,10 +7674,15 @@
       "subagentResultChars": "sonucun tamamı"
     },
     "unit": {
+      "tokens_one": "{{value}} token",
       "tokens": "{{value}} token",
+      "chars_one": "{{value}} karakter",
       "chars": "{{value}} karakter",
+      "messages_one": "{{value}} mesaj",
       "messages": "{{value}} mesaj",
+      "iterations_one": "{{value}} yineleme",
       "iterations": "{{value}} yineleme",
+      "calls_one": "{{value}} çağrı",
       "calls": "{{value}} çağrı"
     },
     "range": "{{min}} – {{max}}",
