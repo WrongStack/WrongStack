@@ -9,6 +9,7 @@
  *   - dispose cleanup
  *   - Edge cases: delete events, non-dependency files, debounce collapse
  */
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -259,7 +260,7 @@ describe('makeDependencyWatcherConfig', () => {
       const spy = vi.spyOn(mailbox, 'send');
 
       await cfg.onChange(makeEntry({ path: 'src/MyApp.csproj' }));
-      await new Promise((r) => setTimeout(r, 50));
+      await waitForSend(spy);
 
       expect(spy).toHaveBeenCalledTimes(1);
       const args = spy.mock.calls[0]![0] as Record<string, unknown>;
@@ -276,7 +277,7 @@ describe('makeDependencyWatcherConfig', () => {
       const spy = vi.spyOn(mailbox, 'send');
 
       await cfg.onChange(makeEntry({ path: 'src/Library.fsproj' }));
-      await new Promise((r) => setTimeout(r, 50));
+      await waitForSend(spy);
 
       expect(spy).toHaveBeenCalledTimes(1);
     });
@@ -304,7 +305,7 @@ describe('makeDependencyWatcherConfig', () => {
       const spy = vi.spyOn(mailbox, 'send');
 
       await cfg.onChange(makeEntry({ path: 'packages/frontend/package.json' }));
-      await new Promise((r) => setTimeout(r, 50));
+      await waitForSend(spy);
 
       expect(spy).toHaveBeenCalledTimes(1);
       const args = spy.mock.calls[0]![0] as Record<string, unknown>;
@@ -371,6 +372,97 @@ describe('makeDependencyWatcherConfig', () => {
     });
   });
 
+  describe('which changes are worth an audit', () => {
+    // Every send spawns a tech-stack research agent, so these pin what does
+    // NOT send as carefully as what does.
+    const pkg = (version: string, deps: Record<string, string>) =>
+      `${JSON.stringify({ name: 'app', version, dependencies: deps }, null, 2)}\n`;
+    const edit = async (
+      cfg: ReturnType<typeof makeDependencyWatcherConfig>,
+      content: string,
+    ): Promise<void> => {
+      // A file's mtime can read a few ms behind the clock the watcher took its
+      // start from; written in the same instant, it would count as untouched.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await fs.writeFile(path.join(projectRoot, 'package.json'), content);
+      await cfg.onChange(makeEntry({ path: 'package.json' }));
+    };
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+
+    it('sends nothing for a version bump, first change of the session included', async () => {
+      const committed = pkg('1.0.0', { zod: '^3.0.0' });
+      const cfg = makeDependencyWatcherConfig({
+        projectRoot,
+        mailbox,
+        debounceMs: 10,
+        committedContent: async () => committed,
+      });
+      const spy = vi.spyOn(mailbox, 'send');
+      await edit(cfg, pkg('1.0.1', { zod: '^3.0.0' }));
+      await settle();
+      await edit(cfg, pkg('1.0.2', { zod: '^3.0.0' }));
+      await settle();
+      expect(spy).not.toHaveBeenCalled();
+      cfg.dispose();
+    });
+
+    it('names a dependency added on the first change, against the committed manifest', async () => {
+      const cfg = makeDependencyWatcherConfig({
+        projectRoot,
+        mailbox,
+        debounceMs: 10,
+        committedContent: async () => pkg('1.0.0', { zod: '^3.0.0' }),
+      });
+      const spy = vi.spyOn(mailbox, 'send');
+      await edit(cfg, pkg('1.0.0', { zod: '^3.0.0', 'left-pad': '^1.3.0' }));
+      await waitForSend(spy);
+      expect((spy.mock.calls[0]![0] as { subject: string }).subject).toBe(
+        'Dependency added: left-pad@^1.3.0 (package.json)',
+      );
+      cfg.dispose();
+    });
+
+    it('counts every dependency of a manifest HEAD does not have as added', async () => {
+      const cfg = makeDependencyWatcherConfig({
+        projectRoot,
+        mailbox,
+        debounceMs: 10,
+        committedContent: async () => null,
+      });
+      const spy = vi.spyOn(mailbox, 'send');
+      await edit(cfg, pkg('0.1.0', { zod: '^3.0.0', 'left-pad': '^1.3.0' }));
+      await waitForSend(spy);
+      expect((spy.mock.calls[0]![0] as { subject: string }).subject).toBe(
+        'Dependencies added: zod, left-pad (package.json)',
+      );
+      cfg.dispose();
+    });
+
+    it('reads the committed manifest from git by default', async () => {
+      const git = (...args: string[]) =>
+        execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+          cwd: projectRoot,
+          windowsHide: true,
+          stdio: 'pipe',
+        });
+      await fs.writeFile(path.join(projectRoot, 'package.json'), pkg('1.0.0', { zod: '^3.0.0' }));
+      git('init', '-q');
+      git('add', 'package.json');
+      git('commit', '-qm', 'init');
+      const cfg = makeDependencyWatcherConfig({ projectRoot, mailbox, debounceMs: 10 });
+      const spy = vi.spyOn(mailbox, 'send');
+
+      await edit(cfg, pkg('1.0.1', { zod: '^3.0.0' }));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      expect(spy).not.toHaveBeenCalled();
+
+      await edit(cfg, pkg('1.0.1', { zod: '^3.0.0', 'left-pad': '^1.3.0' }));
+      await waitForSend(spy);
+      expect(spy).toHaveBeenCalledTimes(1);
+      cfg.dispose();
+    });
+  });
+
   describe('dispose', () => {
     it('clears pending debounce timers', async () => {
       const cfg = makeDependencyWatcherConfig({
@@ -426,7 +518,7 @@ describe('makeDependencyWatcherConfig', () => {
       );
       await fs.utimes(pkgPath, future, future);
       await cfg.onChange(makeEntry({ path: 'package.json' }));
-      await new Promise((r) => setTimeout(r, 50));
+      await waitForSend(spy);
 
       expect(spy).toHaveBeenCalledTimes(1);
     });
@@ -448,7 +540,7 @@ describe('makeDependencyWatcherConfig', () => {
       const spy = vi.spyOn(mailbox, 'send');
 
       await cfg.onChange(makeEntry({ path: 'package.json' }));
-      await new Promise((r) => setTimeout(r, 50));
+      await waitForSend(spy);
 
       const args = spy.mock.calls[0]![0] as Record<string, unknown>;
       expect(args.to).toBe('*');
@@ -463,7 +555,7 @@ describe('makeDependencyWatcherConfig', () => {
       const spy = vi.spyOn(mailbox, 'send');
 
       await cfg.onChange(makeEntry({ path: 'package.json' }));
-      await new Promise((r) => setTimeout(r, 50));
+      await waitForSend(spy);
 
       const args = spy.mock.calls[0]![0] as Record<string, unknown>;
       expect(args.from).toBe('dep-watcher');

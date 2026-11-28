@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 1043,
+      "files": 1044,
       "typeOnly": 78,
-      "runtimeOrMixed": 1000
+      "runtimeOrMixed": 1001
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -214,9 +214,9 @@
       "runtimeOrMixed": 33
     },
     "@wrongstack/core/vcs": {
-      "files": 2,
+      "files": 3,
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     "@wrongstack/core/wiring/proxy-rewrite": {
       "files": 21,
@@ -14981,6 +14981,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/coordination/src/dep-watcher.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/coordination/src/director-basic-tools.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18984,6 +18990,12 @@
     {
       "specifier": "@wrongstack/core/vcs",
       "file": "packages/coordination/src/commit-safety.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/vcs",
+      "file": "packages/coordination/src/dep-watcher.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

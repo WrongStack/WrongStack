@@ -22,8 +22,11 @@
  * @module dep-watcher
  */
 
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
+import { buildChildEnv } from '@wrongstack/core/utils';
+import { gitFilterIsolationEnv } from '@wrongstack/core/vcs';
 import type { Mailbox } from './mailbox-types.js';
 import {
   type DeclaredDependencyMap,
@@ -115,6 +118,47 @@ interface DependencyWatcherOptions {
   debounceMs?: number | undefined;
   /** Only watch these specific patterns. Defaults to DEPENDENCY_FILE_PATTERNS. */
   patterns?: string[] | undefined;
+  /**
+   * A manifest's committed text, the baseline for its first change this
+   * session: a string, `null` when HEAD does not have the file (a new
+   * manifest), `undefined` when that cannot be told. Defaults to git.
+   */
+  committedContent?: ((relativePath: string) => Promise<string | null | undefined>) | undefined;
+}
+
+const GIT_TIMEOUT_MS = 5000;
+
+/** `git show HEAD:<path>` under the repository's filter isolation. */
+async function gitCommittedContent(
+  root: string,
+  relativePath: string,
+): Promise<string | null | undefined> {
+  const run = async (args: string[]): Promise<{ code: number; stdout: string } | undefined> => {
+    const isolation = await gitFilterIsolationEnv('git', root, GIT_TIMEOUT_MS).catch(() => null);
+    if (!isolation) return undefined;
+    return new Promise((resolve) => {
+      let stdout = '';
+      const child = spawn('git', args, {
+        cwd: root,
+        env: { ...buildChildEnv(), ...isolation },
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+        timeout: GIT_TIMEOUT_MS,
+      });
+      child.stdout?.setEncoding('utf8');
+      child.stdout?.on('data', (chunk: string) => {
+        stdout += chunk;
+      });
+      child.on('error', () => resolve(undefined));
+      child.on('close', (code) => resolve({ code: code ?? 1, stdout }));
+    });
+  };
+  // A repository with a HEAD: a failed `show` then means "not committed".
+  const head = await run(['rev-parse', '--verify', '--quiet', 'HEAD']);
+  if (!head || head.code !== 0) return undefined;
+  const shown = await run(['show', `HEAD:${relativePath}`]);
+  if (!shown) return undefined;
+  return shown.code === 0 ? shown.stdout : null;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────────
@@ -151,6 +195,8 @@ export function makeDependencyWatcherConfig(
   const watchPaths: string[] = [];
 
   const cleanRoot = projectRoot.replace(/[\\/]+$/, '');
+  const readCommitted =
+    opts.committedContent ?? ((rel: string) => gitCommittedContent(cleanRoot, rel));
 
   // Individual named files — watch them directly
   for (const p of patterns) {
@@ -227,16 +273,19 @@ export function makeDependencyWatcherConfig(
   /**
    * Read the manifest and diff it against the stored baseline.
    *
-   * The first time a manifest is seen there is no baseline, so the delta is
-   * empty and the notification degrades to the file-level event it always was.
-   * That is deliberate: treating "unknown" as "everything is new" would make
-   * every session start by auditing the entire repository. From the SECOND
-   * change onward the delta is real and names the actual packages.
+   * The first change to a manifest this session is diffed against its
+   * committed version (a manifest HEAD lacks counts every dependency as new).
+   * Only when that cannot be read does the delta stay empty and carry
+   * `unknownBaseline`, and the notification degrades to the file-level event
+   * it always was. From the second change onward the baseline is the last
+   * content seen.
    *
    * Never throws — an unreadable or half-written manifest yields an empty
    * delta rather than breaking the watcher.
    */
-  async function readDelta(manifestPath: string): Promise<DependencyDelta | 'unchanged'> {
+  async function readDelta(
+    manifestPath: string,
+  ): Promise<(DependencyDelta & { unknownBaseline?: true }) | 'unchanged'> {
     const key = normalizeManifestKey(manifestPath);
     try {
       const absolute = isAbsolutePath(manifestPath)
@@ -258,7 +307,7 @@ export function makeDependencyWatcherConfig(
         }
       }
       const current = parseDeclaredDependencies(content, key);
-      const delta = diffDeclaredDependencies(baselines.get(key), current);
+      const baseline = baselines.get(key);
       baselines.set(key, current);
 
       // Content gate. On Windows `fs.watch` subscribes to last-access and
@@ -271,13 +320,27 @@ export function makeDependencyWatcherConfig(
       const fingerprint = createHash('sha256').update(content).digest('hex');
       const previous = fingerprints.get(key);
       fingerprints.set(key, fingerprint);
-      if (previous !== undefined) return previous === fingerprint ? 'unchanged' : delta;
+      if (previous !== undefined) {
+        return previous === fingerprint ? 'unchanged' : diffDeclaredDependencies(baseline, current);
+      }
       // First sighting: no fingerprint to compare. A file not written since the
       // watcher started cannot have changed under it.
       const { mtimeMs } = await fs.stat(absolute);
-      return mtimeMs < startedAt ? 'unchanged' : delta;
+      if (mtimeMs < startedAt) return 'unchanged';
+      // Changed for the first time this session, so there is no baseline yet:
+      // diff against the committed manifest. Without one the delta was empty,
+      // and an empty delta sent a FULL audit of the manifest, so a version bump
+      // spawned the same research agent as a new dependency.
+      const committed = await readCommitted(key).catch(() => undefined);
+      if (committed === undefined)
+        return { added: [], changed: [], removed: [], unknownBaseline: true };
+      // Not in HEAD: a new manifest, every dependency in it is new.
+      const before =
+        committed === null ? new Map() : parseDeclaredDependencies(committed.replace(/^﻿/, ''), key);
+      return diffDeclaredDependencies(before, current);
     } catch {
-      return { added: [], changed: [], removed: [] };
+      // Unreadable: nothing to tell a version bump from an added dependency by.
+      return { added: [], changed: [], removed: [], unknownBaseline: true };
     }
   }
 
@@ -340,6 +403,11 @@ export function makeDependencyWatcherConfig(
             const fileName = entry.path.split('/').pop()?.split('\\').pop() ?? entry.path;
             const delta = await readDelta(entry.path);
             if (disposed || delta === 'unchanged') return;
+            // A version bump, a script edit or a lockfile rewrite changes the
+            // bytes but no declared dependency; each used to spawn a full
+            // research audit of the manifest. Only an added dependency or a
+            // changed range is worth one (or a first change with no baseline).
+            if (!delta.unknownBaseline && !hasDependencyChanges(delta)) return;
             const body: string[] = [
               `Manifest: ${entry.path}`,
               `File: ${entry.path}`,
