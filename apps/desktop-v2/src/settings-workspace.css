@@ -300,7 +300,7 @@
     content: none;
   }
 }
-@media (max-width: 1000px) {
+@media (max-width: 1199px) {
   .wrongstack-settings .settings-workspace {
     grid-template-columns: minmax(0, 1fr);
   }

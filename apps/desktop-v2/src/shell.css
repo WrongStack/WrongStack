@@ -435,7 +435,9 @@
 .settings-section-select {
   display: none;
 }
-@media (max-width: 1000px) {
+/* The settings list turns into a picker below 1200px: at 1100 the project sidebar, a 230px list
+   and the form left the form about 490px, and an API key field showed "sk-…". */
+@media (max-width: 1199px) {
   .workspace-shell .settings-navigation {
     display: flex;
     flex-direction: column;

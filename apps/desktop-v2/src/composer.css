@@ -498,10 +498,14 @@
   background: var(--border);
 }
 .composer-options small {
+  display: block;
   padding: 6px 9px 4px;
   color: var(--subtle);
   font-size: 11px;
   line-height: 1.6;
+  /* The key list wraps: on one line it ended at "↑" in a narrow menu. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 /* Short windows: tighter rows keep nearly every action in view instead of scrolling half away. */
 @media (max-height: 720px) {
@@ -512,6 +516,13 @@
   .composer-options hr {
     margin-block: 2px;
   }
+  .composer-options small {
+    display: none;
+  }
+}
+/* Below 860px the menu already scrolls above the composer, and the key list sat cut off at its
+   bottom edge. */
+@media (max-height: 859px) {
   .composer-options small {
     display: none;
   }
