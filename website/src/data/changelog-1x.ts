@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.25 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.26 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,21 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.26',
+    date: '2026-11-28',
+    tagline: 'Open and search GitHub items, and a terminal that reconnects',
+    latest: true,
+    highlights: [
+      'Open issues and pull requests, search GitHub and show your own items from the GitHub view',
+      'WebUI terminal keeps its shell for a minute after a dropped connection',
+      'secret-scanner stops blocking camelCase source and translated UI labels',
+      'Composer chips, Desktop sidebar rows, TUI small-terminal and accessibility fixes',
+    ],
+  },
+  {
     version: '1.7.25',
     date: '2026-11-28',
     tagline: 'GitHub pull requests and issues in WebUI and Desktop',
-    latest: true,
     highlights: [
       "List, review, approve, merge and comment on the project's pull requests and issues",
       'Comment on diff lines and send them together as one GitHub review',

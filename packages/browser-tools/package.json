@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/browser-tools",
-  "version": "1.7.25",
+  "version": "1.7.26",
   "private": true,
   "license": "MIT",
   "description": "WrongStack browser automation, Playwright provisioning, and shared origin policy.",

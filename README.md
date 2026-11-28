@@ -55,15 +55,16 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.7.25
+### What's new in 1.7.26
 
-- **GitHub pull requests and issues:** WebUI and Desktop list the project's
-  pull requests and issues, review diffs line by line, approve, merge,
-  comment and hand an item to the agent. `#` mentions them in the composer.
-- **Desktop v2 overhaul:** a quick model switcher with key and quota status,
-  a graphed context panel, a canvas shell and sharp or soft corners.
-- **Fixes:** Goal resume outside a saved worktree, SDD self-blockers,
-  workspace `?` globs and rounded duration and size labels.
+- **More GitHub in WebUI:** open issues and pull requests, search GitHub,
+  pick labels and show only your own items from the GitHub view.
+- **Terminal reconnect:** WebUI's integrated terminal keeps its shell for a
+  minute after a dropped connection and replays what you missed.
+- **Fewer false secret blocks:** the default secret-scanner no longer blocks
+  camelCase source or translated UI labels.
+- **Fixes:** composer chips, Desktop sidebar rows, MCP resource errors,
+  mailbox safety, small-terminal TUI layouts and accessibility.
 
 Every earlier release is in the [changelog](CHANGELOG.md).
 
@@ -381,7 +382,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.25**; versions follow semver
+- Release notes: **v1.7.26**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

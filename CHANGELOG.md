@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.26] — 2026-11-28
+
+The GitHub view can now open issues and pull requests, search GitHub and
+show your own items. WebUI's integrated terminal survives short
+disconnects, and the default secret-scanner stops blocking ordinary writes
+of source code and UI locales. This release also brings composer chips for
+the model and permissions, IDE-style Desktop sidebar rows, and
+accessibility and small-terminal fixes across the TUI, VibeUI and the atlas
+export.
+
+### Added
+
+- WebUI: "New issue" and "New pull request" in the GitHub view. A pull
+  request opens from the checked-out branch with the last commit's subject
+  and the default branch suggested; an already open pull request from that
+  branch is offered instead of a duplicate. The server never pushes.
+- WebUI: "Search GitHub" runs GitHub's search with the tab, state, labels
+  and assignee as qualifiers, pages up to 1,000 results and keeps only this
+  repository's items. The issue filters get a label picker, and a "Show"
+  choice narrows a tab to the pull requests and issues created by, assigned
+  to or awaiting review from the token's owner.
+- WebUI: composer chips for the model (one row per provider and ACP agent
+  with its quota status), the ACP agent's model and effort, and the
+  permission mode, tinted when prompts are skipped.
+- WebUI: an open terminal tab keeps its shell for 60 seconds after a
+  connection loss, reattaches with a private per-tab key and replays the
+  output it missed from a bounded history, saying so when older output was
+  dropped.
+- Desktop: session rows show their state and age, projects get a tinted
+  monogram, an access chip shows approvals, YOLO or YOLO+, the agents rail
+  shows each agent's model, tokens and tool calls, and the branch chip
+  moves into the session's view strip.
+
+### Fixed
+
+- secret-scanner: each pattern keeps its own regex flags, so the env-var
+  rule no longer matches camelCase source and `Bearer` no longer matches
+  the word "bearer"; UI labels under `apiKey` / `token` / `secret` keys are
+  no longer treated as credentials by the scanner or core's scrubber.
+- error-lens: vitest's "Start at" line is no longer read as a stack frame,
+  and messages that already start with "error" are not prefixed twice.
+- MCP servers (codebase index, Kanban, mailbox, requirement intake, SAGE):
+  a failed resource read returns a JSON-RPC error instead of error text
+  served as JSON.
+- Mailbox: the credential throttle no longer evicts a still-refused
+  credential, an ack without an outcome keeps another completer's outcome,
+  and an oversized TTL no longer throws.
+- Plugins: template `{{#each}}` item values are no longer re-expanded, and
+  template writes refuse nested `.git/hooks` paths.
+- TUI: the sidebar scrolls by its measured height; the status bar, help
+  overlay, context panel tabs, send-mode picker and plugin prompts fit
+  small terminals; capital `Y` no longer approves a boundary-protected
+  call and `Ctrl+Y` no longer confirms an interrupt.
+- VibeUI and the atlas export: required answers, errors and filter results
+  are announced to screen readers, and the atlas map has keyboard-usable
+  package buttons with WCAG-sized targets and contrast.
+
 ## [1.7.25] — 2026-11-28
 
 WebUI and Desktop can now work through the project's GitHub pull requests
