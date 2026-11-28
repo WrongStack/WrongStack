@@ -866,6 +866,9 @@
     "hintEsc": "Esc close"
   },
   "terminal": {
+    "reconnecting": "Terminal reconnecting…",
+    "replayGap": "Some output was missed while disconnected.",
+    "resumeExpired": "[terminal session expired · use Restart to open a new shell]",
     "resize": "Resize terminals",
     "labelPlural": "Terminals",
     "projectShell": "Project shell",

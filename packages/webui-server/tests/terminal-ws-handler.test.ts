@@ -247,6 +247,29 @@ describe('TerminalWebSocketHandler', () => {
     expect(spawned[0]?.write).toHaveBeenCalledWith('ls\r');
   });
 
+  it('forwards the entire bracketed paste and keeps a split-boundary emoji intact', async () => {
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
+    const ws = makeWs();
+    h.addClient(ws);
+    await h.handleMessage(ws, { type: 'terminal.create', payload: { id: 't1' } });
+    const start = '\x1b[200~';
+    const end = '\x1b[201~';
+    const data = `${start}${'a'.repeat(65_535 - start.length)}🚀\rnext line${end}`;
+    await h.handleMessage(ws, { type: 'terminal.input', payload: { id: 't1', data } });
+    await h.handleMessage(ws, { type: 'terminal.input', payload: { id: 't1', data: '\r' } });
+    const writes = spawned[0]?.write.mock.calls.map(([text]) => text) ?? [];
+    const received = writes.map((text) => Buffer.from(text).toString()).join('');
+    expect(received.length).toBe(data.length + 1);
+    expect(received.slice(65_535)).toBe(`🚀\rnext line${end}\r`);
+    expect(received === `${data}\r`).toBe(true);
+  });
+
   it('terminal.resize resizes the pty', async () => {
     const h = new TerminalWebSocketHandler(
       () => '/c',
@@ -358,6 +381,92 @@ describe('TerminalWebSocketHandler', () => {
     ws.fire('close');
     expect(spawned[0]?.kill).toHaveBeenCalled();
     expect(spawned[1]?.kill).toHaveBeenCalled();
+  });
+
+  it('resumes the same shell and replays only missed output after a socket disconnect', async () => {
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
+    const first = makeWs();
+    const next = makeWs();
+    const other = makeWs();
+    const resumeKey = 'a'.repeat(32);
+    const create = { id: 't1', cols: 80, rows: 24, resumeKey };
+    try {
+      h.addClient(first);
+      await h.handleMessage(first, { type: 'terminal.create', payload: create });
+      const shell = spawned[0]!;
+      shell.emitData('already painted');
+      first.fire('close');
+      expect(shell.kill).not.toHaveBeenCalled();
+      shell.emitData('missed');
+
+      h.addClient(other);
+      await h.handleMessage(other, {
+        type: 'terminal.create',
+        payload: { ...create, resumeKey: 'b'.repeat(32), resumeOnly: true },
+      });
+      expect(other.sent).toEqual([expect.objectContaining({ type: 'terminal.exit' })]);
+      h.addClient(next);
+      await h.handleMessage(next, {
+        type: 'terminal.create',
+        payload: { ...create, cols: 64, rows: 20, resumeOnly: true, after: 1 },
+      });
+      await h.handleMessage(next, { type: 'terminal.input', payload: { id: 't1', data: 'x' } });
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      expect(shell.resize).toHaveBeenCalledWith(64, 20);
+      expect(shell.write).toHaveBeenCalledWith('x');
+      expect(next.sent).toEqual([
+        expect.objectContaining({
+          type: 'terminal.ready',
+          payload: expect.objectContaining({ resumed: true }),
+        }),
+        { type: 'terminal.output', payload: { id: 't1', data: 'missed', sequence: 2 } },
+      ]);
+      await h.handleMessage(next, { type: 'terminal.close', payload: { id: 't1' } });
+      expect(shell.kill).toHaveBeenCalledTimes(1);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it('expires an abandoned terminal without silently starting a replacement on reconnect', async () => {
+    vi.useFakeTimers();
+    const h = new TerminalWebSocketHandler(
+      () => '/c',
+      logger,
+      loadFakeNodePty,
+      undefined,
+      allowBoundary,
+    );
+    const first = makeWs();
+    const next = makeWs();
+    const payload = { id: 't1', resumeKey: 'a'.repeat(32) };
+    try {
+      h.addClient(first);
+      await h.handleMessage(first, { type: 'terminal.create', payload });
+      first.fire('close');
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(spawned[0]?.kill).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(spawned[0]?.kill).toHaveBeenCalledTimes(1);
+      h.addClient(next);
+      await h.handleMessage(next, {
+        type: 'terminal.create',
+        payload: { ...payload, resumeOnly: true },
+      });
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      expect(next.sent).toEqual([
+        { type: 'terminal.exit', payload: { id: 't1', exitCode: -1, disconnected: true } },
+      ]);
+    } finally {
+      h.dispose();
+      vi.useRealTimers();
+    }
   });
 
   it('client disconnect logs kill errors without throwing', async () => {

@@ -37,10 +37,35 @@ interface NodePtyApi {
 type LoadNodePty = () => NodePtyApi | null;
 type KillProcessTree = (pid: number) => void;
 
+interface TerminalCreate {
+  id: string;
+  cols?: number | undefined;
+  rows?: number | undefined;
+  resumeKey?: string | undefined;
+  resumeOnly?: boolean | undefined;
+  after?: number | undefined;
+}
+
+interface TerminalSession {
+  id: string;
+  pty: PtyProcess;
+  owner: WebSocket | null;
+  resumeKey?: string | undefined;
+  sequence: number;
+  frames: Array<{ sequence: number; data: string }>;
+  bufferedChars: number;
+  expires?: ReturnType<typeof setTimeout> | undefined;
+  exit?: PtyExit | undefined;
+}
+
 /** Hard cap on concurrent PTYs per connected client — a runaway-spawn backstop. */
 const MAX_SESSIONS_PER_CLIENT = 8;
-/** Maximum characters accepted in a single terminal.input — a DoS backstop. */
-const MAX_INPUT_BYTES = 1 << 16; // 64 KiB
+const MAX_DETACHED_SESSIONS = 32;
+const RESUME_WINDOW_MS = 60_000;
+const MAX_REPLAY_CHARS = 256 * 1024;
+const MAX_REPLAY_FRAMES = 1_024;
+/** Bound each native PTY write. The WebSocket server bounds the incoming frame. */
+const PTY_WRITE_CHUNK = 1 << 16;
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 const requireFromHere = createRequire(import.meta.url);
@@ -63,7 +88,7 @@ export function resolveTerminalShell(
  *   - `terminal.input`  → write keystrokes to the pty
  *   - `terminal.resize` → propagate xterm's fit dimensions
  *   - `terminal.close`  → kill the pty
- * When a client disconnects, every pty it owns is killed (no orphan shells).
+ * A client can opt into bounded reconnect replay with a private, per-tab key.
  */
 function isSocketDisconnected(ws: WebSocket): boolean {
   return ws.readyState === 2 || ws.readyState === 3;
@@ -71,7 +96,9 @@ function isSocketDisconnected(ws: WebSocket): boolean {
 
 export class TerminalWebSocketHandler {
   /** ws → (terminalId → pty). */
-  private readonly sessions = new Map<WebSocket, Map<string, PtyProcess>>();
+  private readonly sessions = new Map<WebSocket, Map<string, TerminalSession>>();
+  private readonly resumable = new Map<string, TerminalSession>();
+  private readonly detached = new Set<TerminalSession>();
   /**
    * ws → (terminalId → token of the create still awaiting authorization).
    * The dispatcher does not await handleMessage, so a create/close/create burst
@@ -110,6 +137,7 @@ export class TerminalWebSocketHandler {
     for (const ws of [...new Set([...this.sessions.keys(), ...this.socketOffs.keys()])]) {
       this.disposeClient(ws);
     }
+    for (const session of this.detached) this.destroy(session, 'terminal host dispose');
   }
 
   /** True if this message was a terminal.* message (handled here). */
@@ -122,6 +150,15 @@ export class TerminalWebSocketHandler {
             id: p.id,
             cols: numOrUndef(p.cols),
             rows: numOrUndef(p.rows),
+            resumeKey:
+              typeof p.resumeKey === 'string' && /^[0-9a-f]{32}$/.test(p.resumeKey)
+                ? p.resumeKey
+                : undefined,
+            resumeOnly: p.resumeOnly === true,
+            after:
+              typeof p.after === 'number' && Number.isSafeInteger(p.after) && p.after >= 0
+                ? p.after
+                : 0,
           });
         return true;
       case 'terminal.input':
@@ -140,10 +177,7 @@ export class TerminalWebSocketHandler {
 
   // ── internals ───────────────────────────────────────────────────────────
 
-  private async create(
-    ws: WebSocket,
-    payload: { id: string; cols?: number | undefined; rows?: number | undefined },
-  ): Promise<void> {
+  private async create(ws: WebSocket, payload: TerminalCreate): Promise<void> {
     const map = this.sessions.get(ws);
     if (this.disposed || !map || isSocketDisconnected(ws)) return;
 
@@ -205,6 +239,19 @@ export class TerminalWebSocketHandler {
       return;
     }
 
+    const prior = payload.resumeKey ? this.resumable.get(payload.resumeKey) : undefined;
+    if (prior?.id === payload.id) {
+      this.attach(ws, map, prior, payload);
+      return;
+    }
+    if (prior || payload.resumeOnly) {
+      this.send(ws, {
+        type: 'terminal.exit',
+        payload: { id: payload.id, exitCode: -1, disconnected: true },
+      });
+      return;
+    }
+
     const nodePty = this.loadNodePty();
     if (!nodePty) {
       const msg =
@@ -256,33 +303,141 @@ export class TerminalWebSocketHandler {
       return;
     }
 
-    map.set(payload.id, pty);
+    const session: TerminalSession = {
+      id: payload.id,
+      pty,
+      owner: ws,
+      resumeKey: payload.resumeKey,
+      sequence: 0,
+      frames: [],
+      bufferedChars: 0,
+    };
+    map.set(payload.id, session);
+    if (session.resumeKey) this.resumable.set(session.resumeKey, session);
     this.logger.info?.(
       `terminal.create spawned (id=${payload.id}, pid=${pty.pid ?? '?'}) in ${cwd}`,
     );
 
-    pty.onData((data) => {
-      this.send(ws, { type: 'terminal.output', payload: { id: payload.id, data } });
-    });
+    if (session.resumeKey) {
+      this.send(ws, { type: 'terminal.ready', payload: { id: payload.id, resumed: false } });
+    }
+    pty.onData((data) => this.output(session, data));
     pty.onExit(({ exitCode, signal }) => {
-      // A closed shell's exit can land after a new shell took over this id;
-      // it must neither evict that shell nor report it as exited.
-      if (map.get(payload.id) !== pty) return;
-      map.delete(payload.id);
-      this.send(ws, {
-        type: 'terminal.exit',
-        payload: { id: payload.id, exitCode, signal: signal ?? undefined },
-      });
+      session.exit = { exitCode, signal };
+      const owner = session.owner;
+      if (!owner || this.sessions.get(owner)?.get(session.id) !== session) return;
+      this.sendExit(owner, session);
+      this.detachOrDestroy(session);
     });
+  }
+
+  private output(session: TerminalSession, data: string): void {
+    if (session.exit || (!session.owner && !this.detached.has(session))) return;
+    let sequence: number | undefined;
+    if (session.resumeKey) {
+      sequence = ++session.sequence;
+      session.frames.push({ sequence, data });
+      session.bufferedChars += data.length;
+      while (
+        session.bufferedChars > MAX_REPLAY_CHARS ||
+        session.frames.length > MAX_REPLAY_FRAMES
+      ) {
+        session.bufferedChars -= session.frames.shift()?.data.length ?? 0;
+      }
+    }
+    if (session.owner) {
+      this.send(session.owner, {
+        type: 'terminal.output',
+        payload: { id: session.id, data, sequence },
+      });
+    }
+  }
+
+  private attach(
+    ws: WebSocket,
+    map: Map<string, TerminalSession>,
+    session: TerminalSession,
+    payload: TerminalCreate,
+  ): void {
+    this.removeOwner(session);
+    clearTimeout(session.expires);
+    this.detached.delete(session);
+    session.owner = ws;
+    map.set(session.id, session);
+    const after = Math.min(payload.after ?? 0, session.sequence);
+    const first = session.frames[0]?.sequence ?? session.sequence + 1;
+    this.send(ws, {
+      type: 'terminal.ready',
+      payload: { id: session.id, resumed: true, lostOutput: after < first - 1 },
+    });
+    for (const frame of session.frames) {
+      if (frame.sequence > after)
+        this.send(ws, { type: 'terminal.output', payload: { id: session.id, ...frame } });
+    }
+    if (session.exit) {
+      this.sendExit(ws, session);
+      this.detachOrDestroy(session);
+    } else {
+      this.resize(ws, {
+        id: session.id,
+        cols: payload.cols ?? DEFAULT_COLS,
+        rows: payload.rows ?? DEFAULT_ROWS,
+      });
+    }
+  }
+
+  private sendExit(ws: WebSocket, session: TerminalSession): void {
+    this.send(ws, { type: 'terminal.exit', payload: { id: session.id, ...session.exit } });
+  }
+
+  private removeOwner(session: TerminalSession): void {
+    if (session.owner) this.sessions.get(session.owner)?.delete(session.id);
+    session.owner = null;
+  }
+
+  private detachOrDestroy(session: TerminalSession): void {
+    if (this.disposed || !session.resumeKey) {
+      this.destroy(session, 'terminal client dispose');
+      return;
+    }
+    this.removeOwner(session);
+    this.detached.add(session);
+    const oldest = this.detached.values().next().value;
+    if (oldest && this.detached.size > MAX_DETACHED_SESSIONS)
+      this.destroy(oldest, 'terminal reconnect limit');
+    session.expires = setTimeout(
+      () => this.destroy(session, 'terminal reconnect expired'),
+      RESUME_WINDOW_MS,
+    );
+    session.expires.unref();
+  }
+
+  private destroy(session: TerminalSession, reason: string): void {
+    this.removeOwner(session);
+    clearTimeout(session.expires);
+    this.detached.delete(session);
+    if (session.resumeKey) this.resumable.delete(session.resumeKey);
+    if (!session.exit) this.killPty(session.pty, reason);
   }
 
   private input(ws: WebSocket, payload: { id: string; data: string }): void {
-    const pty = this.sessions.get(ws)?.get(payload.id);
-    if (pty) pty.write(payload.data.slice(0, MAX_INPUT_BYTES));
+    const session = this.sessions.get(ws)?.get(payload.id);
+    if (!session || session.exit) return;
+    const { data } = payload;
+    for (let offset = 0; offset < data.length; ) {
+      let end = Math.min(offset + PTY_WRITE_CHUNK, data.length);
+      // node-pty encodes each write independently. Keep a surrogate pair in
+      // the same write even when it sits at the chunk boundary.
+      const last = data.charCodeAt(end - 1);
+      const next = data.charCodeAt(end);
+      if (last >= 0xd800 && last <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) end--;
+      session.pty.write(data.slice(offset, end));
+      offset = end;
+    }
   }
 
   private resize(ws: WebSocket, payload: { id: string; cols: number; rows: number }): void {
-    const pty = this.sessions.get(ws)?.get(payload.id);
+    const pty = this.sessions.get(ws)?.get(payload.id)?.pty;
     if (!pty) return;
     try {
       pty.resize(clampDim(payload.cols, DEFAULT_COLS), clampDim(payload.rows, DEFAULT_ROWS));
@@ -293,11 +448,8 @@ export class TerminalWebSocketHandler {
 
   private close(ws: WebSocket, id: string): void {
     this.starting.get(ws)?.delete(id);
-    const map = this.sessions.get(ws);
-    const pty = map?.get(id);
-    if (!pty) return;
-    map?.delete(id);
-    this.killPty(pty, 'terminal close');
+    const session = this.sessions.get(ws)?.get(id);
+    if (session) this.destroy(session, 'terminal close');
   }
 
   private disposeClient(ws: WebSocket): void {
@@ -306,8 +458,8 @@ export class TerminalWebSocketHandler {
     this.starting.delete(ws);
     const map = this.sessions.get(ws);
     if (!map) return;
-    for (const pty of map.values()) {
-      this.killPty(pty, 'terminal client dispose');
+    for (const session of map.values()) {
+      this.detachOrDestroy(session);
     }
     this.sessions.delete(ws);
   }

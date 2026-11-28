@@ -1,8 +1,12 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import type { WSServerMessage } from '@/types';
 
 const fixture = vi.hoisted(() => ({
   send: vi.fn(),
+  writes: vi.fn(),
+  handlers: new Map<string, (message: WSServerMessage) => void>(),
+  status: null as null | ((status: { state: string }) => void),
   font: { fontFamily: 'monospace', fontSize: 14, lineHeight: 1 },
   nextSize: { cols: 80, rows: 24 },
   terminal: null as null | {
@@ -10,10 +14,24 @@ const fixture = vi.hoisted(() => ({
     unicode: { activeVersion: string };
     addons: unknown[];
     options: Record<string, unknown>;
+    input?: (data: string) => void;
   },
 }));
 vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => ({ send: fixture.send, on: () => () => {} }),
+  getWSClient: () => ({
+    send: fixture.send,
+    on: (name: string, handler: (message: WSServerMessage) => void) => {
+      fixture.handlers.set(name, handler);
+      return () => fixture.handlers.delete(name);
+    },
+    onStatus: (handler: (status: { state: string }) => void) => {
+      fixture.status = handler;
+      handler({ state: 'open' });
+      return () => {
+        fixture.status = null;
+      };
+    },
+  }),
 }));
 vi.mock('@/hooks/use-font-settings', () => ({
   useFontSettings: () => ({ terminal: fixture.font }),
@@ -35,9 +53,13 @@ vi.mock('@xterm/xterm', () => ({
     }
     open() {}
     focus() {}
-    write() {}
+    write(data: string) {
+      fixture.writes(data);
+    }
     dispose() {}
-    onData() {
+    input?: (data: string) => void;
+    onData(input: (data: string) => void) {
+      this.input = input;
       return { dispose() {} };
     }
     onResize(listener: (size: { cols: number; rows: number }) => void) {
@@ -75,9 +97,24 @@ import { TERMINAL_HEIGHT_STORAGE_KEY } from '@/lib/terminal-dock';
 
 afterEach(() => {
   cleanup();
+  fixture.send.mockClear();
+  fixture.writes.mockClear();
+  fixture.nextSize = { cols: 80, rows: 24 };
   vi.unstubAllGlobals();
   window.localStorage.clear();
 });
+
+function ready(): string {
+  const id = fixture.send.mock.calls.find(([message]) => message.type === 'terminal.create')?.[0]
+    .payload.id;
+  act(() =>
+    fixture.handlers.get('terminal.ready')?.({
+      type: 'terminal.ready',
+      payload: { id, resumed: false },
+    }),
+  );
+  return id;
+}
 
 it('sends a font-driven grid change to the PTY without a container resize', () => {
   vi.stubGlobal(
@@ -92,15 +129,62 @@ it('sends a font-driven grid change to the PTY without a container resize', () =
     return 1;
   });
   const view = render(<TerminalPanel onClose={() => {}} onDispose={() => {}} />);
-  expect(fixture.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'terminal.create' }));
+  expect(fixture.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'terminal.create' }), {
+    queueIfDisconnected: false,
+  });
+  ready();
   fixture.send.mockClear();
   fixture.nextSize = { cols: 62, rows: 18 };
   fixture.font = { ...fixture.font, fontSize: 20 };
   view.rerender(<TerminalPanel onClose={() => {}} onDispose={() => {}} />);
-  expect(fixture.send).toHaveBeenCalledWith({
-    type: 'terminal.resize',
-    payload: { id: expect.any(String), cols: 62, rows: 18 },
-  });
+  expect(fixture.send).toHaveBeenCalledWith(
+    {
+      type: 'terminal.resize',
+      payload: { id: expect.any(String), cols: 62, rows: 18 },
+    },
+    { queueIfDisconnected: false },
+  );
+});
+
+it('keeps the emulator, skips duplicate output and does not replay offline keystrokes', () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  render(<TerminalPanel onClose={() => {}} onDispose={() => {}} />);
+  const terminal = fixture.terminal!;
+  const id = ready();
+  const output = (sequence: number, data: string) =>
+    act(() =>
+      fixture.handlers.get('terminal.output')?.({
+        type: 'terminal.output',
+        payload: { id, sequence, data },
+      }),
+    );
+  output(1, 'seen');
+  act(() => fixture.status?.({ state: 'closed' }));
+  terminal.input?.('offline');
+  act(() => fixture.status?.({ state: 'open' }));
+  expect(terminal).toBe(fixture.terminal);
+  expect(
+    fixture.send.mock.calls
+      .filter(([msg]) => msg.type === 'terminal.create')
+      .map(([msg]) => msg.payload),
+  ).toEqual([
+    expect.objectContaining({ id, after: 0, resumeOnly: false }),
+    expect.objectContaining({ id, after: 1, resumeOnly: true }),
+  ]);
+  ready();
+  output(1, 'seen');
+  output(2, 'missed');
+  terminal.input?.('online');
+  expect(fixture.writes.mock.calls).toEqual([['seen'], ['missed']]);
+  expect(fixture.send.mock.calls.filter(([msg]) => msg.type === 'terminal.input')).toEqual([
+    [{ type: 'terminal.input', payload: { id, data: 'online' } }, { queueIfDisconnected: false }],
+  ]);
 });
 
 it('measures with Unicode 11 widths, as the TUI and the PTY host do', () => {

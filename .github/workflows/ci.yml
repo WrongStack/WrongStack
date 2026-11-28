@@ -422,6 +422,9 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
+      - name: Test (TUI through Chromium and a real PTY)
+        run: bun run --filter @wrongstack/tui test:browser-terminal
+
       # vector-memory's headline capability is local ONNX embeddings via
       # @huggingface/transformers. Its integration test is gated behind
       # WRONGSTACK_VECTOR_INTEGRATION because the model download is slow and

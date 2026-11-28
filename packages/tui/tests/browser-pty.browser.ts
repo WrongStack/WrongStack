@@ -6,13 +6,26 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, chromium } from '@playwright/test';
 import { spawn } from 'node-pty';
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { WebSocket, WebSocketServer } from 'ws';
+import { type WebSocket, WebSocketServer } from 'ws';
 import { resolveBunExecutable } from '../../../scripts/lib/bun-executable.mjs';
+import { TerminalWebSocketHandler } from '../../webui-server/src/server/terminal-ws-handler.js';
+import { computeSidebarWidth } from '../src/components/sidebar.js';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const requireWebui = createRequire(new URL('../../webui/package.json', import.meta.url));
 const xtermJs = readFileSync(requireWebui.resolve('@xterm/xterm/lib/xterm.js'));
 const xtermCss = readFileSync(requireWebui.resolve('@xterm/xterm/css/xterm.css'));
+const unicodeAddon = readFileSync(requireWebui.resolve('@xterm/addon-unicode11'));
+const bun = (
+  globalThis as typeof globalThis & {
+    Bun: {
+      Transpiler: new (options: { loader: 'ts' }) => { transformSync(source: string): string };
+    };
+  }
+).Bun;
+const transportJs = new bun.Transpiler({ loader: 'ts' }).transformSync(
+  readFileSync(new URL('../../webui/src/lib/terminal-transport.ts', import.meta.url), 'utf8'),
+);
 
 interface TerminalClient {
   terminal: {
@@ -39,6 +52,7 @@ interface TerminalClient {
     };
   };
   socket: WebSocket;
+  sendInput(data: string): void;
   connect(): void;
   connected: boolean;
 }
@@ -53,12 +67,11 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
       const trace = join(root, 'terminal.bin');
       const wss = new WebSocketServer({ noServer: true });
       const clients = new Set<WebSocket>();
-      let replay = '';
       let inputMessages = 0;
       let browser: Browser | undefined;
-      let terminal: ReturnType<typeof spawn> | undefined;
+      let handler: TerminalWebSocketHandler | undefined;
       let terminalExit: Promise<void> | undefined;
-      let exitCode: number | undefined;
+      const errors: string[] = [];
       const server = createServer((req, res) => {
         if (req.url === '/xterm.js') {
           res.setHeader('Content-Type', 'text/javascript');
@@ -66,28 +79,51 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         } else if (req.url === '/xterm.css') {
           res.setHeader('Content-Type', 'text/css');
           res.end(xtermCss);
+        } else if (req.url === '/unicode11.js' || req.url === '/terminal-transport.js') {
+          res.setHeader('Content-Type', 'text/javascript');
+          res.end(req.url === '/unicode11.js' ? unicodeAddon : transportJs);
         } else {
           res.setHeader('Content-Type', 'text/html');
           res.end(`<!doctype html><link rel="stylesheet" href="/xterm.css"><div id="terminal"></div>
-          <script src="/xterm.js"></script><script>
-          let terminal;
+          <script src="/xterm.js"></script><script src="/unicode11.js"></script><script type="module">
+          import { bindTerminalTransport } from '/terminal-transport.js';
+          const terminal = window.terminal = new Terminal({ cols: 100, rows: 32, fontFamily: 'monospace', fontSize: 14, allowProposedApi: true });
+          terminal.loadAddon(new window.Unicode11Addon.Unicode11Addon());
+          terminal.unicode.activeVersion = '11';
+          terminal.open(document.getElementById('terminal'));
+          const handlers = new Map();
+          let status = () => {};
+          const ws = {
+            send(message) {
+              if (window.socket?.readyState !== WebSocket.OPEN) return false;
+              window.socket.send(JSON.stringify(message));
+              return true;
+            },
+            on(type, fn) { handlers.set(type, fn); return () => handlers.delete(type); },
+            onStatus(fn) { status = fn; return () => { status = () => {}; }; },
+          };
+          const id = 'fixture';
+          window.sendInput = (data) => ws.send({ type: 'terminal.input', payload: { id, data } });
+          bindTerminalTransport({
+            id, term: terminal, ws,
+            onRunning: () => { window.connected = true; terminal.focus(); },
+            onExit: ({ exitCode }) => terminal.write('\\r\\n[terminal exited: ' + exitCode + ']'),
+            onOutput: () => {},
+            onReplayGap: () => { throw new Error('unexpected replay gap'); },
+          });
           window.connect = () => {
-            if (terminal) terminal.dispose();
-            terminal = window.terminal = new Terminal({ cols: 100, rows: 32, fontFamily: 'monospace', fontSize: 14 });
-            terminal.open(document.getElementById('terminal'));
             const socket = window.socket = new WebSocket('ws://' + location.host);
             window.connected = false;
-            socket.onopen = () => { window.connected = true; terminal.focus(); };
-            socket.onclose = () => { window.connected = false; };
-            socket.onmessage = e => terminal.write(e.data);
-            terminal.onData(data => { if (socket.readyState === 1) socket.send(data); });
+            socket.onopen = () => status({ state: 'open' });
+            socket.onclose = () => { status({ state: 'closed' }); window.connected = false; };
+            socket.onmessage = e => { const message = JSON.parse(e.data); handlers.get(message.type)?.(message); };
           };
           connect();
           </script>`);
         }
       });
       onTestFinished(async () => {
-        if (terminal && exitCode === undefined) terminal.kill();
+        handler?.dispose();
         for (const client of clients) client.terminate();
         wss.close();
         await browser?.close();
@@ -108,11 +144,14 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
       );
       wss.on('connection', (ws) => {
         clients.add(ws);
-        ws.send(replay);
+        handler?.addClient(ws);
         ws.on('message', (data) => {
-          inputMessages++;
-          appendFileSync(join(root, 'input.jsonl'), `${JSON.stringify(data.toString())}\n`);
-          terminal?.write(data.toString());
+          const message = JSON.parse(data.toString());
+          if (message.type === 'terminal.input') {
+            inputMessages++;
+            appendFileSync(join(root, 'input.jsonl'), `${JSON.stringify(message.payload.data)}\n`);
+          }
+          void handler?.handleMessage(ws, message).catch((error) => errors.push(String(error)));
         });
         ws.on('close', () => clients.delete(ws));
       });
@@ -135,31 +174,40 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         WRONGSTACK_PTY_TEST_SIDEBAR: String(sidebar),
       };
       delete childEnv.NO_COLOR;
-      terminal = spawn(
-        resolveBunExecutable(),
-        [fileURLToPath(new URL('./helpers/browser-pty-app.tsx', import.meta.url)), root],
-        {
-          name: 'xterm-256color',
-          cols: 100,
-          rows: 32,
-          cwd: repo,
-          env: childEnv,
-        },
-      );
-      terminal.onData((data) => {
-        appendFileSync(trace, data);
-        replay += data;
-        for (const client of clients) if (client.readyState === WebSocket.OPEN) client.send(data);
-      });
-      terminalExit = new Promise<void>((resolve) =>
-        terminal!.onExit((event) => {
-          exitCode = event.exitCode;
-          resolve();
+      handler = new TerminalWebSocketHandler(
+        () => repo,
+        { level: 'silent' } as never,
+        () => ({
+          spawn: (_file, _args, opts) => {
+            const pty = spawn(
+              resolveBunExecutable(),
+              [fileURLToPath(new URL('./helpers/browser-pty-app.tsx', import.meta.url)), root],
+              {
+                ...opts,
+                env: {
+                  ...childEnv,
+                  TERM: opts.env.TERM,
+                  COLORTERM: opts.env.COLORTERM,
+                  WRONGSTACK_TUI_TERMINAL: opts.env.WRONGSTACK_TUI_TERMINAL,
+                },
+              },
+            );
+            pty.onData((data) => appendFileSync(trace, data));
+            terminalExit = new Promise<void>((resolve) => {
+              pty.onExit(() => resolve());
+            });
+            return {
+              write: (data) => pty.write(data),
+              resize: (cols, rows) => pty.resize(cols, rows),
+              kill: () => pty.kill(),
+              onData: pty.onData,
+              onExit: pty.onExit,
+            };
+          },
         }),
       );
       browser = await chromium.launch({ headless: true });
       const page = await browser.newPage({ viewport: { width: 1300, height: 850 } });
-      const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       const screen = () =>
         page.evaluate(() => {
@@ -212,6 +260,7 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
       // including its sidebar, rather than just the isolated composer.
       for (const [cols, rows, fontSize] of [
         [40, 24, 18],
+        [63, 20, 12],
         [64, 20, 12],
         [80, 24, 16],
         [160, 48, 10],
@@ -227,12 +276,25 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
           },
           [cols!, rows!, fontSize!],
         );
-        terminal.resize(cols!, rows!);
+        const mainCols = cols! - (sidebar ? computeSidebarWidth(cols!) : 0);
         await expect
-          .poll(async () => (await screen()).join('\n'), {
-            message: `composer after ${cols}x${rows} (${root})`,
-          })
-          .toContain('[Text]');
+          .poll(
+            async () => {
+              const lines = await screen();
+              const footer = lines[rows! - 2]?.slice(0, mainCols) ?? '';
+              const top =
+                lines.find((line) => line.startsWith('╭') && line.includes('WRONGSTACK')) ?? '';
+              const composerEdge = Math.max(footer.lastIndexOf('╯'), top.indexOf('╮')) + 1;
+              const sidebarVisible = lines.some((line) =>
+                /\b(?:MODEL CORE|SESSION)\b/.test(line.slice(mainCols)),
+              );
+              return { footer: footer.includes('[Text]'), composerEdge, sidebarVisible };
+            },
+            {
+              message: `composer after ${cols}x${rows} (${root})`,
+            },
+          )
+          .toEqual({ footer: true, composerEdge: mainCols, sidebarVisible: mainCols < cols! });
         await expect
           .poll(async () => (await screen()).join('\n'), {
             message: `tail after ${cols}x${rows} (${root})`,
@@ -249,7 +311,9 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
             return { type: buffer.type, baseY: buffer.baseY, viewportY: buffer.viewportY };
           }),
         ).toEqual({ type: 'alternate', baseY: 0, viewportY: 0 });
-        await page.screenshot({ path: join(root, `resize-${cols}x${rows}.png`) });
+        await page
+          .locator('.xterm-screen')
+          .screenshot({ path: join(root, `resize-${cols}x${rows}.png`) });
       }
       checked('font and grid changes keep composer, tail and alternate screen intact');
 
@@ -258,7 +322,6 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
           ([cols, rows]) => (globalThis as unknown as TerminalClient).terminal.resize(cols, rows),
           [cols, rows] as const,
         );
-        terminal.resize(cols, rows);
       };
       await resizeGrid(40, 24);
       const draft = `DRAFT-START ${'wrapped text '.repeat(39)}${' '.repeat(20)}DRAFT-END`;
@@ -407,8 +470,7 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         'App text selection highlights the dragged transcript cells and cancels at the gutter',
       );
 
-      // Keep this fixture's PTY alive across a transport disconnect. This models
-      // persistent remote terminal hosts; WebUI's per-client shell policy differs.
+      // The production terminal transport reattaches the existing renderer and PTY.
       await page.keyboard.type('reconnect draft');
       await expect.poll(async () => (await screen()).join('\n')).toContain('reconnect draft');
       await page.evaluate(() => (globalThis as unknown as TerminalClient).socket.close());
@@ -416,6 +478,9 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         .poll(() => page.evaluate(() => (globalThis as unknown as TerminalClient).connected))
         .toBe(false);
       await page.evaluate(() => (globalThis as unknown as TerminalClient).connect());
+      await expect
+        .poll(() => page.evaluate(() => (globalThis as unknown as TerminalClient).connected))
+        .toBe(true);
       await expect.poll(async () => (await screen()).join('\n')).toContain('reconnect draft');
       expect(records().filter((event) => event.type === 'boot')).toHaveLength(1);
       expect(runs()).toHaveLength(1);
@@ -434,7 +499,7 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
 
       const beforePartial = inputMessages;
       await page.evaluate(() =>
-        (globalThis as unknown as TerminalClient).socket.send('\x1b[200~first reconnect line\r'),
+        (globalThis as unknown as TerminalClient).sendInput('\x1b[200~first reconnect line\r'),
       );
       await expect.poll(() => inputMessages).toBeGreaterThan(beforePartial);
       await page.evaluate(() => (globalThis as unknown as TerminalClient).socket.close());
@@ -449,7 +514,7 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         .poll(() => page.evaluate(() => (globalThis as unknown as TerminalClient).connected))
         .toBe(true);
       await page.evaluate(() =>
-        (globalThis as unknown as TerminalClient).socket.send('second reconnect line\x1b[201~'),
+        (globalThis as unknown as TerminalClient).sendInput('second reconnect line\x1b[201~'),
       );
       await expect
         .poll(async () =>
@@ -523,7 +588,6 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
           (cols) => (globalThis as unknown as TerminalClient).terminal.resize(cols, 32),
           cols,
         );
-        terminal.resize(cols, 32);
         const top = reading![0]!;
         await expect
           .poll(async () => (await screen()).join('\n'), {
@@ -550,6 +614,47 @@ describe('full App through PTY / WebSocket / xterm.js', () => {
         'reader anchor survives stream growth and resize; paging to tail resumes following output',
       );
       await page.screenshot({ path: join(root, 'reconnected.png') });
+      await expect
+        .poll(async () => (await screen()).some((line) => /WRONGSTACK.*idle/.test(line)))
+        .toBe(true);
+      await page.keyboard.press('Control+u');
+      await expect
+        .poll(async () => (await screen()).join('\n'))
+        .not.toContain('draft while reading');
+      const longPaste = `${'a'.repeat(49_960)}🚀\nlong paste end`;
+      await page.evaluate(
+        (text) => (globalThis as unknown as TerminalClient).terminal.paste(text),
+        longPaste,
+      );
+      await expect
+        .poll(async () => (await screen()).find((line) => line.includes('│ >')) ?? '', {
+          message: `long paste should stay in the composer (${root})`,
+          timeout: 15_000,
+        })
+        .toContain('pasted #');
+      expect(runs()).toHaveLength(5);
+      await page.keyboard.press('Enter');
+      await expect.poll(() => runs()).toHaveLength(6);
+      const pasted =
+        runs()[5]
+          ?.blocks?.map((block) => block.text ?? '')
+          .join('') ?? '';
+      expect(pasted.includes(longPaste)).toBe(true);
+      await expect
+        .poll(async () => (await screen()).join('\n'))
+        .toContain('PTY completed request 6');
+      const oversizedPaste = `${'a'.repeat(65_529)}🚀\noversized paste end`;
+      await page.evaluate(
+        (text) => (globalThis as unknown as TerminalClient).terminal.paste(text),
+        oversizedPaste,
+      );
+      await expect
+        .poll(async () => (await screen()).join('\n'), { timeout: 15_000 })
+        .toContain('Paste rejected');
+      expect(runs()).toHaveLength(6);
+      checked(
+        'the production route delivers a large Unicode paste and its closing delimiter intact',
+      );
       expect(errors).toEqual([]);
     },
     60_000,

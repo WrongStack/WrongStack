@@ -858,6 +858,9 @@
     "hintEsc": "Esc schließen"
   },
   "terminal": {
+    "reconnecting": "Terminal wird erneut verbunden…",
+    "replayGap": "Während der Unterbrechung ging ein Teil der Ausgabe verloren.",
+    "resumeExpired": "[Terminalsitzung abgelaufen · über Neustart eine neue Shell öffnen]",
     "resize": "Terminals skalieren",
     "labelPlural": "Terminals",
     "projectShell": "Projekt-Shell",

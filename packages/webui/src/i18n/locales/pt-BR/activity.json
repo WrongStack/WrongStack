@@ -858,6 +858,9 @@
     "hintEsc": "Esc fechar"
   },
   "terminal": {
+    "reconnecting": "Reconectando o terminal…",
+    "replayGap": "Parte da saída foi perdida durante a desconexão.",
+    "resumeExpired": "[sessão do terminal expirada · use Reiniciar para abrir um novo shell]",
     "resize": "Redimensionar terminais",
     "labelPlural": "Terminais",
     "projectShell": "Shell do projeto",

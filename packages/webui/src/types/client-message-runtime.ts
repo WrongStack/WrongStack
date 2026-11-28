@@ -338,7 +338,14 @@ export type ClientMessageRuntime =
   | { type: 'design.kept'; payload?: SessionScopedPayload }
   | {
       type: 'terminal.create';
-      payload: { id: string; cols?: number | undefined; rows?: number | undefined };
+      payload: {
+        id: string;
+        cols?: number | undefined;
+        rows?: number | undefined;
+        resumeKey?: string | undefined;
+        resumeOnly?: boolean | undefined;
+        after?: number | undefined;
+      };
     }
   | { type: 'terminal.input'; payload: { id: string; data: string } }
   | { type: 'terminal.resize'; payload: { id: string; cols: number; rows: number } }

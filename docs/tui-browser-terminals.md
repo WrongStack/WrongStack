@@ -191,12 +191,13 @@ whole and byte-fragmented input. It requires the Playwright Chromium runtime;
 use the repository's `bun run install:browser` setup if it is absent. The test
 owns a loopback-only fixture server and closes it and Chromium on teardown.
 
-The component harness uses an injected TTY stream. A second scenario,
-`packages/tui/tests/browser-pty.browser.ts`, starts Bun in a real `node-pty`
-terminal and calls production `runTui()` with the full App, real attachment
-storage and restored transcript. Only the agent/provider responses are a
-deterministic fixture; no live model or account is used. The fixture sets the
-browser host markers and `TERM=xterm-256color` explicitly on Windows too.
+The component harness uses an injected TTY stream. The full-App scenario in
+`packages/tui/tests/browser-pty.browser.ts` connects Chromium/xterm.js to the
+WebUI terminal transport and server handler, with the same Unicode 11 add-on
+as WebUI. It runs production `runTui()` in a real `node-pty` terminal, with real
+attachment storage and a restored transcript. The PTY starts the fixture App
+directly and the agent responses are deterministic. CI runs these scenarios
+through `test:browser-terminal`.
 
 The full-App scenario covers:
 
@@ -205,6 +206,8 @@ The full-App scenario covers:
   and PTY are resized; checks assert one composer, a visible live tail and no
   native scrollback drift in the alternate screen.
 - Multiline paste: the original lines reach the agent once, only after Enter.
+  A paste just below the TUI's 50,000-character limit reaches the agent intact.
+  A larger paste reaches the TUI and gets an explicit size error.
 - PageUp and actual browser wheel events moving the managed transcript.
 - A reader anchor surviving new streamed output and width changes, followed by
   PageDown returning to the tail and following subsequent output.
@@ -219,9 +222,13 @@ The full-App scenario covers:
 Each PTY run retains screenshots, `terminal.bin`, `input.jsonl`, `events.jsonl`
 and `checks.jsonl` under `.temp_files/tui-browser-terminals/pty-*/` for inspection.
 All browser/server/PTY resources are closed by test teardown, including failures.
-The reconnect bridge is a test fixture for persistent terminal hosts. It does
-not change the WebUI integrated terminal's existing per-client policy, which
-kills its shell on disconnect. Product-specific ttyd/code-server deployments,
+WebUI keeps an open tab's PTY available for 60 seconds after a connection loss.
+The tab keeps its renderer and uses a private in-memory key to reattach. The
+server replays recent unread output from a bounded history and reports a gap
+if it discarded older output. Keystrokes entered while disconnected are
+discarded. Closing the tab while connected stops its PTY immediately. Reloading
+the page loses the session key. The dock's Restart command opens a new shell
+after the old session expires. Product-specific ttyd/code-server deployments,
 mobile IME input, clipboard copying and the image preview modal require their
 own validation.
 

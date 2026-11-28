@@ -858,6 +858,9 @@
     "hintEsc": "Esc kapat"
   },
   "terminal": {
+    "reconnecting": "Terminal yeniden bağlanıyor…",
+    "replayGap": "Bağlantı kesikken bazı çıktılar kaçırıldı.",
+    "resumeExpired": "[terminal oturumunun süresi doldu · yeni kabuk için Yeniden Başlat’ı kullanın]",
     "resize": "Terminalleri yeniden boyutlandır",
     "labelPlural": "Terminaller",
     "projectShell": "Proje kabuğu",

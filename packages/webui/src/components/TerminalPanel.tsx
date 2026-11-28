@@ -1,10 +1,10 @@
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { Terminal } from '@xterm/xterm';
+import { bindTerminalTransport } from '@/lib/terminal-transport';
 import { safeId } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
-import type { WSServerMessage } from '@/types';
 import '@xterm/xterm/css/xterm.css';
 import { Plus, RotateCcw, TerminalSquare, Trash2, X } from 'lucide-react';
 import {
@@ -419,6 +419,10 @@ function TerminalSession({
   const onRunningRef = useRef(onRunning);
   const onExitRef = useRef(onExit);
   const wsConnected = useConfigStore((s) => s.wsConnected);
+  const wsUrl = useConfigStore((s) => s.wsUrl);
+  const [lostOutput, setLostOutput] = useState(false);
+  const [exited, setExited] = useState(false);
+  const { t } = useAppTranslation('activity');
   const { terminal: terminalFont } = useFontSettings();
 
   useEffect(() => {
@@ -457,6 +461,7 @@ function TerminalSession({
       scrollback: 5000,
       // `term.unicode` is a proposed API.
       allowProposedApi: true,
+      disableStdin: true,
     });
     const fit = new FitAddon();
     termRef.current = term;
@@ -478,42 +483,22 @@ function TerminalSession({
       /* container not laid out yet */
     }
 
-    const ws = getWSClient(useConfigStore.getState().wsUrl);
-
-    ws.send({ type: 'terminal.create', payload: { id, cols: term.cols, rows: term.rows } });
-
-    // Only flip the tab to "running" once the PTY proves it's alive (first
-    // output frame). Marking it on create would show a green tab forever
-    // when the server-side spawn fails.
-    let sawOutput = false;
-    const offOut = ws.on('terminal.output', (msg: WSServerMessage) => {
-      if (msg.type === 'terminal.output' && msg.payload.id === id) {
-        if (!sawOutput) {
-          sawOutput = true;
-          onRunningRef.current();
-        }
-        term.write(msg.payload.data);
-        noteTerminalOutput(id, msg.payload.data);
-      }
+    const disconnect = bindTerminalTransport({
+      id,
+      term,
+      ws: getWSClient(wsUrl),
+      onRunning: () => onRunningRef.current(),
+      onOutput: (data) => noteTerminalOutput(id, data),
+      onExit: ({ disconnected, exitCode }) => {
+        setExited(true);
+        const message = disconnected
+          ? i18n.t('activity:terminal.resumeExpired')
+          : i18n.t('activity:terminal.processExited', { code: exitCode });
+        term.write(`\r\n\x1b[2m${message}\x1b[0m\r\n`);
+        onExitRef.current(exitCode);
+      },
+      onReplayGap: () => setLostOutput(true),
     });
-    const offExit = ws.on('terminal.exit', (msg: WSServerMessage) => {
-      if (msg.type === 'terminal.exit' && msg.payload.id === id) {
-        term.write(
-          `\r\n\x1b[2m${i18n.t('activity:terminal.processExited', { code: msg.payload.exitCode })}\x1b[0m\r\n`,
-        );
-        onExitRef.current(msg.payload.exitCode);
-      }
-    });
-
-    const onData = term.onData((data) => {
-      ws.send({ type: 'terminal.input', payload: { id, data } });
-    });
-    // A font/zoom change can resize the grid without changing the container.
-    // Forward xterm's actual grid changes from every fit path to the PTY.
-    const onResize = term.onResize(({ cols, rows }) => {
-      ws.send({ type: 'terminal.resize', payload: { id, cols, rows } });
-    });
-
     const syncSize = () => {
       if (!container.offsetParent) return;
       try {
@@ -526,19 +511,13 @@ function TerminalSession({
     ro.observe(container);
 
     return () => {
-      offOut();
-      offExit();
-      onData.dispose();
-      onResize.dispose();
       ro.disconnect();
-      ws.send({ type: 'terminal.close', payload: { id } });
+      disconnect();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
     };
-    // Re-create the pty after a WebSocket reconnect because the new server-side
-    // socket has no process for the previous terminal id.
-  }, [id, wsConnected]);
+  }, [id, wsUrl]);
 
   useEffect(() => {
     if (!active) return;
@@ -556,12 +535,16 @@ function TerminalSession({
   }, [active, id]);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        'absolute inset-0 min-h-0 min-w-0 overflow-hidden px-2 py-1',
-        active ? 'block' : 'hidden',
-      )}
-    />
+    <div className={cn('absolute inset-0 min-h-0 min-w-0', active ? 'block' : 'hidden')}>
+      <div ref={containerRef} className="absolute inset-0 overflow-hidden px-2 py-1" />
+      {(!wsConnected && !exited) || lostOutput ? (
+        <div
+          role="status"
+          className="pointer-events-none absolute bottom-2 right-3 rounded bg-black/90 px-2 py-1 text-xs text-white"
+        >
+          {t(!wsConnected && !exited ? 'terminal.reconnecting' : 'terminal.replayGap')}
+        </div>
+      ) : null}
+    </div>
   );
 }

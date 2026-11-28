@@ -99,7 +99,8 @@ describe('surface protocol contract', () => {
     // +1: btw.state (pending same-session BTW instructions).
     // +1: hq.state (Import from HQ).
     // +1: acp.mode (its reply).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(335);
+    // +1: terminal.ready (reconnect handshake).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(336);
     expect(SERVER_MESSAGE_TYPES).toContain('acp.config_options');
     expect(SERVER_MESSAGE_TYPES).toContain('acp.mode');
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));

@@ -40,6 +40,7 @@ export const SERVER_WORKSPACE_MESSAGE_TYPES = [
   'projects.selected',
   'terminal.exit',
   'terminal.output',
+  'terminal.ready',
   'working_dir.changed',
   'worktree.cleanup_result',
   'worktree.diff_result',

@@ -319,10 +319,22 @@ export type WSSystemMiscServerMessage =
       type: 'cron.job_fired';
       payload: { name: string; action: string; runCount: number; ts: string };
     }
-  | { type: 'terminal.output'; payload: { id: string; data: string } }
+  | {
+      type: 'terminal.output';
+      payload: { id: string; data: string; sequence?: number | undefined };
+    }
+  | {
+      type: 'terminal.ready';
+      payload: { id: string; resumed: boolean; lostOutput?: boolean | undefined };
+    }
   | {
       type: 'terminal.exit';
-      payload: { id: string; exitCode: number; signal?: number | undefined };
+      payload: {
+        id: string;
+        exitCode: number;
+        signal?: number | undefined;
+        disconnected?: boolean | undefined;
+      };
     }
   | { type: 'prompts.journal'; payload: WSPromptsJournalPayload };
 
