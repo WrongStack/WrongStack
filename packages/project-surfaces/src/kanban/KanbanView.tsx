@@ -419,82 +419,76 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       />
 
       <main className="flex min-h-0 min-w-0 flex-none flex-col md:flex-1">
-        {/* Without a board the header only said "No board selected" above the empty state
-            saying it again; the empty state below is the one place that says it. */}
         {activeBoard && (
           <header className="ws-page-header flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b">
             <PageMotif kind="flow" />
             <BoardHeading board={activeBoard} />
-            {activeBoard && (
-              <>
-                <input
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') createTask();
-                  }}
-                  placeholder={t('activity:kanban.newTask')}
-                  aria-label={t('activity:kanban.newTaskTitle')}
-                  className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-56"
-                />
-                <button
-                  type="button"
-                  title={t('activity:kanban.addTask')}
-                  onClick={createTask}
-                  className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <Plus size={16} />
-                </button>
-                <button
-                  type="button"
-                  title={t('activity:kanban.duplicateBoard')}
-                  onClick={duplicateBoard}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <Copy size={16} />
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={showHistory}
-                  title={t('activity:kanban.boardHistory')}
-                  onClick={() => {
-                    if (!showHistory && activeBoardId)
-                      sendKanban('kanban.board.history', { boardId: activeBoardId });
-                    setShowHistory(!showHistory);
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                >
-                  <History size={16} />
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={confirmDeleteBoard}
-                  title={
-                    confirmDeleteBoard
-                      ? t('activity:kanban.confirmDeleteBoard')
-                      : t('activity:kanban.deleteBoard')
-                  }
-                  onClick={() => {
-                    if (confirmDeleteBoard && armedDeleteBoardIdRef.current === activeBoard?.id) {
-                      setConfirmDeleteBoard(false);
-                      armedDeleteBoardIdRef.current = null;
-                      deleteBoard();
-                    } else {
-                      armedDeleteBoardIdRef.current = activeBoard?.id ?? null;
-                      setConfirmDeleteBoard(true);
-                    }
-                  }}
-                  className={cn(
-                    'flex h-8 items-center justify-center rounded-md border transition-colors',
-                    confirmDeleteBoard
-                      ? 'w-16 gap-1 border-destructive/40 bg-destructive/15 text-[11px] font-semibold text-destructive'
-                      : 'w-16 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-                  )}
-                >
-                  {confirmDeleteBoard ? t('activity:kanban.confirmDelete') : <Trash2 size={16} />}
-                </button>
-              </>
-            )}
+            <input
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') createTask();
+              }}
+              placeholder={t('activity:kanban.newTask')}
+              aria-label={t('activity:kanban.newTaskTitle')}
+              className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-56"
+            />
+            <button
+              type="button"
+              title={t('activity:kanban.addTask')}
+              onClick={createTask}
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus size={16} />
+            </button>
+            <button
+              type="button"
+              title={t('activity:kanban.duplicateBoard')}
+              onClick={duplicateBoard}
+              className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Copy size={16} />
+            </button>
+            <button
+              type="button"
+              aria-pressed={showHistory}
+              title={t('activity:kanban.boardHistory')}
+              onClick={() => {
+                if (!showHistory && activeBoardId)
+                  sendKanban('kanban.board.history', { boardId: activeBoardId });
+                setShowHistory(!showHistory);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+            >
+              <History size={16} />
+            </button>
+            <button
+              type="button"
+              aria-pressed={confirmDeleteBoard}
+              title={
+                confirmDeleteBoard
+                  ? t('activity:kanban.confirmDeleteBoard')
+                  : t('activity:kanban.deleteBoard')
+              }
+              onClick={() => {
+                if (confirmDeleteBoard && armedDeleteBoardIdRef.current === activeBoard?.id) {
+                  setConfirmDeleteBoard(false);
+                  armedDeleteBoardIdRef.current = null;
+                  deleteBoard();
+                } else {
+                  armedDeleteBoardIdRef.current = activeBoard?.id ?? null;
+                  setConfirmDeleteBoard(true);
+                }
+              }}
+              className={cn(
+                'flex h-8 items-center justify-center rounded-md border transition-colors',
+                confirmDeleteBoard
+                  ? 'w-16 gap-1 border-destructive/40 bg-destructive/15 text-[11px] font-semibold text-destructive'
+                  : 'w-16 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+              )}
+            >
+              {confirmDeleteBoard ? t('activity:kanban.confirmDelete') : <Trash2 size={16} />}
+            </button>
           </header>
         )}
 
@@ -530,7 +524,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
             onSelectTask={setSelectedTaskId}
           />
         )}
-        {/* With no board at all, the views (Board, Tree, Contract map…) have nothing to show. */}
         {(activeBoard || boards.length > 0) && (
           <KanbanViewModeTabs
             viewMode={viewMode}
