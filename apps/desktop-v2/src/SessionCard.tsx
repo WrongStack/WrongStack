@@ -1,4 +1,4 @@
-import { ArrowRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import './stat-tiles.css';
 import { ageParts, isLive, type Session, sessionStatus, sessionTitle } from './model';
@@ -14,6 +14,7 @@ export type MetricTone = 'accent' | 'info' | 'success' | 'warning' | 'danger' | 
 /**
  * A stat tile: a tinted icon, the number, and one short note. An optional bar splits the whole
  * into its kinds (running, paused, failed…), so the tile shows the shape and not only the sum.
+ * With `onOpen` the tile is the way into the page it counts.
  */
 export function Metric({
   icon,
@@ -23,6 +24,8 @@ export function Metric({
   live = false,
   tone = 'accent',
   segments,
+  onOpen,
+  description,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -31,10 +34,13 @@ export function Metric({
   live?: boolean;
   tone?: MetricTone;
   segments?: readonly MetricSegment[] | undefined;
+  onOpen?: (() => void) | undefined;
+  /** What the page it opens is for, as the tile's tooltip. */
+  description?: string | undefined;
 }) {
   const total = segments?.reduce((sum, segment) => sum + Math.max(0, segment.value), 0) ?? 0;
-  return (
-    <div className={`metric tone-${tone}`}>
+  const body = (
+    <>
       <div className="metric-label">
         <span className="metric-icon" aria-hidden="true">
           {icon}
@@ -65,7 +71,20 @@ export function Metric({
         </span>
       )}
       <p>{note}</p>
-    </div>
+      {onOpen && <ArrowUpRight size={14} className="metric-open" aria-hidden="true" />}
+    </>
+  );
+  return onOpen ? (
+    <button
+      type="button"
+      className={`metric metric-link tone-${tone}`}
+      title={description}
+      onClick={onOpen}
+    >
+      {body}
+    </button>
+  ) : (
+    <div className={`metric tone-${tone}`}>{body}</div>
   );
 }
 export function SessionCard({

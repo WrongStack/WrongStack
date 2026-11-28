@@ -745,7 +745,7 @@
     },
     "sessions": {
       "title": "Sessions",
-      "active": "Active: {{count}} · projects keep their knowledge when conversations end.",
+      "active": "{{count}} active",
       "terminal": "Open terminal",
       "empty": "No conversations yet. Your project workspace is ready whenever you are.",
       "start": "Start a session"

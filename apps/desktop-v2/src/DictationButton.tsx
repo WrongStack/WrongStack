@@ -1,4 +1,4 @@
-import { Mic, MicOff } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { speechStatus, startSpeech, stopSpeech } from './platform';
@@ -84,7 +84,9 @@ export function DictationButton({
         disabled={disabled || !status.available}
         onClick={() => void toggle()}
       >
-        {status.available ? <Mic size={14} /> : <MicOff size={14} />}
+        {/* Unavailable, the mic is dimmed (disabled) with the reason as its tooltip; a crossed-out
+            mic read as a broken control. */}
+        <Mic size={14} />
       </button>
       {(heard || problem) && (
         <span className="dictation-status" role={problem ? 'alert' : 'status'}>

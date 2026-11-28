@@ -492,3 +492,34 @@
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 5%, transparent);
   color: var(--accent);
 }
+
+/* The sidebar toggle is not a page: open, its icon is simply at full strength. Styled like the
+   current page it made two rail items look selected on Settings, Appearance and Plan quota. */
+.app-shell .rail-button.explorer-toggle[aria-expanded="true"] {
+  color: var(--text);
+}
+
+/* The fold tab shows while the composer or the tab itself is pointed at or focused: always on
+   screen it read as a stray chevron on the composer's top edge. It takes the composer's own
+   corner radius (none with Sharp corners). */
+.app-shell .composer-fold-controls:has(+ .composer-host:not([hidden])) > .button {
+  border-radius: var(--corner-sm) var(--corner-sm) 0 0;
+  transition: opacity 120ms ease;
+}
+.app-shell
+  .composer-fold-controls:not(:hover):has(
+    + .composer-host:not([hidden]):not(:hover):not(:focus-within)
+  )
+  > .button:not(:focus-visible) {
+  opacity: 0;
+}
+
+/* A disabled primary button is neutral, not a paler blue: at 40% opacity "Save settings" with
+   nothing to save looked almost as ready as an enabled one, in light mode especially. */
+.app-shell button.primary:disabled {
+  background: color-mix(in srgb, var(--text) 7%, var(--raised));
+  border-color: var(--border);
+  box-shadow: none;
+  color: var(--subtle);
+  opacity: 1;
+}

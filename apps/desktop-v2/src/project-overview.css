@@ -14,6 +14,12 @@
   flex: 1 1 240px;
   min-width: 0;
 }
+.overview-identity > .overview-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .overview-identity h1 {
   font-size: clamp(22px, 3vw, 32px);
   font-weight: 600;
@@ -46,68 +52,6 @@
   flex-wrap: wrap;
   gap: 8px 14px;
   margin-bottom: 10px;
-}
-.overview-tool-links {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 26px;
-}
-.overview-tool-links > button {
-  --tool-tone: var(--accent);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  border-radius: var(--corner-lg);
-  background:
-    radial-gradient(
-      120% 100% at 0% 0%,
-      color-mix(in srgb, var(--tool-tone) 12%, transparent),
-      transparent 65%
-    ),
-    var(--raised);
-  color: var(--muted);
-  text-align: start;
-  transition: border-color 120ms ease;
-}
-.overview-tool-links > button:has(.tone-violet) {
-  --tool-tone: oklch(0.68 0.16 300);
-}
-.overview-tool-links > button:has(.tone-warning) {
-  --tool-tone: hsl(var(--ws-warning));
-}
-.overview-tool-links > button:has(.tone-info) {
-  --tool-tone: hsl(var(--ws-info));
-}
-.overview-tool-links > button:hover {
-  border-color: color-mix(in srgb, var(--tool-tone) 55%, var(--border));
-}
-.overview-tool-links .project-tool-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--corner-lg);
-}
-.overview-tool-links > button > span:not(.project-tool-icon) {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-.overview-tool-links strong {
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 650;
-}
-.overview-tool-links small {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-.overview-tool-links > button > svg:last-child {
-  color: var(--subtle);
 }
 .project-overview .project-session-rows {
   border-block-start: 1px solid var(--border);

@@ -745,7 +745,7 @@
     },
     "sessions": {
       "title": "Sitzungen",
-      "active": "Aktiv: {{count}} · Projekte behalten ihr Wissen, wenn Unterhaltungen enden.",
+      "active": "{{count}} aktiv",
       "terminal": "Terminal öffnen",
       "empty": "Noch keine Unterhaltungen. Dein Projekt-Arbeitsbereich ist bereit, wann immer du es bist.",
       "start": "Sitzung starten"

@@ -311,7 +311,6 @@ function DesktopShell() {
       </div>
       <DesktopStatusBar
         project={section !== 'wrongstack' && section !== 'engine' ? currentProject : undefined}
-        session={focused ? currentSession : undefined}
         connected={connected}
         liveCount={vm.active.length}
         onShowLive={() => {

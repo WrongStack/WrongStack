@@ -110,7 +110,8 @@
 }
 .project-tools-menu.overview .project-tool {
   display: flex;
-  align-items: center;
+  /* Titles on one line across a row of cards, however long each description runs. */
+  align-items: flex-start;
   gap: 12px;
   width: 100%;
   min-width: 0;

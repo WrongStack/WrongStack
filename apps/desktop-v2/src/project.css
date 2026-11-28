@@ -69,9 +69,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.project-context-bar > .button {
-  margin-left: auto;
-}
 .project-page-content {
   flex: 1;
   min-height: 0;

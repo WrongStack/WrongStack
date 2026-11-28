@@ -1,18 +1,21 @@
-import { Folder, Terminal, Workflow } from 'lucide-react';
+import { Folder } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import { desktopVersion } from './desktop-version';
-import { type Project, type Session, sessionTitle } from './model';
+import type { Project } from './model';
 import './desktop-chrome.css';
 
+/**
+ * The window's bottom line: where the open project lives on disk, then the version, the live
+ * sessions and the engine connection. The project's and session's names are the top bar's; the
+ * status bar repeated them (and said "Mission control" on Settings and Appearance).
+ */
 export function DesktopStatusBar({
   project,
-  session,
   connected,
   liveCount,
   onShowLive,
 }: {
   project: Project | undefined;
-  session: Session | undefined;
   connected: boolean;
   liveCount: number;
   onShowLive: () => void;
@@ -20,19 +23,13 @@ export function DesktopStatusBar({
   const { t } = useDesktopText();
   const connection = t(connected ? 'topbar.connected' : 'topbar.disconnected');
   const version = desktopVersion();
-  const title = session ? sessionTitle(session, t('workbench.untitled')) : undefined;
-  const SessionIcon = session?.kind === 'terminal' ? Terminal : Workflow;
   return (
     <footer className="desktop-status-bar">
       <div className="desktop-status-context">
-        <span title={project?.root}>
-          <Folder size={13} aria-hidden="true" />
-          <span>{project?.name ?? t('rail.missionControl')}</span>
-        </span>
-        {title && (
-          <span className="desktop-status-session" title={title}>
-            <SessionIcon size={13} aria-hidden="true" />
-            <span>{title}</span>
+        {project?.root && (
+          <span title={project.root}>
+            <Folder size={13} aria-hidden="true" />
+            <span>{project.root}</span>
           </span>
         )}
       </div>

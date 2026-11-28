@@ -1,11 +1,11 @@
 import {
   ChevronDown,
-  Command,
   FileCode2,
   GitCompareArrows,
   Menu,
   PanelLeft,
   Plus,
+  Search,
   Terminal,
 } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
@@ -142,7 +142,7 @@ export function WorkbenchMenu({
               })
             }
           >
-            <Command size={15} aria-hidden="true" />
+            <Search size={15} aria-hidden="true" />
             <span>{t('explorer.findAnything')}</span>
             <kbd>Ctrl K</kbd>
           </button>

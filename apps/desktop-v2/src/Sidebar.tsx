@@ -221,7 +221,8 @@ export function Sidebar({ vm, explorer }: { vm: DesktopController; explorer: Wor
         {main('activity', t('rail.activity'), Activity)}
         <button
           type="button"
-          className={`rail-button explorer-toggle ${explorerOpen ? 'active' : ''}`}
+          // A toggle, not a place: its open state is a plain icon, never the active page's edge.
+          className="rail-button explorer-toggle"
           ref={explorerToggle}
           aria-label={t('explorer.toggle')}
           title={`${t('explorer.toggle')} (Ctrl+B)`}

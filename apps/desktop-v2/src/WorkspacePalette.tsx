@@ -1,4 +1,4 @@
-import { Command, CornerDownLeft, Folder, Search, Terminal, Workflow, X } from 'lucide-react';
+import { CornerDownLeft, Folder, Search, Terminal, Workflow, X } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
@@ -19,7 +19,7 @@ export function WorkspacePalette({ vm }: { vm: DesktopController }) {
     {
       id: 'commands',
       label: t('workspaceDialog.commands'),
-      items: usePaletteActions(vm, query).map((action) => ({ ...action, Icon: Command })),
+      items: usePaletteActions(vm, query),
     },
     {
       id: 'projects',

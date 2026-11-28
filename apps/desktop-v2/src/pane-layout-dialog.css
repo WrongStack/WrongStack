@@ -104,3 +104,35 @@
   justify-content: flex-end;
   margin-bottom: 0;
 }
+
+/* One row per pane: checkbox and name on the left, width and unit on the right. The modal's
+   own `label` (block, 18px margins) and `input` (block, full width) rules made the checkbox a
+   full-width block and wrapped each name one word per line at a different offset. */
+.modal .pane-layout-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-block: 10px;
+}
+.modal .pane-layout-row label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+.modal .pane-layout-row label:last-child {
+  color: var(--muted);
+}
+.modal .pane-layout-row input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+}
+.modal .pane-layout-row input[type="number"] {
+  display: inline-block;
+  width: 76px;
+  margin: 0;
+}

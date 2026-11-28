@@ -745,7 +745,7 @@
     },
     "sessions": {
       "title": "Oturumlar",
-      "active": "Etkin: {{count}} · projeler, konuşmalar bitince de bilgilerini korur.",
+      "active": "{{count}} etkin",
       "terminal": "Terminal aç",
       "empty": "Henüz konuşma yok. Proje çalışma alanın, sen hazır olduğunda hazır.",
       "start": "Oturum başlat"

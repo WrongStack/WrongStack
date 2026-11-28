@@ -74,7 +74,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tree-session-row:is(:hover, :focus-within, .chosen, [aria-busy="true"]) .tree-session-actions {
+/* Actions show on hover or keyboard focus (and while the session runs, for its stop). Always shown
+   on the chosen row, they covered its title for good: "Review the" with no ellipsis. */
+.tree-session-row:is(:hover, :focus-within, [aria-busy="true"]) .tree-session-actions {
   opacity: 1;
 }
 .tree-session-actions .icon-button {

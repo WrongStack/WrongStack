@@ -2,7 +2,6 @@ import {
   Activity,
   ArrowRight,
   BookOpen,
-  Boxes,
   Brain,
   Folder,
   KanbanSquare,
@@ -81,22 +80,17 @@ const ProjectTechStack = lazy(() =>
 );
 
 export function ProjectWorkspace({ project, vm }: { project: Project; vm: DesktopController }) {
-  const { t } = useDesktopText();
   const [promptsOpen, setPromptsOpen] = useState(false);
   return (
     <div className="project-workspace">
-      <div className="project-context-bar">
-        <ProjectBreadcrumb project={project} vm={vm} />
-        <button
-          type="button"
-          className="button secondary small"
-          onClick={() => setPromptsOpen(true)}
-        >
-          <BookOpen size={13} /> {t('composer.library')}
-        </button>
-      </div>
+      {/* The overview's own header names the project; a page under it gets the way back. */}
+      {vm.projectPage !== 'overview' && (
+        <div className="project-context-bar">
+          <ProjectBreadcrumb project={project} vm={vm} />
+        </div>
+      )}
       <RuntimeGate scope="project" projectId={project.id}>
-        <ProjectContent project={project} vm={vm} />
+        <ProjectContent project={project} vm={vm} onOpenPrompts={() => setPromptsOpen(true)} />
       </RuntimeGate>
       {promptsOpen && (
         <PromptWorkspace
@@ -110,7 +104,16 @@ export function ProjectWorkspace({ project, vm }: { project: Project; vm: Deskto
     </div>
   );
 }
-function ProjectContent({ project, vm }: { project: Project; vm: DesktopController }) {
+function ProjectContent({
+  project,
+  vm,
+  onOpenPrompts,
+}: {
+  project: Project;
+  vm: DesktopController;
+  /** Opens the project's prompt library, which needs no session. */
+  onOpenPrompts: () => void;
+}) {
   const { state, send, command } = useProjectEngine(project.id, vm.reportError);
   const { t } = useDesktopText();
   const projectSessions = vm.snapshot.sessions.filter((item) => item.projectId === project.id);
@@ -419,6 +422,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           command={command}
           http={http}
           mailboxActivity={state.results['mailbox.event']}
+          onOpenPrompts={onOpenPrompts}
         />
       )}
     </div>
@@ -430,6 +434,7 @@ function ProjectOverview({
   command,
   http,
   mailboxActivity,
+  onOpenPrompts,
 }: {
   project: Project;
   vm: DesktopController;
@@ -437,6 +442,7 @@ function ProjectOverview({
   http: ReturnType<typeof projectHttp>;
   /** The latest mailbox event; a change re-reads the unread count. */
   mailboxActivity: unknown;
+  onOpenPrompts: () => void;
 }) {
   const { t } = useDesktopText();
   const [memories, setMemories] = useState<number | null>(null),
@@ -481,14 +487,19 @@ function ProjectOverview({
             <code>{project.root}</code>
           </span>
         </div>
-        <button
-          type="button"
-          className="button primary"
-          disabled={vm.pending}
-          onClick={() => vm.newSession(project.id)}
-        >
-          <Plus size={15} aria-hidden="true" /> {t('fleetView.newSession')}
-        </button>
+        <div className="overview-actions">
+          <button type="button" className="button secondary" onClick={onOpenPrompts}>
+            <BookOpen size={15} aria-hidden="true" /> {t('composer.library')}
+          </button>
+          <button
+            type="button"
+            className="button primary"
+            disabled={vm.pending}
+            onClick={() => vm.newSession(project.id)}
+          >
+            <Plus size={15} aria-hidden="true" /> {t('fleetView.newSession')}
+          </button>
+        </div>
       </header>
       <div className="metrics-strip fleet-kpis project-kpis">
         <Metric
@@ -510,6 +521,8 @@ function ProjectOverview({
           value={memories ?? '—'}
           tone="violet"
           note={t('overview.kpi.memories')}
+          description={t('overview.memory.body')}
+          onOpen={() => vm.setProjectPage('memory')}
         />
         <Metric
           icon={<KanbanSquare size={14} />}
@@ -517,13 +530,17 @@ function ProjectOverview({
           value={tasks}
           tone="warning"
           note={t('overview.kpi.boards', { count: boards.length })}
+          description={t('overview.kanban.body')}
+          onOpen={() => vm.setProjectPage('kanban')}
         />
         <Metric
-          icon={<Boxes size={14} />}
+          icon={<Network size={14} />}
           label={t('pages.atlas')}
           value={packages ?? '—'}
           tone="info"
           note={t('overview.kpi.packages')}
+          description={t('overview.atlas.body')}
+          onOpen={() => vm.setProjectPage('atlas')}
         />
       </div>
       <section className="project-session-summary">
@@ -572,38 +589,6 @@ function ProjectOverview({
           </div>
         )}
       </section>
-      <div className="overview-tool-links">
-        <button type="button" onClick={() => vm.setProjectPage('memory')}>
-          <span className="project-tool-icon tone-violet" aria-hidden="true">
-            <Brain size={20} />
-          </span>
-          <span>
-            <strong>{t('pages.memory')}</strong>
-            <small>{t('overview.memory.body')}</small>
-          </span>
-          <ArrowRight size={14} aria-hidden="true" />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('kanban')}>
-          <span className="project-tool-icon tone-warning" aria-hidden="true">
-            <KanbanSquare size={20} />
-          </span>
-          <span>
-            <strong>{t('pages.kanban')}</strong>
-            <small>{t('overview.kanban.body')}</small>
-          </span>
-          <ArrowRight size={14} aria-hidden="true" />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('atlas')}>
-          <span className="project-tool-icon tone-info" aria-hidden="true">
-            <Network size={20} />
-          </span>
-          <span>
-            <strong>{t('pages.atlas')}</strong>
-            <small>{t('overview.atlas.body')}</small>
-          </span>
-          <ArrowRight size={14} aria-hidden="true" />
-        </button>
-      </div>
       <ProjectToolsMenu
         page={vm.projectPage}
         onOpen={(id) => vm.setProjectPage(id)}

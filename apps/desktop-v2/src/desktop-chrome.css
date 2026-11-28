@@ -57,13 +57,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--user-font-code, monospace);
 }
 .desktop-status-context svg {
   flex: none;
-}
-.desktop-status-session {
-  border-inline-start: 1px solid var(--border);
-  padding-inline-start: 8px;
 }
 .desktop-status-meta {
   flex: none;
@@ -88,7 +85,6 @@
   background: hsl(var(--ws-success));
 }
 @media (max-width: 619px) {
-  .desktop-status-context > .desktop-status-session,
   .desktop-status-version {
     display: none;
   }

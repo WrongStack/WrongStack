@@ -745,7 +745,7 @@
     },
     "sessions": {
       "title": "Sesiones",
-      "active": "Activas: {{count}} · los proyectos conservan su conocimiento cuando terminan las conversaciones.",
+      "active": "{{count}} activas",
       "terminal": "Abrir terminal",
       "empty": "Aún no hay conversaciones. El espacio de trabajo de tu proyecto está listo cuando tú lo estés.",
       "start": "Iniciar una sesión"

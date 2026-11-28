@@ -51,7 +51,11 @@ describe('palette actions', () => {
     ).toHaveLength(6);
     expect(idle.textContent).toContain('Start a new agent session');
     const found = render(vm, 'kanban');
-    expect(found.textContent).toContain('/kanban');
+    expect(found.textContent).toContain('Open the project task board');
+    // The slash command still finds the page; the row shows its name, not the command.
+    const bySlash = render(vm, '/kanban');
+    expect(bySlash.textContent).toContain('Open the project task board');
+    expect(bySlash.textContent).not.toContain('/kanban');
     expect(render(vm, 'no such action').querySelector('[role="status"]')?.textContent).toContain(
       'No matching commands',
     );
