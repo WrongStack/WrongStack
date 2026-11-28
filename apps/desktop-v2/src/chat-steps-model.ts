@@ -10,6 +10,8 @@ export type StepVerb =
   | 'ran'
   | 'running'
   | 'fetched'
+  | 'listed'
+  | 'delegated'
   | 'updatedPlan'
   | null;
 
@@ -37,6 +39,9 @@ export type ChatStep =
     }
   | { kind: 'note'; row: ActivityRow };
 
+/** A call quicker than this shows no time: "0.0 s" on every fast read said nothing. */
+export const MEASURABLE_MS = 100;
+
 /** Edits up to this many changed lines show their diff under the row in a live turn. */
 export const INLINE_DIFF_LINES = 14;
 const TARGET_LIMIT = 120;
@@ -56,6 +61,8 @@ function verbFor(name: string, running: boolean): StepVerb {
   if (key === 'write' || key === 'write_file' || key === 'create_file') return 'wrote';
   if (/^(bash|exec|shell|powershell|terminal)$/.test(key)) return running ? 'running' : 'ran';
   if (/^(fetch|web_fetch|http|http_request|web_search)$/.test(key)) return 'fetched';
+  if (key === 'ls' || key === 'list_dir' || key === 'list_files') return 'listed';
+  if (/^(task|delegate|spawn_agent|agent)$/.test(key)) return 'delegated';
   return null;
 }
 

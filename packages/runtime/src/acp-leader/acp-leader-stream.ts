@@ -18,6 +18,7 @@ import type {
 } from '@wrongstack/contracts/types';
 import { documentAsText, ProviderError } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { acpToolOutputText, acpToolView } from './acp-tool-view.js';
 
 /** A push-to-pull bridge: the agent's progress callback pushes, the stream iterates. */
 export class StreamQueue {
@@ -127,10 +128,7 @@ export function cardOutputForText(text: string): CardOutput {
 }
 
 function cardOutput(call: ACPCapturedToolCall): CardOutput | undefined {
-  const raw = call.rawOutput;
-  const text =
-    call.output ??
-    (raw ? (typeof raw.output === 'string' ? raw.output : JSON.stringify(raw)) : undefined);
+  const text = acpToolOutputText(call);
   if (text === undefined) return undefined;
   return cardOutputForText(text);
 }
@@ -138,7 +136,9 @@ function cardOutput(call: ACPCapturedToolCall): CardOutput | undefined {
 /**
  * The agent's own tool calls as the host's tool cards: `tool.started` once a
  * call is announced, `tool.executed` once it settles. Named by the agent's
- * title ("Read src/a.ts", "git status"), which is what the user needs to see.
+ * title ("Read src/a.ts", "git status"), so no listener that acts on tool
+ * names mistakes them for WrongStack's own calls; `view` carries the matching
+ * WrongStack tool and input for surfaces to show (see acp-tool-view.ts).
  */
 export class ToolCardRelay {
   private readonly started = new Map<string, number>();
@@ -150,6 +150,8 @@ export class ToolCardRelay {
       sessionId?: string | undefined;
       model: string;
       provider?: string | undefined;
+      /** The project the agent works in: paths under it show relative. */
+      cwd?: string | undefined;
     },
   ) {}
 
@@ -157,6 +159,7 @@ export class ToolCardRelay {
     if (!this.events) return;
     const id = call.toolCallId;
     const name = call.title || call.kind || 'tool';
+    const view = acpToolView(call, this.meta.cwd);
     if (!this.started.has(id)) {
       this.started.set(id, Date.now());
       this.events.emit('tool.started', {
@@ -167,6 +170,7 @@ export class ToolCardRelay {
         input: call.rawInput,
         provider: this.meta.provider ?? 'acp',
         model: this.meta.model,
+        ...(view ? { view } : {}),
       });
     }
     if ((call.status === 'completed' || call.status === 'failed') && !this.settled.has(id)) {
@@ -182,6 +186,7 @@ export class ToolCardRelay {
         settlement: call.status === 'completed' ? 'completed' : 'failed',
         input: call.rawInput,
         outsideConversation: true,
+        ...(view ? { view } : {}),
         ...output,
       });
     }

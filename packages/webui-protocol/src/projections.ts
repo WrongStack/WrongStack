@@ -125,7 +125,18 @@ export function projectChatMessage(message: ProtocolEnvelope): ChatProjection | 
 }
 
 export type ToolProjection =
-  | { kind: 'started'; id: string; name: string; input: unknown; messageId: string }
+  | {
+      kind: 'started';
+      id: string;
+      name: string;
+      input: unknown;
+      messageId: string;
+      /**
+       * An ACP agent's own title for the call, when `name` and `input` come from the
+       * event's `view` (the WrongStack tool the call matches).
+       */
+      agentTitle?: string | undefined;
+    }
   | { kind: 'progress'; id: string; name: string; eventType: string; text: string }
   | {
       kind: 'executed';
@@ -145,17 +156,29 @@ export type ToolProjection =
       outputLines?: number | undefined;
     };
 
+/**
+ * A tool event's display `view`: the WrongStack tool an ACP agent's call matches,
+ * with that tool's input. The event's `name` is then the agent's own title.
+ */
+function toolView(payload: Record<string, unknown>): { name: string; input: unknown } | null {
+  const view = record(payload['view']);
+  const name = text(view?.['name']);
+  return view && name ? { name, input: view['input'] } : null;
+}
+
 export function projectToolMessage(message: ProtocolEnvelope): ToolProjection | null {
   const payload = record(message.payload);
   if (!payload) return null;
   if (message.type === 'tool.started') {
-    const name = text(payload['name'], 'tool');
+    const title = text(payload['name'], 'tool');
+    const view = toolView(payload);
     return {
       kind: 'started',
-      id: text(payload['id'], name),
-      name,
-      input: payload['input'],
+      id: text(payload['id'], title),
+      name: view?.name ?? title,
+      input: view ? view.input : payload['input'],
       messageId: text(payload['messageId']),
+      ...(view && view.name !== title ? { agentTitle: title } : {}),
     };
   }
   if (message.type === 'tool.progress') {
@@ -169,11 +192,11 @@ export function projectToolMessage(message: ProtocolEnvelope): ToolProjection | 
     };
   }
   if (message.type === 'tool.executed') {
-    const name = text(payload['name'], 'tool');
+    const title = text(payload['name'], 'tool');
     return {
       kind: 'executed',
-      id: text(payload['id'], name),
-      name,
+      id: text(payload['id'], title),
+      name: toolView(payload)?.name ?? title,
       ok: payload['ok'] !== false,
       durationMs: finite(payload['durationMs']),
       ...(typeof payload['output'] === 'string' ? { output: payload['output'] } : {}),

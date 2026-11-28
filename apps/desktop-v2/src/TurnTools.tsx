@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { CheckCircle2, ChevronRight, LoaderCircle, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ChatSteps, TurnChanges } from './ChatSteps';
-import { changedFiles, stepSeconds, stepsDuration } from './chat-steps-model';
+import { changedFiles, MEASURABLE_MS, stepSeconds, stepsDuration } from './chat-steps-model';
 import { formatTokens, type TurnStats } from './context-usage';
 import {
   type ConversationDisplay,
@@ -253,7 +253,9 @@ export function LiveRunActivity({
               {calls
                 ? t(calls === 1 ? 'chatSteps.step' : 'chatSteps.steps', { count: calls })
                 : t('turn.activity')}
-              {duration !== undefined ? <small> · {stepSeconds(duration)}</small> : null}
+              {duration !== undefined && duration >= MEASURABLE_MS ? (
+                <small> · {stepSeconds(duration)}</small>
+              ) : null}
             </strong>
             {live ? (
               <LoaderCircle

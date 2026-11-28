@@ -1,4 +1,5 @@
 import type { EngineEvent } from './engine-state';
+import { toolView } from './session-activity-model';
 
 /** "read ×3 · edit" style summary of a turn's completed tool calls, in first-use order. */
 export function turnToolSummary(events: readonly EngineEvent[]): {
@@ -10,7 +11,9 @@ export function turnToolSummary(events: readonly EngineEvent[]): {
   let failed = 0;
   for (const event of events) {
     if (event.type !== 'tool.executed') continue;
-    const rawName = typeof event.payload['name'] === 'string' ? event.payload['name'].trim() : '';
+    const rawName =
+      toolView(event.payload)?.name ??
+      (typeof event.payload['name'] === 'string' ? event.payload['name'].trim() : '');
     const name = rawName || 'tool';
     counts.set(name, (counts.get(name) ?? 0) + 1);
     if (event.payload['ok'] === false) failed += 1;

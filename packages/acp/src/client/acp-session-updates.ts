@@ -168,6 +168,9 @@ function toolOutputText(u: { [k: string]: unknown }): string | undefined {
   return undefined;
 }
 
+/** Diffs kept on one tool call's record (all of them still go to `scratch.diffs`). */
+const MAX_CALL_DIFFS = 20;
+
 function captureToolCall(
   u: { [k: string]: unknown },
   isNew: boolean,
@@ -213,6 +216,7 @@ function captureToolCall(
         ? { locations: prev.locations }
         : {}),
     ...(mergedTerminals && mergedTerminals.length > 0 ? { terminalIds: mergedTerminals } : {}),
+    ...(prev?.diffs ? { diffs: prev.diffs } : {}),
   };
   scratch.toolCalls.set(toolCallId, record);
   if (scratch.text) scratch.messageBreak = true;
@@ -231,6 +235,9 @@ function captureToolCall(
           newText: c.newText,
         };
         scratch.diffs.push(diff);
+        // Bounded: a call that rewrites many files keeps its first ones for display.
+        if ((record.diffs?.length ?? 0) < MAX_CALL_DIFFS)
+          record.diffs = [...(record.diffs ?? []), diff];
         emitProgress({ type: 'diff', diff });
       }
     }

@@ -46,15 +46,18 @@ export function ActivityEntryBody({
   row,
   onOpenFile,
   command,
+  overview = true,
 }: {
   row: ActivityRow;
+  /** The shared overview card of a known tool (the run log has it; a conversation row does not). */
+  overview?: boolean | undefined;
   onOpenFile: (path: string) => void;
   command?: EngineCommand | undefined;
 }) {
   const { t } = useDesktopText();
   return (
     <div className="activity-entry-body">
-      {row.kind === 'tool' && hasToolOverview(row.title, row.input) && (
+      {overview && row.kind === 'tool' && hasToolOverview(row.title, row.input) && (
         <I18nextProvider i18n={surfaceI18n}>
           <div className="ws-surfaces">
             <ToolCallOverview

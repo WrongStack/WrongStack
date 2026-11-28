@@ -9943,7 +9943,9 @@
       "ran": "Çalıştırıldı",
       "running": "Çalışıyor",
       "fetched": "Getirildi",
-      "updatedPlan": "Plan güncellendi"
+      "updatedPlan": "Plan güncellendi",
+      "listed": "Listelendi",
+      "delegated": "Devredildi"
     },
     "fileChanged": "{{count}} dosya değişti",
     "filesChanged": "{{count}} dosya değişti",

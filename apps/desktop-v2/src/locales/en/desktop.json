@@ -9943,7 +9943,9 @@
       "ran": "Ran",
       "running": "Running",
       "fetched": "Fetched",
-      "updatedPlan": "Updated the plan"
+      "updatedPlan": "Updated the plan",
+      "listed": "Listed",
+      "delegated": "Delegated"
     },
     "fileChanged": "{{count}} file changed",
     "filesChanged": "{{count}} files changed",

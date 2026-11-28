@@ -9943,7 +9943,9 @@
       "ran": "Eseguito",
       "running": "In esecuzione",
       "fetched": "Recuperato",
-      "updatedPlan": "Piano aggiornato"
+      "updatedPlan": "Piano aggiornato",
+      "listed": "Elencato",
+      "delegated": "Delegato"
     },
     "fileChanged": "{{count}} file modificato",
     "filesChanged": "{{count}} file modificati",

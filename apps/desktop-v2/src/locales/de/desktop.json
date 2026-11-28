@@ -9943,7 +9943,9 @@
       "ran": "Ausgeführt",
       "running": "Läuft",
       "fetched": "Abgerufen",
-      "updatedPlan": "Plan aktualisiert"
+      "updatedPlan": "Plan aktualisiert",
+      "listed": "Aufgelistet",
+      "delegated": "Delegiert"
     },
     "fileChanged": "{{count}} Datei geändert",
     "filesChanged": "{{count}} Dateien geändert",

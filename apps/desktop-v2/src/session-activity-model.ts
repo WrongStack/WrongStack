@@ -19,9 +19,29 @@ export interface ActivityRow {
   agent?: string;
   /** The iteration in which this row first appeared; late tool results keep that ownership. */
   iterationId?: string;
+  /**
+   * The agent's own name for a call an ACP agent ran (its `title` is then the matching
+   * WrongStack tool, from the event's `view`), shown as the row's tooltip.
+   */
+  agentTitle?: string;
+  /** The MCP server of an ACP agent's MCP call. */
+  server?: string;
   /** Catalog wording for run rows; `title` stays the English plain-text form. */
   label?: { key: string; values?: Record<string, string | number> };
 }
+/** A tool event's display view (`view`): the WrongStack tool an ACP agent's call matches. */
+export function toolView(
+  payload: Record<string, unknown>,
+): { name: string; input: unknown; server?: string } | undefined {
+  const view = record(payload['view']);
+  if (typeof view['name'] !== 'string' || !view['name']) return undefined;
+  return {
+    name: view['name'],
+    input: view['input'],
+    ...(typeof view['server'] === 'string' ? { server: view['server'] } : {}),
+  };
+}
+
 /** Build readable activity from engine frames and locally observed process boundaries. */
 export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
   const rows: ActivityRow[] = [];
@@ -65,8 +85,16 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
         tools.set(key, row);
       }
       if (at !== undefined && (event.type === 'tool.started' || row.at === undefined)) row.at = at;
-      if (typeof p['name'] === 'string') row.title = p['name'];
-      if (p['input'] !== undefined) row.input = p['input'];
+      // An ACP agent's call: shown as the WrongStack tool it matches (its `view`), the agent's
+      // own title and raw input kept aside.
+      const view = toolView(p);
+      if (typeof p['name'] === 'string') {
+        if (view && p['name'] !== view.name) row.agentTitle = p['name'];
+        row.title = view?.name ?? p['name'];
+      }
+      if (view?.input !== undefined) row.input = view.input;
+      else if (!view && p['input'] !== undefined) row.input = p['input'];
+      if (view?.server) row.server = view.server;
       if (typeof p['agentName'] === 'string') row.agent = p['agentName'];
       else if (agent) row.agent = agent;
       if (Array.isArray(p['fileTargets'])) {

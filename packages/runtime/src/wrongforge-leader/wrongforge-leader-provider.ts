@@ -441,6 +441,7 @@ export class WrongForgeLeaderProvider implements Provider {
       sessionId: req.cache?.sessionId,
       model: model ?? req.model,
       provider: this.id,
+      cwd: host?.projectRoot,
     });
 
     yield { type: 'message_start', model: model ?? req.model };

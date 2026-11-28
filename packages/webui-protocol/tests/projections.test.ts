@@ -190,6 +190,36 @@ describe('projectToolMessage', () => {
     ).toEqual({ kind: 'started', id: 't9', name: 'grep', input: null, messageId: '' });
   });
 
+  it("shows an ACP agent's call as the WrongStack tool its view names, its title kept aside", () => {
+    const view = { name: 'read', input: { path: 'src/a.ts' } };
+    expect(
+      projectToolMessage(
+        envelope('tool.started', {
+          id: 'c1',
+          name: 'Read D:\\app\\src\\a.ts',
+          input: { file_path: 'D:\\app\\src\\a.ts' },
+          view,
+        }),
+      ),
+    ).toEqual({
+      kind: 'started',
+      id: 'c1',
+      name: 'read',
+      input: { path: 'src/a.ts' },
+      messageId: '',
+      agentTitle: 'Read D:\\app\\src\\a.ts',
+    });
+    expect(
+      projectToolMessage(
+        envelope('tool.executed', { id: 'c1', name: 'Read D:\\app\\src\\a.ts', ok: true, view }),
+      ),
+    ).toMatchObject({ kind: 'executed', id: 'c1', name: 'read' });
+    // A view without a name is ignored.
+    expect(
+      projectToolMessage(envelope('tool.started', { id: 'c2', name: 'Thing', view: { input: 1 } })),
+    ).toMatchObject({ name: 'Thing', input: undefined });
+  });
+
   it('projects tool.progress with trimmed event text', () => {
     expect(
       projectToolMessage(

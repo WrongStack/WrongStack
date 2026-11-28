@@ -483,10 +483,8 @@ export class AcpLeaderProvider implements Provider {
     sessionId: string | undefined,
     on: { text?: (text: string) => void; toolCall?: () => void } = {},
   ): (event: ACPProgressEvent) => void {
-    const tools = new ToolCardRelay(acpLeaderHost()?.events, {
-      sessionId,
-      model: leader.agentId,
-    });
+    const { events, projectRoot: cwd } = acpLeaderHost() ?? {};
+    const tools = new ToolCardRelay(events, { sessionId, model: leader.agentId, cwd });
     return (event) => {
       switch (event.type) {
         case 'message':

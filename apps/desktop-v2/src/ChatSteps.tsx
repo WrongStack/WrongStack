@@ -16,6 +16,7 @@ import {
   type ChangedFile,
   type ChatStep,
   chatSteps,
+  MEASURABLE_MS,
   outputTail,
   type PlanItem,
   stepSeconds,
@@ -99,7 +100,10 @@ function StepView({
   command?: EngineCommand | undefined;
 }) {
   const { t } = useDesktopText();
-  const body = <ActivityEntryBody row={step.row} onOpenFile={onOpenFile} command={command} />;
+  // The row above already names the tool, its target and its result: no overview card here.
+  const body = (
+    <ActivityEntryBody row={step.row} onOpenFile={onOpenFile} command={command} overview={false} />
+  );
   if (step.kind === 'thought') {
     const thinking = live && last;
     return (
@@ -169,7 +173,10 @@ function StepView({
         className={`chat-step activity-entry activity-${row.status} activity-kind-tool${step.diff && live ? ' with-diff' : ''}`}
         summary={
           <summary
-            title={step.verb ? `${row.title}${step.target ? ` · ${step.target}` : ''}` : undefined}
+            title={
+              row.agentTitle ??
+              (step.verb ? `${row.title}${step.target ? ` · ${step.target}` : ''}` : undefined)
+            }
           >
             <span className="chat-step-icon">
               <ToolKindIcon name={row.title} size={13} />
@@ -177,6 +184,7 @@ function StepView({
             <span className="activity-entry-label chat-step-label">
               <strong>{verb}</strong>
               {step.target ? <code className="chat-step-target">{step.target}</code> : null}
+              {row.server ? <small className="chat-step-agent">{row.server}</small> : null}
               {/* The conversation is the leader's: only another agent's call names its agent. */}
               {row.agent && row.agent !== 'leader' ? (
                 <small className="chat-step-agent">{row.agent}</small>
@@ -188,7 +196,7 @@ function StepView({
                 {step.removed ? <span className="removed">-{step.removed}</span> : null}
               </span>
             ) : null}
-            {row.durationMs !== undefined && (
+            {row.durationMs !== undefined && row.durationMs >= MEASURABLE_MS && (
               <small className="chat-step-time">{stepSeconds(row.durationMs)}</small>
             )}
             <StatusIcon row={row} />

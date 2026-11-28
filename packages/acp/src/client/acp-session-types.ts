@@ -139,6 +139,11 @@ export interface ACPCapturedToolCall {
   locations?: ToolCallLocation[] | undefined;
   /** Terminal ids attached to the tool call via `{ type: 'terminal', terminalId }`. */
   terminalIds?: string[] | undefined;
+  /**
+   * The file changes the call's `content` carried (`{ type: 'diff' }`), once
+   * each. Codex describes a file change only this way: no `rawInput`.
+   */
+  diffs?: ACPCapturedDiff[] | undefined;
 }
 
 export interface ACPSessionRunResult {

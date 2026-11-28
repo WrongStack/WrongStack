@@ -10,6 +10,22 @@ import type {
 } from '../../types/tool.js';
 import type { UserInputRequest, UserInputResponse } from '../../types/user-input.js';
 
+/**
+ * How a surface shows a tool call: the WrongStack tool it matches and that
+ * tool's input. Set on the cards of calls an ACP agent ran itself, whose
+ * `name` is the agent's own title ("Read D:\a\b.ts"). Display only:
+ * listeners that act on tool names keep reading `name`, so nothing treats
+ * the agent's edit as one WrongStack made.
+ */
+interface ToolCallView {
+  /** The matching WrongStack tool: `read`, `edit`, `write`, `bash`, `grep`, ... */
+  name: string;
+  /** The input in that tool's shape (`{ path, old_string, new_string }`, `{ command }`). */
+  input?: unknown | undefined;
+  /** The MCP server of an MCP tool call. */
+  server?: string | undefined;
+}
+
 export interface ToolEventMap {
   /** A tool is blocked until an interactive surface submits this structured form. */
   'user.input_requested': {
@@ -50,6 +66,8 @@ export interface ToolEventMap {
     provider?: string | undefined;
     /** LLM model that produced this tool call. */
     model?: string | undefined;
+    /** How surfaces show the call, when `name` is not a WrongStack tool's (see ToolCallView). */
+    view?: ToolCallView | undefined;
   };
   /**
    * Fired when a tool call finishes successfully. Metrics collectors can count
@@ -306,6 +324,8 @@ export interface ToolEventMap {
      * `output` is all a surface gets and it renders the card at once.
      */
     outsideConversation?: boolean | undefined;
+    /** How surfaces show the call, when `name` is not a WrongStack tool's (see ToolCallView). */
+    view?: ToolCallView | undefined;
     /**
      * With `outsideConversation`: the result beyond the `output` preview, as
      * the inspect/copy payload — no conversation tool_result holds it.
