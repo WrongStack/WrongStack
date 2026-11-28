@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T16:21:24.101Z",
+  "generatedAt": "2026-11-28T16:28:16.979Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6673,
+    "sourceFiles": 6674,
     "testFiles": 6607,
-    "sourceLines": 1369095,
+    "sourceLines": 1369096,
     "workspaceEdges": 268,
-    "moduleEdges": 19588,
+    "moduleEdges": 19589,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -740,7 +740,7 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 170,
+      "sourceFiles": 171,
       "testFiles": 175,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -42485,8 +42485,8 @@
     },
     {
       "file": "packages/plugins/src/adversary-mode/policy.ts",
-      "lines": 724,
-      "relativeImports": 1
+      "lines": 701,
+      "relativeImports": 2
     },
     {
       "file": "packages/plugins/src/audit/index.ts",

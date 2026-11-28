@@ -4,6 +4,7 @@ import { basename, join, resolve } from 'node:path';
 import { shellCommandLinesFromInput } from '@wrongstack/core/security';
 import { compilePathGlob, safeProfileName, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { nonnegativeFiniteLimit, safePrefix } from '../runtime/string-boundaries.js';
+import { withoutHarmlessRedirections } from './shell-redirections.js';
 
 export type AdversaryEngine = 'auto' | 'brain' | 'jev' | 'council' | 'llm';
 export type AdversaryActionMode = 'block' | 'warn';
@@ -523,30 +524,6 @@ export function matchesWatchedTool(toolName: string, patterns: readonly string[]
 }
 
 const FILE_MUTATION_TOOLS = new Set(['write', 'edit', 'patch', 'replace']);
-
-/** Where a redirection target ends: the next blank, separator or closer. */
-const REDIRECT_END = String.raw`(?=$|[\s;&|)])`;
-/** `2>&1`, `>&2`, `>&-`: duplicating or closing a descriptor writes no file. */
-const FD_DUPLICATION = new RegExp(String.raw`\d*>&\s*(?:\d+|-)${REDIRECT_END}`, 'g');
-/**
- * Redirection into the null device. The target must END there:
- * `> nul/../.wrongstack/adversary.md` names a directory called `nul`.
- */
-const NULL_DEVICE = new RegExp(String.raw`(?:\d*|&)>>?\s*(?:\/dev\/null|nul)${REDIRECT_END}`, 'gi');
-/** PowerShell's `$null`. In a POSIX shell `$null` is an ordinary variable. */
-const PWSH_NULL = new RegExp(String.raw`(?:\d*|\*)>>?\s*\$null${REDIRECT_END}`, 'gi');
-
-/**
- * The line with the redirections that cannot write a file removed, so the
- * everyday `2>/dev/null`, `2>&1`, `>&2` and pwsh `2>$null` stop reading as
- * a write. Every `>` used to: a READ of the policy
- * (`cat .wrongstack/adversary.md 2>/dev/null`) was refused as tampering,
- * with "do not retry", even while the plugin was dormant.
- */
-function withoutHarmlessRedirections(line: string, pwsh: boolean): string {
-  const out = line.replace(FD_DUPLICATION, ' ').replace(NULL_DEVICE, ' ');
-  return pwsh ? out.replace(PWSH_NULL, ' ') : out;
-}
 const PATH_KEYS = ['path', 'file', 'filePath', 'file_path', 'target', 'destination'] as const;
 
 export interface TamperCheckOptions {

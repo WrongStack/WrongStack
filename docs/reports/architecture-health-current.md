@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T16:21:24.101Z
+**Generated:** 2026-11-28T16:28:16.979Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 51 |
-| Production source files | 6673 |
-| Production source lines | 1369095 |
+| Production source files | 6674 |
+| Production source lines | 1369096 |
 | Test files | 6607 |
 | Workspace dependency edges | 268 |
-| Relative module edges | 19588 |
+| Relative module edges | 19589 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 10 | 31 | — |
 | @wrongstack/plug-lsp | 52 | 74 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 12 | 18 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 170 | 175 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/plugins | 171 | 175 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 27 | 55 | — |
 | @wrongstack/project-surfaces | 280 | 59 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/providers | 142 | 163 | @wrongstack/contracts, @wrongstack/core |
