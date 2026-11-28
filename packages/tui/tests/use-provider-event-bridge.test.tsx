@@ -399,6 +399,29 @@ describe('useProviderEventBridge', () => {
       .find((action) => action.type === 'addEntry' && action.entry.kind === 'tool');
     expect(toolAction?.entry).toMatchObject({ name: 'Read src/a.ts', ok: true, output: 'line 1' });
     expect(toolAction?.entry).not.toHaveProperty('copyOutput');
+
+    // With a `view`, the card is the WrongStack tool the agent's call matches.
+    await act(async () => {
+      events.emit('tool.executed', {
+        id: 'acp-tc2',
+        name: 'Read D:appsrc\b.ts',
+        input: { file_path: 'D:appsrc\b.ts' },
+        durationMs: 5,
+        ok: true,
+        output: 'line 2',
+        outsideConversation: true,
+        view: { name: 'read', input: { path: 'src/b.ts' } },
+      });
+      await Promise.resolve();
+    });
+    const viewed = dispatch.mock.calls
+      .map(([action]) => action)
+      .findLast((action) => action.type === 'addEntry' && action.entry.kind === 'tool');
+    expect(viewed?.entry).toMatchObject({
+      name: 'read',
+      input: { path: 'src/b.ts' },
+      output: 'line 2',
+    });
     unmount();
   });
 

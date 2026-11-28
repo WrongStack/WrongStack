@@ -287,6 +287,9 @@ export function useProviderEventBridge({
       // generic tool entry so history doesn't also show the big JSON blob.
       if (e.name !== 'delegate') {
         const sageStats = pendingSageStats.get(e.name);
+        // `view` names the WrongStack tool an ACP agent's call matches (its `name` is the
+        // agent's title). The delegate card has its own renderer and input, so it keeps the title.
+        const shown = e.view && e.view.name !== 'delegate' ? e.view : undefined;
         const addToolEntry = (output: string | undefined, copyOutput?: string): void => {
           const accessHint = networkAccessHint(e.name, e.ok, output);
           if (accessHint) dispatch({ type: 'addEntry', entry: { kind: 'warn', text: accessHint } });
@@ -294,10 +297,11 @@ export function useProviderEventBridge({
             type: 'addEntry',
             entry: {
               kind: 'tool',
-              name: e.name,
+              // An ACP agent's own call: shown as the WrongStack tool it matches.
+              name: shown?.name ?? e.name,
               durationMs: e.durationMs,
               ok: e.ok,
-              input: e.input,
+              input: shown ? shown.input : e.input,
               output,
               ...(copyOutput !== undefined ? { copyOutput } : {}),
               // SAGE-injected memory travels beside the output preview so it
