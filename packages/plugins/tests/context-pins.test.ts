@@ -239,6 +239,32 @@ describe('context-pins plugin', () => {
     expect(texts).toEqual(['other', 'mine']);
   });
 
+  it("shows a pin another session wrote in this session's prompt and pin_list", async () => {
+    const filePath = join(tmp, 'pins.json');
+    const api = makeApi({ extensions: { 'context-pins': { filePath } } });
+    contextPinsPlugin.setup(api as never);
+    await getTool(api, 'pin_add').execute({ text: 'mine' });
+    const contributor = api.registerSystemPromptContributor.mock.calls[0]![0] as () => Promise<
+      Array<{ text: string }>
+    >;
+    const stored = JSON.parse(readFileSync(filePath, 'utf-8')) as { pins: unknown[] };
+    writeFileSync(
+      filePath,
+      JSON.stringify({
+        pins: [
+          ...stored.pins,
+          { id: 'pin-2', label: null, text: 'never touch legacy/', createdAt: 'x' },
+        ],
+        nextId: 3,
+      }),
+    );
+    const prompt = (await contributor()).map((block) => block.text).join('\n');
+    expect(prompt).toContain('- mine');
+    expect(prompt).toContain('- never touch legacy/');
+    const list = (await getTool(api, 'pin_list').execute({})) as { pins: Array<{ id: string }> };
+    expect(list.pins.map((p) => p.id)).toEqual(['pin-1', 'pin-2']);
+  });
+
   it('keeps stored pins past a lowered maxPins instead of deleting them on the next write', async () => {
     const filePath = join(tmp, 'pins.json');
     const api = makeApi({ extensions: { 'context-pins': { filePath } } });

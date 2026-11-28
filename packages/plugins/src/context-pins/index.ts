@@ -232,11 +232,13 @@ type PersistOutcome = 'file' | 'memory' | 'error';
  */
 function reloadPins(filePath: string): void {
   if (!filePath) return;
+  const stamp = fileStamp(filePath);
   const loaded = loadPins(filePath);
   if (loaded.unreadable !== undefined) {
     state.loadError = loaded.unreadable;
     return;
   }
+  seenStamp = stamp;
   state.nextId = Math.max(state.nextId, loaded.nextId);
   // A pin added while the file could not be written is not on disk: keep it,
   // under an id the file does not already use.
@@ -255,6 +257,36 @@ const unsavedPins = new Set<Pin>();
 /** Set while a change runs without the file lock: it stays in memory, unwritten. */
 let lockUnavailable = false;
 
+/** pin_add / pin_remove calls between their re-read and their write. */
+let changesInFlight = 0;
+
+/** The pins file's `mtime:size` as this session last read or wrote it. */
+let seenStamp = '';
+
+function fileStamp(filePath: string): string {
+  try {
+    const stat = fs.statSync(filePath);
+    return `${stat.mtimeMs}:${stat.size}`;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unknown';
+  }
+}
+
+/**
+ * Pick up pins another session on the same project wrote since this one last
+ * read the file. Without this the prompt and `pin_list` showed the setup-time
+ * snapshot: a pin added in the TUI never reached a WebUI session's prompt
+ * until that session changed a pin itself. Skipped while one of this
+ * session's own changes is between its re-read and its write, which the swap
+ * would otherwise drop from the write.
+ */
+function refreshPins(filePath: string): void {
+  if (!filePath || changesInFlight > 0) return;
+  const stamp = fileStamp(filePath);
+  if (stamp === seenStamp || stamp === 'unknown') return;
+  reloadPins(filePath);
+}
+
 /**
  * Run a re-read + change + write under the file's cross-process lock (no file:
  * no lock). When the lock cannot be taken the change still lands in memory,
@@ -263,6 +295,7 @@ let lockUnavailable = false;
 async function underPinsLock<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
   if (!filePath) return fn();
   let ran = false;
+  changesInFlight += 1;
   try {
     return await withFileLock(filePath, () => {
       ran = true;
@@ -276,6 +309,8 @@ async function underPinsLock<T>(filePath: string, fn: () => Promise<T>): Promise
     } finally {
       lockUnavailable = false;
     }
+  } finally {
+    changesInFlight -= 1;
   }
 }
 
@@ -299,6 +334,7 @@ async function persistPins(filePath: string): Promise<PersistOutcome> {
       filePath,
       JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2),
     );
+    seenStamp = fileStamp(filePath);
     return 'file';
   } catch {
     /* v8 ignore start */
@@ -373,6 +409,7 @@ const plugin: Plugin = {
         'context-pins: configured filePath resolves outside the project and the host project directory — pins will NOT persist across sessions',
       );
     }
+    seenStamp = cfg.filePath ? fileStamp(cfg.filePath) : '';
     const loaded = loadPins(cfg.filePath);
     // Every stored pin is kept: `maxPins` caps the prompt block and refuses a
     // new pin, it does not delete. Slicing here dropped the pins past a lowered
@@ -390,6 +427,7 @@ const plugin: Plugin = {
     // ── System prompt contributor — the reason this plugin exists ─────
     if (cfg.enabled) {
       state.contributorUnregister = api.registerSystemPromptContributor(async () => {
+        refreshPins(cfg.filePath);
         if (state.pins.length === 0) return [];
         const lines = state.pins
           .slice(0, cfg.maxPins)
@@ -529,6 +567,7 @@ const plugin: Plugin = {
       category: 'Memory',
       mutating: false,
       async execute() {
+        refreshPins(cfg.filePath);
         return {
           ok: true,
           enabled: cfg.enabled,
