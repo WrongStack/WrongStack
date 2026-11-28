@@ -127,7 +127,8 @@ try {
   await shell.mouse.click(389, 30);
   assert.equal(await explorer.getAttribute('aria-expanded'), 'false');
   await shell.setViewportSize({ width: 800, height: 600 });
-  assert.equal(await explorer.isVisible(), false);
+  // Since the IDE workbench (58fad0bcda) the rail keeps the Ctrl+B explorer toggle at every width.
+  assert.equal(await explorer.isVisible(), true);
   await search.waitFor();
   assert.deepEqual(errors, []);
   console.log(

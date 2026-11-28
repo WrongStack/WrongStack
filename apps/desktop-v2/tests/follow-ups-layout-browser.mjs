@@ -199,6 +199,9 @@ try {
   await page.locator('.native-composer-stack').evaluate((stack) => {
     stack.style.marginTop = '2000px';
   });
+  // IntersectionObserver reports on a real rendering frame, which page.clock does not drive:
+  // wait until the countdown has seen the options leave (it resets to the full grace period).
+  await page.getByText('Continuing in 5 s with:', { exact: false }).waitFor();
   await page.clock.runFor(10000);
   assert.equal(
     await page.locator('[data-testid="sent"]').textContent(),
