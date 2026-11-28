@@ -522,6 +522,61 @@ describe('StatusBar chip separators', () => {
     unmount();
   });
 
+  it('keeps fleet click spans aligned below a version-only rail', () => {
+    const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+    const view = render(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        subagentCount: 1,
+        version: '1.7.25',
+        statuslineLines: { version: 3 },
+        clickMapRef,
+      }),
+    );
+    try {
+      const rows = strip(view.lastFrame() ?? '').split('\n');
+      expect(rows[2]).toContain('v1.7.25');
+      expect(rows[3]).toContain('1 agent');
+      expect(
+        clickMapRef.current?.lines.find((row) => row.spans.some((span) => span.id === 'fleet'))
+          ?.line,
+      ).toBe(3);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it('keeps model and context visible in the minimum rail with room for an action chip', () => {
+    const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+    const frame = frameOf({
+      mode: 'minimum',
+      model: 'long-provider-name/terminal-model',
+      provider: 'long-provider-name',
+      hiddenItems: ['state'],
+      context: { used: 680, max: 200_000 },
+      breakerCountdown: { remainingMs: 2300, totalMs: 4000 },
+      version: '1.7.25',
+      maxWidth: 40,
+      clickMapRef,
+    });
+    expect(frame).toContain('wait 3s');
+    expect(frame).toContain('terminal-mo');
+    expect(frame).toContain('ctx 0.3%');
+    expect(frame).not.toMatch(/\+\d+/);
+    expect(clickMapRef.current?.lines[0]?.spans.map((span) => span.id)).toEqual([
+      'breaker',
+      'model',
+      'context',
+    ]);
+  });
+
+  it('shows an already qualified model without repeating its provider', () => {
+    const frame = frameOf({ provider: 'anthropic', model: 'anthropic/claude' });
+    expect(frame).toContain('anthropic/claude');
+    expect(frame).not.toContain('anthropic/anthropic');
+  });
+
   it('renders mailbox when a peer surface is online even with no unread mail', () => {
     const frame = frameOf({
       mailbox: {

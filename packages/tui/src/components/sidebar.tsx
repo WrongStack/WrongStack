@@ -26,9 +26,10 @@
 //   children passthrough) is unchanged so existing routed panels and
 //   SidebarContent keep working without modification.
 
-import type React from 'react';
+import { type ReactElement, type ReactNode, useLayoutEffect, useRef } from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
-import { Box, Text } from '../ink.js';
+import { Box, type DOMElement, measureElement, Text } from '../ink.js';
+import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { sidebarCardSurface, theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { SidebarScrollbar } from './sidebar-scrollbar.js';
@@ -100,32 +101,15 @@ interface RightSidebarProps {
    * Content to render inside the sidebar. When omitted, a dimmed placeholder
    * label is shown so the reserved region is visually self-documenting.
    */
-  children?: React.ReactNode | undefined;
+  children?: ReactNode | undefined;
   /** Icon-only live connection strip, sharing the existing one-row footer. */
-  statusIcons?: React.ReactNode | undefined;
+  statusIcons?: ReactNode | undefined;
+  /** Publish the actual scroll range of all rendered cards. */
+  onMeasureScroll?: ((maxScroll: number) => void) | undefined;
 }
 
-/**
- * Build the rail's top accent ribbon — a two-line banner that sits above the
- * bordered shell. The ribbon is composed as:
- *
- *   <pulse> SIDE RAIL · mission control ───────────
- *   ╰── content area begins here ────────────────╯
- *
- * The width-1 subtraction matches the bordered shell's own width so the
- * ribbon, frame and panels stay column-aligned down the rail. The ribbon is
- * drawn OUTSIDE the bordered Box so the frame stays border-only — panels
- * below can use box-drawing characters in their own headers without any
- * glyph collision.
- */
 /** Hairline + key hint that anchors the bottom of the rail on focus. */
-function SidebarFooter({
-  width,
-  focused,
-}: {
-  width: number;
-  focused: boolean;
-}): React.ReactElement {
+function SidebarFooter({ width, focused }: { width: number; focused: boolean }): ReactElement {
   if (!focused) {
     return (
       <Box width={width} flexShrink={0}>
@@ -133,14 +117,13 @@ function SidebarFooter({
       </Box>
     );
   }
-  const hint = '↑↓ scroll · Shift+Tab exits';
-  const fill = Math.max(0, width - hint.length);
+  const full = '↑↓ scroll · Shift+Tab exits';
+  const hint = truncateDisplay(displayWidth(full) <= width ? full : '↑↓ · Shift+Tab', width);
+  const fill = Math.max(0, width - displayWidth(hint));
   return (
-    <Box width={width} flexShrink={0}>
-      <Text color={theme.accent} bold>
-        {glyphs.dividerDash.repeat(Math.max(0, fill))}
-      </Text>
-      <Text color={theme.accent} bold>
+    <Box width={width} height={1} flexShrink={0}>
+      <Text color={theme.accent} bold wrap="truncate-end">
+        {glyphs.dividerDash.repeat(fill)}
         {hint}
       </Text>
     </Box>
@@ -155,15 +138,20 @@ export function RightSidebar({
   maxScroll = 0,
   children,
   statusIcons,
-}: RightSidebarProps): React.ReactElement | null {
+  onMeasureScroll,
+}: RightSidebarProps): ReactElement | null {
   const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
   const resolvedWidth = width ?? computeSidebarWidth(termCols);
-
-  // Hide entirely on narrow terminals.
-  if (resolvedWidth === 0) return null;
-
-  // Subtract footer (1 row) from max height when present.
   const innerHeight = maxHeight === undefined ? undefined : Math.max(0, maxHeight - 1);
+  const contentRef = useRef<DOMElement | null>(null);
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (content && innerHeight !== undefined) {
+      onMeasureScroll?.(Math.max(0, measureElement(content).height - innerHeight));
+    }
+  });
+  if (resolvedWidth === 0) return null;
+  const visibleOffset = Math.min(maxScroll, Math.max(0, scrollOffset));
 
   // Layout: [content area | 1-col scroll rail]. The rail occupies the
   // column that was previously the right padding, and the content area
@@ -191,13 +179,13 @@ export function RightSidebar({
           overflowX="hidden"
           flexShrink={0}
         >
-          {children ?? (
-            <Box flexDirection="row" justifyContent="space-between">
+          <Box ref={contentRef} flexDirection="column" flexShrink={0} marginTop={-visibleOffset}>
+            {children ?? (
               <Text color={theme.textMuted} wrap="truncate">
                 SIDEBAR
               </Text>
-            </Box>
-          )}
+            )}
+          </Box>
         </Box>
         {/* Persistent scroll rail: dimmed, thumb-less track when the content
             fits, thumb when it overflows. The column is always reserved by
@@ -206,7 +194,7 @@ export function RightSidebar({
             never reflows the content beside it. */}
         <SidebarScrollbar
           viewportRows={innerHeight ?? 0}
-          offset={scrollOffset}
+          offset={visibleOffset}
           maxScroll={maxScroll}
           focused={focused}
         />

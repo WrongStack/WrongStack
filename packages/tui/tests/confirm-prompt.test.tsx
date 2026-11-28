@@ -275,6 +275,31 @@ describe('ConfirmPrompt', () => {
     view.unmount();
   });
 
+  it('capital Y does not approve a boundary-protected call', async () => {
+    const onDecision = vi.fn();
+    const onEnableYolo = vi.fn();
+    const view = render(
+      React.createElement(ConfirmPrompt, {
+        toolName: 'bash',
+        input: { command: 'rm -rf ./build' },
+        suggestedPattern: 'bash',
+        onDecision,
+        onEnableYolo,
+        destructive: true,
+        boundaryReason: 'kanban boundary: locked',
+      }),
+    );
+    try {
+      expect(view.lastFrame()).toContain('KANBAN BOUNDARY');
+      view.stdin.write('Y');
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(onDecision).not.toHaveBeenCalled();
+      expect(onEnableYolo).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+    }
+  });
+
   it('shows YOLO tip when no boundaryReason', () => {
     const view = render(
       React.createElement(ConfirmPrompt, {

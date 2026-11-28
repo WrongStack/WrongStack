@@ -229,6 +229,7 @@ export type AppActionRuntime =
   | { type: 'togglePlanPanel' }
   | { type: 'closeAllPanels' }
   | { type: 'toggleSidebarFocus' }
+  | { type: 'sidebarMeasureScroll'; maxScroll: number }
   | {
       type: 'sidebarScroll';
       delta: number;

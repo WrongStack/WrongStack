@@ -60,7 +60,13 @@ describe('extracted runTui facades', () => {
     const instance = { unmount: vi.fn(), waitUntilExit: vi.fn(async () => undefined) };
     mocks.render.mockReturnValueOnce(instance);
     const stdin = { on: vi.fn() };
-    const stdout = { on: vi.fn(), off: vi.fn(), write: vi.fn(), columns: 80, rows: 24 };
+    const stdout = {
+      prependListener: vi.fn(),
+      off: vi.fn(),
+      write: vi.fn(),
+      columns: 80,
+      rows: 24,
+    };
     const onRawCtrlC = vi.fn();
     const onStartupFailure = vi.fn();
 
@@ -74,7 +80,7 @@ describe('extracted runTui facades', () => {
 
     expect(mounted?.instance).toBe(instance);
     expect(stdin.on).toHaveBeenCalledWith('data', onRawCtrlC);
-    const onResize = stdout.on.mock.calls.find(([event]) => event === 'resize')?.[1] as
+    const onResize = stdout.prependListener.mock.calls.find(([event]) => event === 'resize')?.[1] as
       | (() => void)
       | undefined;
     // A resize that changed no cell is not repainted by Ink, so it must not erase.

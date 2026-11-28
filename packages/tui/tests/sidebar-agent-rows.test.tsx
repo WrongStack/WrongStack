@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
-import { SidebarContent } from '../src/components/sidebar-content.js';
+import { describe, expect, it } from 'vitest';
 import type { FleetEntry } from '../src/app-state-fleet.js';
+import { RightSidebar } from '../src/components/sidebar.js';
+import { SidebarContent } from '../src/components/sidebar-content.js';
 
 const WIDTH = 36; // typical sidebar width
 
@@ -121,13 +122,7 @@ describe('SidebarContent agent rows — 2-line format', () => {
 
   it('shows focus indicator when focused=true', () => {
     const { lastFrame } = render(
-      React.createElement(SidebarContent, {
-        contextWindow: { used: 1000, max: 10000 },
-        entries: {},
-        fleetCounts: undefined,
-        width: WIDTH,
-        focused: true,
-      }),
+      React.createElement(RightSidebar, { width: WIDTH, focused: true }),
     );
 
     const frame = lastFrame() ?? '';
@@ -137,13 +132,7 @@ describe('SidebarContent agent rows — 2-line format', () => {
 
   it('does NOT show focus indicator when focused=false', () => {
     const { lastFrame } = render(
-      React.createElement(SidebarContent, {
-        contextWindow: { used: 1000, max: 10000 },
-        entries: {},
-        fleetCounts: undefined,
-        width: WIDTH,
-        focused: false,
-      }),
+      React.createElement(RightSidebar, { width: WIDTH, focused: false }),
     );
 
     const frame = lastFrame() ?? '';

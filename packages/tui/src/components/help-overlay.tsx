@@ -2,6 +2,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { F_KEY_PANEL_ENTRIES } from '../f-key-panels.js';
 import { Box, Text, useInput } from '../ink.js';
+import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
 import { getToolVisual } from '../tool-glyph.js';
 import { panelWindow, truncatePanelText, useMonitorSize } from './monitor-shell.js';
@@ -332,13 +333,28 @@ export function HelpOverlay(): React.ReactElement {
   // terminal rows, breaking the one-row-per-entry height math.
   const toolDescWidth = Math.max(0, Math.floor((size.contentWidth - 2 * toolKeyCol - 2) / 2));
 
+  // The row budget reserves exactly one header row. Pick the shorter hint
+  // before layout so the title and the close affordance cannot wrap into a
+  // second row and steal a sheet row on narrow terminals.
+  const title = 'Keyboard shortcuts';
+  const fullHint = '· ↑/↓ scroll · PgUp/PgDn page · Esc to close';
+  const compactHint = '· ↑/↓ · PgUp/Dn · Esc to close';
+  const hint =
+    displayWidth(title) + displayWidth(fullHint) + 1 <= size.contentWidth ? fullHint : compactHint;
+
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} paddingX={1}>
-      <Box flexDirection="row" gap={1}>
-        <Text bold color={theme.accent}>
-          Keyboard shortcuts
-        </Text>
-        <Text dimColor>· ↑/↓ scroll · PgUp/PgDn page · Esc to close</Text>
+      <Box flexDirection="row" gap={1} height={1} flexShrink={0} overflow="hidden">
+        <Box flexShrink={1} minWidth={0}>
+          <Text bold color={theme.accent} wrap="truncate-end">
+            {title}
+          </Text>
+        </Box>
+        <Box flexShrink={0}>
+          <Text dimColor wrap="truncate-end">
+            {hint}
+          </Text>
+        </Box>
       </Box>
       {win.above > 0 ? <Text dimColor>{`  ↑ ${win.above} more`}</Text> : null}
       {visible.map((row, i) => {

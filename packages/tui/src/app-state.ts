@@ -330,6 +330,8 @@ export type State = PanelState & {
   sidebarFocused: boolean;
   /** Vertical scroll offset for the sidebar content (in rows). */
   sidebarScrollOffset: number;
+  /** Measured overflow of the right viewport. Initially unavailable. */
+  sidebarMaxScroll?: number | undefined;
   /**
    * Active or completed collaborative debugging session state.
    * Null when no collab session has run. Tracks counts + the event timeline

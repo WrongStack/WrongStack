@@ -264,9 +264,11 @@ export function ConfirmPrompt({
     // Ignore empty input and CRLF/LF artifacts (Enter produces \r on Windows, \n on Unix)
     if (!input || input === '\r' || input === '\n') return;
     // Capital 'Y' (Shift+y) enables YOLO mode — distinct from lowercase '[y]es'.
-    // Checked before toLowerCase() so the two can never collide.
-    if (input === 'Y' && !boundaryReason) {
-      onEnableYolo();
+    // Checked before toLowerCase() so the two can never collide. With a
+    // boundary reason YOLO is unavailable; the capital key must not fall
+    // through and approve the protected call as lowercase 'y' would.
+    if (input === 'Y') {
+      if (!boundaryReason) onEnableYolo();
       return;
     }
     const ch = input.toLowerCase();

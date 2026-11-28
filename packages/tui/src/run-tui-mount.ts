@@ -104,7 +104,9 @@ export function mountInkApp(deps: {
         // stdout might be detached mid-shutdown — ignore.
       }
     };
-    deps.stdout.on('resize', onResize);
+    // Ink can paint synchronously from its own resize listener. Clear the
+    // old surface before that listener runs, so it cannot erase a fresh row.
+    deps.stdout.prependListener('resize', onResize);
 
     return {
       instance,

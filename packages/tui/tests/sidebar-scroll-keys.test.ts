@@ -1,8 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { reducer } from '../src/app-reducer.js';
+import { EMPTY_KEY } from '../src/components/input.js';
+import type { KeyRouteContext } from '../src/key-handler-context.js';
+import { routeSidebarFocusScroll } from '../src/key-routes/key-route-pointer.js';
 import { createTestState } from './helpers/create-test-state.js';
 
 describe('Sidebar focus + scroll key routing', () => {
+  it('keeps keyboard focus in the composer when the right rail is hidden', () => {
+    const actions: unknown[] = [];
+    const context = {
+      state: createTestState(),
+      dispatch: (action: unknown) => actions.push(action),
+      stdout: { columns: 63 },
+      historyWidth: 63,
+      draftRef: { current: { buffer: '' } },
+    } as unknown as KeyRouteContext;
+    expect(routeSidebarFocusScroll(context, '', { ...EMPTY_KEY, tab: true, shift: true })).toBe(
+      false,
+    );
+    expect(actions).toEqual([]);
+    expect(
+      routeSidebarFocusScroll({ ...context, historyWidth: 43 }, '', {
+        ...EMPTY_KEY,
+        tab: true,
+        shift: true,
+      }),
+    ).toBe(true);
+    expect(actions).toEqual([{ type: 'toggleSidebarFocus' }]);
+  });
   /** Create a state with enough fleet entries to allow scrolling. */
   function createStateWithContent() {
     const state = createTestState({

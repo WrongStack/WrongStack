@@ -1,7 +1,8 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { helpSections, HelpOverlay } from '../src/components/help-overlay.js';
+import { HelpOverlay, helpSections } from '../src/components/help-overlay.js';
+import { renderRealTty, settle } from './helpers/real-tty.js';
 
 describe('helpSections', () => {
   it('returns all sections with entries', () => {
@@ -126,5 +127,20 @@ describe('HelpOverlay', () => {
     const view = render(React.createElement(HelpOverlay));
     expect(view.lastFrame()?.length).toBeGreaterThan(50);
     view.unmount();
+  });
+
+  it('keeps the title and close hint on one header row at 52 columns', async () => {
+    const view = renderRealTty(React.createElement(HelpOverlay), { columns: 52, rows: 24 });
+    try {
+      await settle();
+      const lines = view.lines().filter((line) => line.trim() !== '');
+      const titleRow = lines.findIndex((line) => line.includes('Keyboard'));
+      const hintRow = lines.findIndex((line) => line.includes('Esc to close'));
+      expect(titleRow).toBeGreaterThanOrEqual(0);
+      expect(hintRow).toBe(titleRow);
+      expect(lines.length).toBeLessThanOrEqual(24);
+    } finally {
+      view.unmount();
+    }
   });
 });

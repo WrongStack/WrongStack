@@ -1,5 +1,5 @@
-import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
+import { Box, Text, useInput } from '../ink.js';
 
 interface EscConfirmPromptProps {
   runningTools: string[];
@@ -27,6 +27,10 @@ export function EscConfirmPrompt({
       onCancel();
       return;
     }
+    // Ctrl/Meta chords must never resolve a confirmation. The slash, clear,
+    // exit and tool-approval dialogs all apply this guard; without it Ctrl+Y
+    // silently interrupts the run through the plain `y` shortcut.
+    if (key.ctrl || key.meta) return;
     const ch = input.toLowerCase();
     if (ch === 'y' || key.return) {
       onConfirm();

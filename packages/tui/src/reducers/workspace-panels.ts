@@ -180,6 +180,7 @@ const workspacePanelActionTypes = [
   'closeAllPanels',
   'toggleSidebarFocus',
   'sidebarScroll',
+  'sidebarMeasureScroll',
   'sidebarScrollSet',
   'sidebarScrollReset',
   'toggleKanbanPanel',
@@ -285,6 +286,17 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
       return state.sidebarFocused
         ? { ...state, sidebarFocused: false, sidebarScrollOffset: 0 }
         : { ...state, sidebarFocused: true };
+    case 'sidebarMeasureScroll': {
+      const maxScroll = action.maxScroll;
+      if (!Number.isFinite(maxScroll) || maxScroll < 0 || state.sidebarMaxScroll === maxScroll) {
+        return state;
+      }
+      return {
+        ...state,
+        sidebarMaxScroll: maxScroll,
+        sidebarScrollOffset: Math.min(maxScroll, state.sidebarScrollOffset),
+      };
+    }
     case 'sidebarScroll': {
       // Dynamic upper clamp: estimate the sidebar content height from the
       // current state so the user can't scroll past the end into blank space.
@@ -305,11 +317,13 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
       //     (no recent picker open) gets the mission-queue reservation.
       const adjustedViewportHeight =
         (action.viewportHeight ?? 20) - (action.sidebarTwinRowCount ?? 0);
-      const maxScroll = computeMaxSidebarScroll(
-        state,
-        Math.max(1, adjustedViewportHeight),
-        action.effectiveSwarmOnSidebar,
-      );
+      const maxScroll =
+        state.sidebarMaxScroll ??
+        computeMaxSidebarScroll(
+          state,
+          Math.max(1, adjustedViewportHeight),
+          action.effectiveSwarmOnSidebar,
+        );
       return {
         ...state,
         sidebarScrollOffset: Math.min(
@@ -327,11 +341,13 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
       // effectiveSwarmOnSidebar.
       const adjustedViewportHeight =
         (action.viewportHeight ?? 20) - (action.sidebarTwinRowCount ?? 0);
-      const maxScroll = computeMaxSidebarScroll(
-        state,
-        Math.max(1, adjustedViewportHeight),
-        action.effectiveSwarmOnSidebar,
-      );
+      const maxScroll =
+        state.sidebarMaxScroll ??
+        computeMaxSidebarScroll(
+          state,
+          Math.max(1, adjustedViewportHeight),
+          action.effectiveSwarmOnSidebar,
+        );
       return {
         ...state,
         sidebarScrollOffset: Math.min(maxScroll, Math.max(0, action.offset)),

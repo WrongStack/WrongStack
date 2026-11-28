@@ -1,4 +1,4 @@
-import type React from 'react';
+import { type ReactElement, useCallback } from 'react';
 import { effectiveAgentSwarmPanelMode } from './app-ui-state.js';
 import type { AppViewProps } from './app-view-contract.js';
 import type { usePlanPanelData } from './components/plan-panel.js';
@@ -79,11 +79,18 @@ export function AppViewSidebar({
   sidebarWrongProxyEnabled,
   sidebarWrongProxyData,
   sidebarQuotaCard,
-}: AppViewSidebarProps): React.ReactElement | null {
+}: AppViewSidebarProps): ReactElement | null {
   const { agent } = host;
-  const { state, activity, environment, statusbar, liveTodos, liveSettings } = runtime;
+  const { state, dispatch, activity, environment, statusbar, liveTodos, liveSettings } = runtime;
   const { processMemory, cpuPercent, cpuHistory, rssHistory, heapHistory, totalMem } = activity;
   const { liveModel, liveProvider } = environment;
+  const measureScroll = useCallback(
+    (maxScroll: number) => {
+      if (maxScroll !== state.sidebarMaxScroll)
+        dispatch({ type: 'sidebarMeasureScroll', maxScroll });
+    },
+    [dispatch, state.sidebarMaxScroll],
+  );
 
   if (sidebarWidth <= 0) return null;
 
@@ -121,7 +128,8 @@ export function AppViewSidebar({
       maxHeight={runtime.termRows}
       focused={state.sidebarFocused}
       scrollOffset={sidebarScrollOffset}
-      maxScroll={sidebarMaxScroll}
+      maxScroll={state.sidebarMaxScroll ?? sidebarMaxScroll}
+      onMeasureScroll={measureScroll}
       statusIcons={<SidebarIpcIcons connections={sidebarConnectionsData} width={sidebarWidth} />}
     >
       {/* Per-panel sidebar variants: render only when the panel is
@@ -258,8 +266,7 @@ export function AppViewSidebar({
         model={liveModel}
         themeName={getActiveThemeName()}
         width={sidebarWidth}
-        scrollOffset={state.sidebarScrollOffset}
-        focused={state.sidebarFocused}
+        compact={sidebarWidth <= 24 || runtime.termRows <= 20}
         todos={liveTodos}
         showSwarmSection={effectiveAgentSwarmPanelMode(state, liveSettings) === 'sidebar'}
         liveSessions={state.sessionsPanel.sessions}

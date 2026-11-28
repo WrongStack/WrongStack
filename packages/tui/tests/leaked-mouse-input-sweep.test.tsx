@@ -432,7 +432,7 @@ const UNSWEPT: Record<string, UnsweptEntry> = {
   },
   'plugin-prompt-modal.tsx': {
     reason: 'drops the leak itself before the text-input kind appends a keystroke',
-    guard: { line: 30, contains: 'isLeakedMouseInput' },
+    guard: { line: 31, contains: 'isLeakedMouseInput' },
   },
   'plugin-panel-overlay.tsx': {
     reason:

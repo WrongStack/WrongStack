@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Settings } from '../src/app-settings-type.js';
 import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
+import { AppViewSidebar } from '../src/app-view-sidebar.js';
 import { RightSidebar } from '../src/components/sidebar.js';
 import {
   FleetPanelSidebar,
@@ -13,6 +14,51 @@ import { createTestState } from './helpers/create-test-state.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 describe('routed sidebar panel layout', () => {
+  it('scrolls routed queue items inside a short viewport with a one-row focus hint', async () => {
+    const columns = 80;
+    const rows = 9;
+    const queue = Array.from({ length: 8 }, (_, index) => ({
+      id: `queue-${index}`,
+      displayText: `ITEM${index + 1}`,
+    }));
+    const initial = createTestState({ queuePanelOpen: true, sidebarFocused: true });
+    function sidebar(offset: number) {
+      const props = {
+        host: { agent: { ctx: {} } },
+        runtime: {
+          termRows: rows,
+          state: { ...initial, queue, sidebarScrollOffset: offset },
+          activity: {},
+          environment: {},
+          statusbar: { entriesWithLeader: {} },
+          dispatch: () => {},
+        },
+        sidebarWidth: 20,
+        sidebarContentWidth: 16,
+        sidebarScrollOffset: offset,
+        sidebarMaxScroll: 31,
+        sidebarSlotVisible: (id: string) => id === 'queue',
+        hiddenSidebarPanelCount: 0,
+        sidebarConnectionsData: [],
+      } as unknown as React.ComponentProps<typeof AppViewSidebar>;
+      return <AppViewSidebar {...props} />;
+    }
+
+    const view = renderRealTty(sidebar(0), { columns, rows });
+    try {
+      await settle();
+      expect(view.lastFrame()).toContain('ITEM1');
+      expect(view.lastFrame()).not.toContain('ITEM8');
+      view.rerender(sidebar(4));
+      await settle();
+      expect(view.lastFrame()).toContain('ITEM8');
+      expect(view.lines()).toHaveLength(rows);
+      expect(view.lines().at(-1)).toContain('Shift+Tab');
+    } finally {
+      view.unmount();
+    }
+  });
+
   it('keeps a nested panel visible without widening or vertically shifting the terminal row', {
     timeout: 5_000,
   }, async () => {

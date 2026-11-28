@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Box, Text, useInput } from '../ink.js';
 import { isLeakedMouseInput } from '../mouse.js';
 import { sanitizeTerminalText } from '../terminal-width.js';
+import { panelWindow } from './monitor-shell.js';
 
 export interface PluginPromptModalProps {
   owner: string;
@@ -119,15 +120,34 @@ export function PluginPromptModal({
           {options.length === 0 ? (
             <Text dimColor>{'No options provided (Enter/Esc to close)'}</Text>
           ) : (
-            options.slice(0, 12).map((opt, idx) => {
-              const active = idx === selectedIndex;
+            (() => {
+              // Keep the keyboard cursor inside the rendered window. A fixed
+              // first-12 slice silently hid every selection past the fold.
+              const window = panelWindow(options.length, selectedIndex, 12);
+              const visible = options.slice(window.start, window.end);
               return (
-                <Text key={`${opt.value}-${idx}`} color={active ? 'cyan' : undefined} bold={active}>
-                  {`${active ? '❯ ' : '  '}${sanitizeTerminalText(opt.label)}`}
-                  {opt.hint ? <Text dimColor>{` — ${sanitizeTerminalText(opt.hint)}`}</Text> : null}
-                </Text>
+                <>
+                  {window.above > 0 ? <Text dimColor>{`  ↑ ${window.above} more`}</Text> : null}
+                  {visible.map((opt, idx) => {
+                    const index = window.start + idx;
+                    const active = index === selectedIndex;
+                    return (
+                      <Text
+                        key={`${opt.value}-${index}`}
+                        color={active ? 'cyan' : undefined}
+                        bold={active}
+                      >
+                        {`${active ? '❯ ' : '  '}${sanitizeTerminalText(opt.label)}`}
+                        {opt.hint ? (
+                          <Text dimColor>{` — ${sanitizeTerminalText(opt.hint)}`}</Text>
+                        ) : null}
+                      </Text>
+                    );
+                  })}
+                  {window.below > 0 ? <Text dimColor>{`  ↓ ${window.below} more`}</Text> : null}
+                </>
               );
-            })
+            })()
           )}
         </Box>
       ) : (

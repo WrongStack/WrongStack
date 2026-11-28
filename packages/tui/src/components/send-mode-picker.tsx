@@ -1,5 +1,7 @@
 import type React from 'react';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text, useInput } from '../ink.js';
+import { displayWidth, truncateDisplay } from '../terminal-width.js';
 
 import {
   formatSendModeMessagePreview,
@@ -36,6 +38,21 @@ export function SendModePicker({
   onMove,
   onSelect,
 }: SendModePickerProps): React.ReactElement {
+  const size = useTerminalSize();
+  // The border and one column of padding consume four of the allocated
+  // columns. Every row must fit the remainder: a wrapped row steals one of
+  // the eight rows the capped bottom region has at 40x8.
+  const innerWidth = Math.max(1, size.columns - 4);
+  const fullHint = 'q/b/s pick · ↑/↓ move · Enter select · Esc → back to input';
+  const escapeHint = 'Esc → back to input';
+  const hint = displayWidth(fullHint) <= innerWidth ? fullHint : escapeHint;
+  const preview = messagePreview
+    ? truncateDisplay(
+        formatSendModeMessagePreview(messagePreview),
+        Math.max(0, innerWidth - displayWidth('Message: ')),
+      )
+    : undefined;
+
   useInput((input, key) => {
     if (key.upArrow) {
       onMove(-1);
@@ -50,31 +67,46 @@ export function SendModePicker({
   });
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1} marginY={1}>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor="magenta"
+      paddingX={1}
+      marginY={size.rows >= 10 ? 1 : 0}
+    >
       <Text color="cyan" bold>
-        ━━ Deliver this message how? ━━
+        {truncateDisplay('━━ Deliver this message how? ━━', innerWidth)}
       </Text>
-      {messagePreview ? (
+      {preview ? (
         <Text>
           <Text dimColor>Message: </Text>
-          <Text color="white">{formatSendModeMessagePreview(messagePreview)}</Text>
+          <Text color="white">{preview}</Text>
         </Text>
       ) : null}
-      <Text dimColor>q/b/s pick · ↑/↓ move · Enter select · Esc → back to input</Text>
-      {SEND_MODE_OPTIONS.map((opt, i) => (
-        <Text
-          key={opt.mode}
-          inverse={i === selected}
-          {...(i === selected ? { color: opt.color } : {})}
-        >
-          {i === selected ? '› ' : '  '}
-          <Text bold color={opt.color}>
-            [{opt.key}]
-          </Text>{' '}
-          <Text bold>{opt.label.padEnd(12)}</Text>
-          <Text dimColor>{opt.description}</Text>
-        </Text>
-      ))}
+      <Text dimColor>{hint}</Text>
+      {SEND_MODE_OPTIONS.map((opt, i) => {
+        const marker = i === selected ? '› ' : '  ';
+        const label = opt.label.padEnd(12);
+        const prefix = `${marker}[${opt.key}] ${label}`;
+        const description = truncateDisplay(
+          opt.description,
+          Math.max(0, innerWidth - displayWidth(prefix)),
+        );
+        return (
+          <Text
+            key={opt.mode}
+            inverse={i === selected}
+            {...(i === selected ? { color: opt.color } : {})}
+          >
+            {marker}
+            <Text bold color={opt.color}>
+              [{opt.key}]
+            </Text>{' '}
+            <Text bold>{label}</Text>
+            <Text dimColor>{description}</Text>
+          </Text>
+        );
+      })}
     </Box>
   );
 }

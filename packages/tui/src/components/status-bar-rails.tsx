@@ -300,7 +300,7 @@ export function buildVitalsChipEntries(p: StatusBarRailBuildParams): RailSpanEnt
   ]);
 }
 
-export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactElement[] {
+export function buildMinimumChips(p: StatusBarRailBuildParams): RailSpanEntry[] {
   const {
     showChip,
     thinking,
@@ -319,77 +319,78 @@ export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactEleme
     yolo,
     yoloPlus,
     autonomy,
+    breakerCountdown,
     fleetWorkingTime,
     minimalWorkParts,
   } = p;
-  return [
-    showChip('state') && thinking ? (
-      <ThinkingChip
-        text={`${statePrefix} ${stateLabel}`}
-        style={animationStyle}
-        phase={spinnerIdx}
-        cycleTick={cycleTick}
-      />
-    ) : showChip('state') ? (
-      <Text color={chipColor(stateColor, isNoColor)}>
-        {statePrefix} {stateLabel}
-      </Text>
-    ) : null,
-    yolo && showChip('yolo') ? (
-      <Text color={chipColor(theme.error, isNoColor)} bold>
-        {isNoColor
-          ? yoloPlus
-            ? 'YOLO+'
-            : 'YOLO'
-          : `${STATUSLINE_ICONS.yolo} ${yoloPlus ? 'YOLO+' : 'YOLO'}`}
-      </Text>
-    ) : null,
-    // No effort suffix here: minimum mode is the DEFAULT statusline and its
-    // chips are single-level elements the fitter can only DROP, never degrade,
-    // so a qualifier on this chip could never shed — it would evict trailing
-    // chips at moderate widths instead. Same reason the minimum context chip
-    // omits its `[strategy]`, which the detailed full level does render.
-    showChip('model') ? (
-      <Text color={chipColor(theme.monitor.agents, isNoColor)}>
-        {provider ? `${provider}/` : ''}
-        {model}
-      </Text>
-    ) : null,
-    context && showChip('context')
-      ? (() => {
-          const ratio = Math.min(context.used / context.max, 1);
-          return (
-            <Text color={chipColor(contextBarColor(ratio), isNoColor)}>
-              <Text dimColor={!isNoColor}>{'ctx '}</Text>
-              {renderMeter(ratio, 6)} {fmtTok(context.used)}
-            </Text>
-          );
-        })()
+  const state = thinking ? (
+    <ThinkingChip
+      text={`${statePrefix} ${stateLabel}`}
+      style={animationStyle}
+      phase={spinnerIdx}
+      cycleTick={cycleTick}
+    />
+  ) : (
+    <Text color={chipColor(stateColor, isNoColor)}>
+      {statePrefix} {stateLabel}
+    </Text>
+  );
+  const modelName = model.split('/').at(-1) || model;
+  const modelIdentity =
+    provider && !model.startsWith(`${provider}/`) ? `${provider}/${model}` : model;
+  const ratio =
+    context && context.max > 0 ? Math.max(0, Math.min(1, context.used / context.max)) : 0;
+  const ctx = `ctx ${fmtRatioPct(ratio, 1)}`;
+  const contextColor = chipColor(contextBarColor(ratio), isNoColor);
+  const waitSeconds = Math.ceil((breakerCountdown?.remainingMs ?? 0) / 1000);
+  return compact([
+    yolo && showChip('yolo')
+      ? entry('yolo', 'yolo', p, [
+          <Text color={chipColor(theme.error, isNoColor)} bold>
+            {yoloPlus ? 'YOLO+' : 'YOLO'}
+          </Text>,
+        ])
       : null,
-    showTokenDisplay && showChip('tokens') ? (
-      <Text color={chipColor(theme.textSecondary, isNoColor)}>
-        ↑<Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.input)}</Text> ↓
-        <Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.output)}</Text>
-      </Text>
-    ) : null,
-    autonomy && autonomy !== 'off' && showChip('autonomy') ? (
-      <Text
-        color={chipColor(
-          autonomy === 'eternal' ? theme.error : autonomy === 'auto' ? theme.warn : theme.accent,
-          isNoColor,
-        )}
-        bold
-      >
-        {isNoColor ? autonomy.toUpperCase() : `∞ ${autonomy.toUpperCase()}`}
-      </Text>
-    ) : null,
-    fleetWorkingTime != null && fleetWorkingTime > 0 && showChip('elapsed') ? (
-      <Text dimColor={!isNoColor}>{fmtElapsed(fleetWorkingTime)}</Text>
-    ) : null,
-    ...(minimalWorkParts.length > 0
-      ? [<Text dimColor={!isNoColor}>{minimalWorkParts.slice(0, 2).join(' · ')}</Text>]
-      : []),
-  ].filter((chip): chip is React.ReactElement => chip !== null);
+    waitSeconds > 0 && showChip('breaker')
+      ? entry('breaker', 'breaker', p, [
+          <Text color={chipColor(theme.warn, isNoColor)} bold>
+            wait {waitSeconds}s
+          </Text>,
+        ])
+      : null,
+    showChip('state') ? entry('state', 'state', p, [state]) : null,
+    showChip('model')
+      ? entry('model', 'model', p, [
+          <Text>{modelIdentity}</Text>,
+          <Text>{modelName}</Text>,
+          <Text>{truncateChip(modelName, 12)}</Text>,
+        ])
+      : null,
+    context && context.max > 0 && showChip('context')
+      ? entry('context', 'context', p, [
+          <Text color={contextColor}>
+            {ctx} · {fmtTok(context.used)}/{fmtTok(context.max)}
+          </Text>,
+          <Text color={contextColor}>{ctx}</Text>,
+        ])
+      : null,
+    autonomy && autonomy !== 'off' && showChip('autonomy')
+      ? entry('autonomy', 'autonomy', p, [<Text bold>{autonomy.toUpperCase()}</Text>])
+      : null,
+    !context && showTokenDisplay && showChip('tokens')
+      ? entry('tokens', 'tokens', p, [
+          <Text>
+            ↑{fmtTok(displayTokens.input)} ↓{fmtTok(displayTokens.output)}
+          </Text>,
+        ])
+      : null,
+    fleetWorkingTime != null && fleetWorkingTime > 0 && showChip('elapsed')
+      ? entry('elapsed', 'elapsed', p, [<Text dimColor>{fmtElapsed(fleetWorkingTime)}</Text>])
+      : null,
+    minimalWorkParts.length > 0
+      ? { id: 'work', node: <Text dimColor>{minimalWorkParts.slice(0, 2).join(' · ')}</Text> }
+      : null,
+  ]);
 }
 
 export function buildIndexStatusChip(

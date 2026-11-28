@@ -196,15 +196,14 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   const hiddenSidebarPanelCount = openSidebarPanelIds.length - visibleSidebarPanelIds.length;
   const sidebarSlotVisible = (id: PanelId): boolean =>
     sidebarWidth > 0 && visibleSidebarPanelIds.includes(id);
-  // The scrollbar's maxScroll — the SAME estimate the sidebarScroll /
-  // sidebarScrollSet reducer clamps use, with the same inputs the
-  // dispatchers thread (termRows − 2 viewport, twin-row reservation,
-  // dual-source swarm flag) so thumb, wheel, and clamp can never drift.
-  const sidebarMaxScroll = estimateSidebarMaxScroll(
-    state,
-    Math.max(1, runtime.termRows - 2 - sidebarTwinRowCount),
-    effectiveSwarmOnSidebar,
-  );
+  // Use an estimate before the right viewport has measured its contents.
+  const sidebarMaxScroll =
+    state.sidebarMaxScroll ??
+    estimateSidebarMaxScroll(
+      state,
+      Math.max(1, runtime.termRows - 2 - sidebarTwinRowCount),
+      effectiveSwarmOnSidebar,
+    );
 
   const sidebarProcessData = useSidebarProcessList(sidebarSlotVisible('processList'));
   const sidebarConnectionsData = useSidebarConnections(agent.ctx.projectRoot, sidebarWidth > 0);

@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
+import { describe, expect, it } from 'vitest';
 import {
-  SEND_MODE_OPTIONS,
-  SendModePicker,
   formatSendModeMessagePreview,
   nextSendModeIndex,
-  sendModeFromKey,
+  SEND_MODE_OPTIONS,
   type SendModeKey,
+  SendModePicker,
+  sendModeFromKey,
 } from '../src/components/send-mode-picker.js';
+import { Box } from '../src/ink.js';
+import { renderRealTty, settle } from './helpers/real-tty.js';
 
 const KEY: SendModeKey = {};
 const k = (over: Partial<SendModeKey>): SendModeKey => ({ ...KEY, ...over });
@@ -92,5 +94,34 @@ describe('SendModePicker render', () => {
     expect(frame).not.toContain('Esc → queue');
 
     view.unmount();
+  });
+
+  it('keeps title, modes and Escape hint visible in a 40x8 bottom region', async () => {
+    const longPreview = `${'ship the refactor to the staging fleet and keep the old queue intact while the reviewer checks the migration '.repeat(3)}`;
+    const view = renderRealTty(
+      React.createElement(
+        Box,
+        { flexDirection: 'column', height: 8, overflowY: 'hidden', justifyContent: 'flex-end' },
+        React.createElement(SendModePicker, {
+          selected: 0,
+          messagePreview: longPreview,
+          onMove: () => {},
+          onSelect: () => {},
+        }),
+      ),
+      { columns: 40, rows: 8 },
+    );
+    try {
+      await settle();
+      const frame = view.lastFrame();
+      expect(frame).toContain('Deliver this message how?');
+      expect(frame).toContain('Message:');
+      expect(frame).toContain('Queue');
+      expect(frame).toContain('By the way');
+      expect(frame).toContain('Steer');
+      expect(frame).toContain('Esc → back to input');
+    } finally {
+      view.unmount();
+    }
   });
 });

@@ -16,7 +16,7 @@ import { useElapsedMs } from '../second-clock.js';
 import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
 import { layoutPluginStatusStrip, PluginStatusStrip } from './plugin-panel-overlay.js';
-import { layoutRail, PowerlineRail } from './powerline-rail.js';
+import { layoutRail, StatusRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
 import {
   hasTokenDisplay,
@@ -33,7 +33,7 @@ import {
   type StatusBarRailBuildParams,
 } from './status-bar-rails.js';
 import type { StatusBarProps } from './status-bar-types.js';
-import { buildDetailedRails, type DetailedRail } from './status-line-registry.js';
+import { buildDetailedRails } from './status-line-registry.js';
 import type { StatuslineItem } from './statusline-picker.js';
 
 /** Unpainted breathing room between the statusline and adjacent UI chrome. */
@@ -161,7 +161,10 @@ export const StatusBar = memo(function StatusBar({
 
   // A `static` style renders '●' below; its spinner clock must not run.
   const animationActive =
-    state !== 'idle' && state !== 'aborting' && thinkingAnimationStyle !== 'static';
+    showChip('state') &&
+    state !== 'idle' &&
+    state !== 'aborting' &&
+    thinkingAnimationStyle !== 'static';
   const { frame: spinnerIdx, time: animationTime } = useAnimation({
     interval: SPINNER_INTERVAL_MS,
     isActive: animationActive,
@@ -176,7 +179,7 @@ export const StatusBar = memo(function StatusBar({
   const stalenessGuard = useChipStalenessGuard({
     agentState: state,
     spinnerPhase: spinnerIdx,
-    spinnerAnimated: thinkingAnimationStyle !== 'static',
+    spinnerAnimated: animationActive,
     tokenFingerprint,
     contextRatio: context && context.max > 0 ? context.used / context.max : undefined,
     tokenSubscriptionActive: events != null,
@@ -270,7 +273,9 @@ export const StatusBar = memo(function StatusBar({
   const effortSuffix = effort ? <Text dimColor={!isNoColor}>{` · ${effort}`}</Text> : null;
   const modelStatusChip = showChip('model') ? (
     <Text color={modelColor}>
-      {provider ? <Text dimColor={!isNoColor}>{provider}/</Text> : null}
+      {provider && !model.startsWith(`${provider}/`) ? (
+        <Text dimColor={!isNoColor}>{provider}/</Text>
+      ) : null}
       {model}
       {effortSuffix}
     </Text>
@@ -404,40 +409,65 @@ export const StatusBar = memo(function StatusBar({
       </Text>
     ) : null;
 
-  const minimumChips = buildMinimumChips(buildParams);
+  const minimum = mode === 'minimum';
+  const railBudget = Math.max(0, termWidth - STATUSLINE_SIDE_INSET * 2);
 
   // Four detailed rails: the builders remain the single source of chip JSX
   // and data gating (a hidden or data-less chip emits no entry and can never
   // open a rail); the registry partitions the surviving entries per the
   // user's line assignment.
-  const detailedRails = buildDetailedRails(buildParams, {
-    lines: statuslineLines,
-    order: statuslineOrder,
-    modelChip: modelStatusChip,
-    modelShortChip,
-    modelMicroChip,
-    versionChip: versionStatusChip,
-    indexChip: indexStatusChip,
-  });
-
-  const railBudget = Math.max(12, termWidth - STATUSLINE_SIDE_INSET * 2);
+  const detailedRails = minimum
+    ? []
+    : buildDetailedRails(buildParams, {
+        lines: statuslineLines,
+        order: statuslineOrder,
+        modelChip: modelStatusChip,
+        modelShortChip,
+        modelMicroChip,
+        versionChip: versionStatusChip,
+        indexChip: indexStatusChip,
+      });
 
   // Rails 1–2 always render so a vanilla session keeps its two-line
   // footprint; conditional rails render when they have content. The index
   // chip alone opens its rail (reserved tail, no ordinary chips).
-  const rendersRail = (rail: DetailedRail, logical: number): boolean =>
-    logical < 2 || rail.entries.length > 0 || rail.rightAnchor != null;
+  const renderedRails = minimum
+    ? [
+        {
+          logical: undefined,
+          layout: layoutRail(
+            [
+              ...buildMinimumChips(buildParams),
+              ...(versionStatusChip ? [{ id: 'version', node: versionStatusChip }] : []),
+            ],
+            railBudget,
+            undefined,
+            false,
+          ),
+          rightAnchor: undefined,
+        },
+      ]
+    : detailedRails.flatMap((rail, index) =>
+        index < 2 || rail.entries.length > 0 || rail.rightAnchor != null
+          ? [
+              {
+                logical: (index + 1) as 1 | 2 | 3 | 4,
+                layout: layoutRail(rail.entries, railBudget, rail.rightAnchor),
+                rightAnchor: rail.rightAnchor,
+              },
+            ]
+          : [],
+      );
 
-  const pluginStripBudget = Math.max(12, Math.floor(railBudget * 0.3));
+  const pluginStripBudget = Math.min(railBudget, Math.max(12, Math.floor(railBudget * 0.3)));
   const pluginStripLayout =
     pluginChips && pluginChips.length > 0
       ? layoutPluginStatusStrip(pluginChips, pluginStripBudget)
       : null;
 
-  // Click-map: physical rows are the rails that publish left spans, top to
-  // bottom — conditional rows shift up when an earlier rail is gated off.
-  // Reserved tail chips carry no left spans, so a tail-only rail
-  // publishes no row. `budget`/`droppedIds` let the /statusline picker show
+  // Anchor-only rails still consume a physical row. Use the painted layout
+  // and its row order for the hit-test map and the /statusline fill meter.
+  // `budget`/`droppedIds` let the /statusline picker show
   // real, measured fill per line instead of guessing chip widths.
   if (clickMapRef) {
     const pluginSpans =
@@ -449,78 +479,35 @@ export const StatusBar = memo(function StatusBar({
             level: 0,
           }))
         : [];
-    const clickableRails = detailedRails
-      .map((rail, index) => ({ rail, logical: (index + 1) as 1 | 2 | 3 | 4 }))
-      .filter(({ rail, logical }) => logical <= 2 || rail.entries.length > 0);
-    const renderedRailCount = detailedRails.filter((rail, idx) => rendersRail(rail, idx)).length;
-    clickMapRef.current =
-      mode === 'minimum'
-        ? {
-            lines:
-              pluginSpans.length > 0
-                ? [
-                    {
-                      line: 1,
-                      spans: pluginSpans,
-                      budget: pluginStripBudget,
-                      used: pluginStripLayout?.used,
-                    },
-                  ]
-                : [],
-          }
-        : {
-            lines: [
-              ...clickableRails.map(({ rail, logical }, physical) => {
-                const layout = layoutRail(rail.entries, railBudget, rail.rightAnchor);
-                return {
-                  line: physical,
-                  logical,
-                  spans: layout.items.map(({ id, start, len, level }) => ({
-                    id,
-                    start: start + STATUSLINE_SIDE_INSET,
-                    len,
-                    level,
-                  })),
-                  budget: railBudget,
-                  used: layout.used,
-                  droppedIds: layout.droppedIds,
-                };
-              }),
-              ...(pluginSpans.length > 0
-                ? [
-                    {
-                      line: renderedRailCount,
-                      spans: pluginSpans,
-                      budget: pluginStripBudget,
-                      used: pluginStripLayout?.used,
-                    },
-                  ]
-                : []),
-            ],
+    clickMapRef.current = {
+      lines: [
+        ...renderedRails.map(({ logical, layout }, physical) => {
+          return {
+            line: physical,
+            logical,
+            spans: layout.items.map(({ id, start, len, level }) => ({
+              id,
+              start: start + STATUSLINE_SIDE_INSET,
+              len,
+              level,
+            })),
+            budget: railBudget,
+            used: layout.used,
+            droppedIds: layout.droppedIds,
           };
-  }
-
-  if (mode === 'minimum') {
-    return (
-      <Box
-        key={`sb-${stalenessGuard.renderNonce}`}
-        flexDirection="column"
-        paddingX={STATUSLINE_SIDE_INSET}
-      >
-        <PowerlineRail
-          segments={minimumChips}
-          rightAnchor={versionStatusChip}
-          budget={railBudget}
-          monochrome={isNoColor}
-        />
-        {pluginChips && pluginChips.length > 0 ? (
-          <PluginStatusStrip
-            chips={pluginChips}
-            maxColumns={Math.max(12, Math.floor(railBudget * 0.3))}
-          />
-        ) : null}
-      </Box>
-    );
+        }),
+        ...(pluginSpans.length > 0
+          ? [
+              {
+                line: renderedRails.length,
+                spans: pluginSpans,
+                budget: pluginStripBudget,
+                used: pluginStripLayout?.used,
+              },
+            ]
+          : []),
+      ],
+    };
   }
 
   return (
@@ -532,22 +519,16 @@ export const StatusBar = memo(function StatusBar({
       {/* Logical rails 1–4: identity, vitals, safety & work, async.
           Conditional rails drop out when empty; the click-map renumbers
           physical rows to match. */}
-      {detailedRails.map((rail, logical) =>
-        rendersRail(rail, logical) ? (
-          <PowerlineRail
-            key={`rail-${logical}`}
-            segments={rail.entries}
-            rightAnchor={rail.rightAnchor}
-            budget={railBudget}
-            monochrome={isNoColor}
-          />
-        ) : null,
-      )}
-      {pluginChips && pluginChips.length > 0 ? (
-        <PluginStatusStrip
-          chips={pluginChips}
-          maxColumns={Math.max(12, Math.floor(railBudget * 0.3))}
+      {renderedRails.map(({ logical, layout, rightAnchor }) => (
+        <StatusRail
+          key={logical ?? 'minimum'}
+          layout={layout}
+          rightAnchor={rightAnchor}
+          monochrome={isNoColor}
         />
+      ))}
+      {pluginChips && pluginChips.length > 0 ? (
+        <PluginStatusStrip chips={pluginChips} maxColumns={pluginStripBudget} />
       ) : null}
     </Box>
   );

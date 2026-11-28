@@ -307,6 +307,33 @@ describe('PluginPanelOverlay, PluginStatusStrip, ImagePreviewModal, ResumePicker
     inputApp.unmount();
   });
 
+  it('keeps the keyboard-selected option visible past the first twelve choices', async () => {
+    const resolvedSelect = vi.fn();
+    const options = Array.from({ length: 20 }, (_, i) => ({
+      label: `Option ${i + 1}`,
+      value: `value-${i + 1}`,
+    }));
+    const selectApp = render(
+      React.createElement(PluginPromptModal, {
+        owner: 'env-picker',
+        opts: { kind: 'select', title: 'Target region', options },
+        onResolve: resolvedSelect,
+      }),
+    );
+    try {
+      // Ink's test stdin needs a microtask between key events to commit each
+      // React state update before the next arrow is parsed.
+      for (let i = 0; i < 12; i += 1) {
+        selectApp.stdin.write('\x1b[B');
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      expect(selectApp.lastFrame() ?? '').toContain('❯ Option 13');
+      expect(resolvedSelect).not.toHaveBeenCalled();
+    } finally {
+      selectApp.unmount();
+    }
+  });
+
   it('publishes clickable StatusBar spans for session:branch and plugin status chips', () => {
     const chips = [
       {

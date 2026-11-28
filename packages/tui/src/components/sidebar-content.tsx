@@ -88,10 +88,8 @@ interface SidebarContentProps {
   /** Actual sidebar width in columns (including border+padding chrome).
    *  Used to size the content area and truncate text appropriately. */
   width: number;
-  /** Vertical scroll offset — number of rows scrolled from the top. */
-  scrollOffset?: number | undefined;
-  /** When true, the sidebar has keyboard focus (↑↓ scroll). */
-  focused?: boolean | undefined;
+  /** Keep the session summary short on crowded grids. */
+  compact?: boolean | undefined;
   /** Live leader todo board — rendered as a compact mission queue. */
   todos?: readonly TodoItem[] | undefined;
   /** When true, show the agent-swarm + mission-queue section. Gated by the
@@ -141,8 +139,7 @@ export function SidebarContent({
   model,
   themeName,
   width,
-  scrollOffset = 0,
-  focused = false,
+  compact = false,
   todos,
   showSwarmSection = false,
   liveSessions,
@@ -168,7 +165,14 @@ export function SidebarContent({
   // Sizing to `innerWidth` would make the spectrum 4 cols wider than the
   // `│` frame's content area, so the right edge would be truncated with
   // `…` instead of completing naturally to 100%.
-  const modelIdentity = provider && model ? `${provider}/${model}` : (model ?? provider);
+  const modelIdentity = compact
+    ? model?.split('/').at(-1) || provider
+    : provider && model && !model.startsWith(`${provider}/`)
+      ? `${provider}/${model}`
+      : (model ?? provider);
+  const hasCacheActivity = (cacheStats?.readTokens ?? 0) > 0 || (cacheStats?.writeTokens ?? 0) > 0;
+  const isHighLoad = (cpuPercent ?? 0) > 85 || (processMemory?.load ?? 0) > 0.85;
+  const isWarnLoad = (cpuPercent ?? 0) > 60 || (processMemory?.load ?? 0) > 0.6;
 
   // Fleet entries: show leader first, then running subagents.
   // Cap at 12 agents total (leader + up to 11 subagents), each rendered
@@ -192,22 +196,7 @@ export function SidebarContent({
     : { rows: [] as MissionRow[], overflow: 0, done: 0, total: 0 };
 
   return (
-    <Box flexDirection="column" gap={0} marginTop={scrollOffset > 0 ? -scrollOffset : undefined}>
-      {/* ── Focus indicator ── */}
-      {focused ? (
-        <Box
-          width={innerWidth}
-          marginBottom={1}
-          justifyContent="space-between"
-          {...(theme.supportsBackground ? { backgroundColor: theme.surfaceRaised } : {})}
-        >
-          <Text color={theme.borderActive} bold>
-            {glyphs.pillLeft} FOCUS {glyphs.pillRight}
-          </Text>
-          <Text color={theme.textMuted}>↑↓ scroll · Shift+Tab exits</Text>
-        </Box>
-      ) : null}
-
+    <Box flexDirection="column">
       {/* ── Model + context hero: the statusbar identity, elevated into a stage. ── */}
       <Card innerWidth={innerWidth} accent={ctxColor}>
         {(bodyWidth) => (
@@ -219,22 +208,24 @@ export function SidebarContent({
                   {glyphs.railHeavy}
                 </Text>
                 <Text color={theme.brand} bold wrap="truncate">
-                  {` ${glyphs.star4} MODEL CORE`}
+                  {compact ? ' SESSION' : ` ${glyphs.star4} MODEL CORE`}
                 </Text>
               </Box>
-              {bodyWidth >= 28 && (themeName || getActiveThemeName()) ? (
+              {!compact && bodyWidth >= 28 && (themeName || getActiveThemeName()) ? (
                 <Text color={theme.textSecondary} wrap="truncate">
                   {`${glyphs.palette} ${themeName ?? getActiveThemeName()}`}
                 </Text>
               ) : null}
             </Box>
             {modelIdentity ? (
-              <Box flexDirection="column" marginTop={1}>
-                <Text color={theme.textMuted} wrap="truncate">
-                  {provider
-                    ? `${glyphs.diamondOpen} ${trunc(provider.toUpperCase(), Math.max(1, bodyWidth - 2))}`
-                    : `${glyphs.diamondOpen} ACTIVE`}
-                </Text>
+              <Box flexDirection="column" marginTop={compact ? 0 : 1}>
+                {!compact ? (
+                  <Text color={theme.textMuted} wrap="truncate">
+                    {provider
+                      ? `${glyphs.diamondOpen} ${trunc(provider.toUpperCase(), Math.max(1, bodyWidth - 2))}`
+                      : `${glyphs.diamondOpen} ACTIVE`}
+                  </Text>
+                ) : null}
                 <Text color={theme.textPrimary} bold wrap="truncate">
                   {trunc(modelIdentity, bodyWidth)}
                 </Text>
@@ -262,73 +253,79 @@ export function SidebarContent({
                     </Box>
                   );
                 })()}
-                <Box width={bodyWidth} flexDirection="row">
-                  <Text wrap="truncate">
-                    {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map((segment) => (
-                      <Text key={segment.shortLabel} color={segment.color}>
-                        {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
-                      </Text>
-                    ))}
-                  </Text>
-                </Box>
-                {(() => {
-                  const activeSegments = contextSpectrum(
-                    contextBreakdown,
-                    contextWindow,
-                    bodyWidth,
-                  ).filter((s) => s.tokens > 0 || s.shortLabel === 'FREE');
-                  if (bodyWidth >= 28) {
-                    const rows: Array<
-                      [(typeof activeSegments)[0], (typeof activeSegments)[0] | undefined]
-                    > = [];
-                    for (let i = 0; i < activeSegments.length; i += 2) {
-                      rows.push([activeSegments[i]!, activeSegments[i + 1]]);
-                    }
-                    return rows.map(([left, right]) => {
-                      const leftPct = fmtRatioPct(left.tokens / Math.max(1, contextWindow.max));
-                      const rightPct = right
-                        ? fmtRatioPct(right.tokens / Math.max(1, contextWindow.max))
-                        : '0%';
-                      return (
-                        <Box
-                          key={left.shortLabel}
-                          flexDirection="row"
-                          width={bodyWidth}
-                          justifyContent="space-between"
-                        >
-                          <Text color={left.color} wrap="truncate">
-                            {left.glyph} {left.shortLabel} {fmtTok(left.tokens)}
-                            <Text color={theme.textMuted}> {leftPct}</Text>
+                {!compact ? (
+                  <Box width={bodyWidth} flexDirection="row">
+                    <Text wrap="truncate">
+                      {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map(
+                        (segment) => (
+                          <Text key={segment.shortLabel} color={segment.color}>
+                            {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
                           </Text>
-                          {right ? (
-                            <Text color={right.color} wrap="truncate">
-                              {right.glyph} {right.shortLabel} {fmtTok(right.tokens)}
-                              <Text color={theme.textMuted}> {rightPct}</Text>
+                        ),
+                      )}
+                    </Text>
+                  </Box>
+                ) : null}
+                {!compact
+                  ? (() => {
+                      const activeSegments = contextSpectrum(
+                        contextBreakdown,
+                        contextWindow,
+                        bodyWidth,
+                      ).filter((s) => s.tokens > 0 || s.shortLabel === 'FREE');
+                      if (bodyWidth >= 28) {
+                        const rows: Array<
+                          [(typeof activeSegments)[0], (typeof activeSegments)[0] | undefined]
+                        > = [];
+                        for (let i = 0; i < activeSegments.length; i += 2) {
+                          rows.push([activeSegments[i]!, activeSegments[i + 1]]);
+                        }
+                        return rows.map(([left, right]) => {
+                          const leftPct = fmtRatioPct(left.tokens / Math.max(1, contextWindow.max));
+                          const rightPct = right
+                            ? fmtRatioPct(right.tokens / Math.max(1, contextWindow.max))
+                            : '0%';
+                          return (
+                            <Box
+                              key={left.shortLabel}
+                              flexDirection="row"
+                              width={bodyWidth}
+                              justifyContent="space-between"
+                            >
+                              <Text color={left.color} wrap="truncate">
+                                {left.glyph} {left.shortLabel} {fmtTok(left.tokens)}
+                                <Text color={theme.textMuted}> {leftPct}</Text>
+                              </Text>
+                              {right ? (
+                                <Text color={right.color} wrap="truncate">
+                                  {right.glyph} {right.shortLabel} {fmtTok(right.tokens)}
+                                  <Text color={theme.textMuted}> {rightPct}</Text>
+                                </Text>
+                              ) : null}
+                            </Box>
+                          );
+                        });
+                      }
+                      return activeSegments.map((segment) => {
+                        const pct = fmtRatioPct(segment.tokens / Math.max(1, contextWindow.max));
+                        return (
+                          <Box
+                            key={segment.shortLabel}
+                            flexDirection="row"
+                            width={bodyWidth}
+                            justifyContent="space-between"
+                          >
+                            <Text color={segment.color} wrap="truncate">
+                              {segment.glyph} {segment.shortLabel}
                             </Text>
-                          ) : null}
-                        </Box>
-                      );
-                    });
-                  }
-                  return activeSegments.map((segment) => {
-                    const pct = fmtRatioPct(segment.tokens / Math.max(1, contextWindow.max));
-                    return (
-                      <Box
-                        key={segment.shortLabel}
-                        flexDirection="row"
-                        width={bodyWidth}
-                        justifyContent="space-between"
-                      >
-                        <Text color={segment.color} wrap="truncate">
-                          {segment.glyph} {segment.shortLabel}
-                        </Text>
-                        <Text color={segment.color} wrap="truncate">
-                          {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}</Text>
-                        </Text>
-                      </Box>
-                    );
-                  });
-                })()}
+                            <Text color={segment.color} wrap="truncate">
+                              {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}</Text>
+                            </Text>
+                          </Box>
+                        );
+                      });
+                    })()
+                  : null}
               </>
             ) : (
               <Text color={theme.textMuted}>{glyphs.dividerDot} awaiting telemetry</Text>
@@ -341,14 +338,14 @@ export function SidebarContent({
       {quota ? <QuotaCard quota={quota} innerWidth={innerWidth} /> : null}
 
       {/* ── Prompt cache card: hit ratio + coverage ── */}
-      <CacheCard cacheStats={cacheStats} innerWidth={innerWidth} />
+      {!compact || hasCacheActivity ? (
+        <CacheCard cacheStats={cacheStats} innerWidth={innerWidth} />
+      ) : null}
 
       {/* ── System vitals: CPU, RAM, heap ── */}
-      {processMemory || cpuPercent != null ? (
+      {(processMemory || cpuPercent != null) && (!compact || isWarnLoad) ? (
         <Card innerWidth={innerWidth}>
           {(bodyWidth) => {
-            const isHighLoad = (cpuPercent ?? 0) > 85 || (processMemory?.load ?? 0) > 0.85;
-            const isWarnLoad = (cpuPercent ?? 0) > 60 || (processMemory?.load ?? 0) > 0.6;
             const healthBadge = isHighLoad ? 'HIGH' : isWarnLoad ? 'WARN' : 'HEALTHY';
             const healthColor = isHighLoad ? theme.error : isWarnLoad ? theme.warn : theme.success;
             return (

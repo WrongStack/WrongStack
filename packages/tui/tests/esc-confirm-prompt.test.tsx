@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import React from 'react';
 import { render } from 'ink-testing-library';
+import React from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { EscConfirmPrompt } from '../src/components/esc-confirm-prompt.js';
 
 describe('EscConfirmPrompt', () => {
@@ -157,6 +157,24 @@ describe('EscConfirmPrompt', () => {
     stdin.write('Y');
     await new Promise((resolve) => setImmediate(resolve));
     expect(onConfirm).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it('Ctrl+Y does not confirm the interrupt', async () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const { stdin, unmount } = render(
+      React.createElement(EscConfirmPrompt, {
+        runningTools: ['read'],
+        subagentCount: 0,
+        onConfirm,
+        onCancel,
+      }),
+    );
+    stdin.write('\x19');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
     unmount();
   });
 

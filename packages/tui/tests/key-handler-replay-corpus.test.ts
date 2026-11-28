@@ -45,6 +45,7 @@ interface CorpusCase {
     pasteAccumRef: { current: unknown };
   }) => void;
   draft?: { buffer: string; cursor: number };
+  geometry?: Parameters<typeof makeHandler>[2];
   steps: Step[];
 }
 
@@ -163,6 +164,7 @@ const CASES: CorpusCase[] = [
   {
     name: 'shift+tab on an empty draft toggles sidebar focus',
     makeState: () => createTestState(),
+    geometry: { terminalColumns: 100, mainColumnWidth: 75 },
     steps: [{ input: '', key: key({ shift: true, tab: true }) }],
   },
   {
@@ -182,7 +184,7 @@ describe('createAppKeyHandler replay corpus (decomposition Phase 0.3)', () => {
     it(corpusCase.name, async () => {
       const state = corpusCase.makeState();
       const draft = corpusCase.draft ?? { buffer: state.buffer, cursor: state.cursor };
-      const harness = makeHandler(state, draft);
+      const harness = makeHandler(state, draft, corpusCase.geometry);
       corpusCase.refs?.(harness.refs);
 
       const trace = {

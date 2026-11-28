@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { Box, Text } from '../ink.js';
+import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { ResidencySection } from './context-panel-residency.js';
@@ -50,26 +51,78 @@ const TABS: Array<{ id: TabId; label: string }> = [
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 
-function TabBar({ active }: { active: TabId }): React.ReactElement {
+/** Group tab labels into rows that fit the panel without shrinking any label. */
+function tabRows(width: number): number[][] {
+  const numbered = TABS.map((tab, i) => `${i + 1} ${tab.label}`);
+  const plain = TABS.map((tab) => tab.label);
+  const withNumbers = displayWidth(`‹ ${numbered.join(' ')} ›`) <= width;
+  const entries = withNumbers ? numbered : plain;
+
+  const rows: number[][] = [];
+  let current: number[] = [];
+  for (let i = 0; i < entries.length; i += 1) {
+    const candidate = [...current, i];
+    const prefix = withNumbers && rows.length === 0 && current.length === 0 ? '‹ ' : '';
+    const candidateWidth = displayWidth(
+      `${prefix}${candidate.map((index) => entries[index]).join(' ')}`,
+    );
+    if (candidateWidth <= width) {
+      current = candidate;
+    } else {
+      rows.push(current);
+      current = [i];
+    }
+  }
+  if (current.length > 0) rows.push(current);
+
+  // The trailing chevron belongs to the last row; reserve its two columns.
+  const last = rows[rows.length - 1];
+  if (
+    last &&
+    displayWidth(`${rows.length === 1 ? '‹ ' : ''}${last.map((i) => entries[i]).join(' ')} ›`) >
+      width &&
+    last.length > 1
+  ) {
+    rows.push([last.pop()!]);
+  }
+  return rows;
+}
+
+function TabBar({ active, width }: { active: TabId; width: number }): React.ReactElement {
+  const entries = TABS.map((tab, i) => `${i + 1} ${tab.label}`);
+  const compact = displayWidth(`‹ ${entries.join(' ')} ›`) > width;
+  const rows = tabRows(width);
   return (
-    <Box marginTop={1}>
-      <Text color={theme.textMuted}>‹ </Text>
-      {TABS.map((tab, i) => {
-        const isActive = tab.id === active;
-        return (
-          <Text key={tab.id}>
-            {i > 0 ? <Text color={theme.textMuted}> │ </Text> : null}
-            <Text
-              color={isActive ? theme.accent : theme.textMuted}
-              bold={isActive}
-              underline={isActive}
-            >
-              {i + 1} {tab.label}
-            </Text>
-          </Text>
-        );
-      })}
-      <Text color={theme.textMuted}> ›</Text>
+    <Box flexDirection="column" marginTop={1} width={width} flexShrink={0}>
+      {rows.map((row, rowIndex) => (
+        <Box
+          key={rowIndex}
+          flexDirection="row"
+          height={1}
+          width={width}
+          flexShrink={0}
+          overflow="hidden"
+        >
+          {rowIndex === 0 ? <Text color={theme.textMuted}>‹ </Text> : null}
+          {row.map((index, columnIndex) => {
+            const tab = TABS[index]!;
+            const isActive = tab.id === active;
+            return (
+              <Text key={tab.id}>
+                {columnIndex > 0 ? <Text color={theme.textMuted}> </Text> : null}
+                <Text
+                  color={isActive ? theme.accent : theme.textMuted}
+                  bold={isActive}
+                  underline={isActive}
+                >
+                  {compact ? tab.label : entries[index]}
+                </Text>
+              </Text>
+            );
+          })}
+          {rowIndex === rows.length - 1 ? <Text color={theme.textMuted}> ›</Text> : null}
+        </Box>
+      ))}
     </Box>
   );
 }
@@ -192,7 +245,7 @@ export function ContextPanel({ data, onClose }: ContextPanelProps): React.ReactE
           </Text>
         </Box>
 
-        <TabBar active={tab} />
+        <TabBar active={tab} width={Math.max(1, contentWidth - 2)} />
 
         {/* Active tab body — only one tab renders, so the panel never overflows. */}
         {tab === 'overview' ? (

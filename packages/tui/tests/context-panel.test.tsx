@@ -4,7 +4,9 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { ContextPanel, type ContextPanelData } from '../src/components/context-panel.js';
 import { emptyMemoryContextMonitor } from '../src/memory-context-monitor.js';
+import { displayWidth } from '../src/terminal-width.js';
 import { waitForFrame } from './helpers/frame-wait.js';
+import { renderRealTty, settle } from './helpers/real-tty.js';
 
 const ESC = String.fromCharCode(27);
 const RIGHT = `${ESC}[C`;
@@ -237,5 +239,35 @@ describe('ContextPanel tabs', () => {
     await flush();
     expect(closed).toBe(true);
     unmount();
+  });
+
+  it('keeps all six tab labels and the close affordance inside a 40x12 terminal', async () => {
+    const view = renderRealTty(
+      React.createElement(ContextPanel, { data: baseData(), onClose: () => {} }),
+      { columns: 40, rows: 12 },
+    );
+    try {
+      await settle();
+      const lines = view.lines();
+      const frame = lines.join('\n');
+      for (const label of [
+        'Overview',
+        'Composition',
+        'Thresholds',
+        'Agents',
+        'Memory',
+        'Residency',
+      ]) {
+        expect(frame, `${label} tab label`).toContain(label);
+      }
+      expect(frame).toContain('CONTEXT WINDOW');
+      expect(frame).toContain('Esc');
+      expect(lines.length).toBeLessThanOrEqual(12);
+      expect(Math.max(...lines.map((line) => displayWidth(line.trimEnd())))).toBeLessThanOrEqual(
+        40,
+      );
+    } finally {
+      view.unmount();
+    }
   });
 });

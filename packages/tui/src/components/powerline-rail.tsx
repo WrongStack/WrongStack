@@ -88,6 +88,8 @@ export interface RailLayout {
   items: RailLayoutItem[];
   /** Ids the fitter had to drop entirely (rendered as the `+N` marker). */
   droppedIds: string[];
+  /** Omission count painted after the last left-hand chip. */
+  omissionCount: number;
   /** Whether the reserved priority-tail chip fits and will be drawn. */
   rightVisible: boolean;
   /** Reserved for layout consumers; connected tails use no filler gap. */
@@ -142,6 +144,7 @@ export function layoutRail(
   entries: readonly RailSpanEntry[],
   budget: number,
   rightAnchor?: React.ReactElement | null,
+  showOmissions = true,
 ): RailLayout {
   const chips = entries.map(measure);
   const rightWidth = rightAnchor ? displayWidth(visibleNodeText(rightAnchor)) : 0;
@@ -161,7 +164,7 @@ export function layoutRail(
     const anchor = rightVisible
       ? rightWidth + RAIL_SEP_COST + (keep === 0 ? RAIL_END_CAP_COST : 0)
       : 0;
-    return leftWidth() + anchor + markerWidth(dropped);
+    return leftWidth() + anchor + markerWidth(showOmissions && keep > 0 ? dropped : 0);
   };
 
   // 1. Degrade widest-first. Each pass concedes the single largest column
@@ -170,19 +173,23 @@ export function layoutRail(
   while (total() > budget) {
     let best = -1;
     let bestGain = 0;
+    let nextLevel = 0;
     for (let i = 0; i < keep; i++) {
       const chip = chips[i]!;
-      if (chip.level >= chip.hi) continue;
-      const gain = chip.widths[chip.level]! - chip.widths[chip.level + 1]!;
+      let level = chip.level + 1;
+      while (level <= chip.hi && chip.widths[level]! >= chip.widths[chip.level]!) level++;
+      if (level > chip.hi) continue;
+      const gain = chip.widths[chip.level]! - chip.widths[level]!;
       // `>=` so ties resolve to the later chip: the tail concedes first,
       // matching the drop order in step 2.
       if (gain > 0 && gain >= bestGain) {
         best = i;
         bestGain = gain;
+        nextLevel = level;
       }
     }
     if (best === -1) break;
-    chips[best]!.level += 1;
+    chips[best]!.level = nextLevel;
   }
 
   // 2. Drop trailing chips. Leading chips are the ones the mouse spans and
@@ -193,6 +200,7 @@ export function layoutRail(
   //    orphaned left chip beside it.
   if (rightVisible && total() > budget) {
     rightVisible = false;
+    keep = chips.length;
     while (keep > 1 && total() > budget) keep -= 1;
   }
 
@@ -206,6 +214,8 @@ export function layoutRail(
       const cut = truncateDisplay(visibleNodeText(last.nodes[last.level]!), room);
       last.nodes[last.level] = <Text>{cut}</Text>;
       last.widths[last.level] = displayWidth(cut);
+    } else {
+      keep = 0;
     }
   }
 
@@ -227,7 +237,14 @@ export function layoutRail(
   const droppedIds = chips.slice(keep).map((chip) => chip.id);
   const used = total();
   const gap = 0;
-  return { items, droppedIds, rightVisible, gap, used };
+  return {
+    items,
+    droppedIds,
+    omissionCount: showOmissions && keep > 0 ? droppedIds.length : 0,
+    rightVisible,
+    gap,
+    used,
+  };
 }
 
 interface PowerlineRailProps {
@@ -319,14 +336,27 @@ export function PowerlineRail({
   monochrome = false,
   palette = theme,
 }: PowerlineRailProps): React.ReactElement {
-  // Empty logical rails still occupy one row so the detailed layout remains
-  // stable while live chips appear and disappear.
-  if (segments.length === 0 && !rightAnchor) {
-    return <Text> </Text>;
-  }
+  return (
+    <StatusRail
+      layout={layoutRail(toEntries(segments), budget, rightAnchor)}
+      rightAnchor={rightAnchor}
+      monochrome={monochrome}
+      palette={palette}
+    />
+  );
+}
 
-  const layout = layoutRail(toEntries(segments), budget, rightAnchor);
-  const dropped = layout.droppedIds.length;
+export function StatusRail({
+  layout,
+  rightAnchor,
+  monochrome = false,
+  palette = theme,
+}: {
+  layout: RailLayout;
+  rightAnchor?: React.ReactElement | null | undefined;
+  monochrome?: boolean | undefined;
+  palette?: Theme | undefined;
+}): React.ReactElement {
   const capsuleItems = [...layout.items];
   if (layout.rightVisible && rightAnchor) {
     capsuleItems.push({
@@ -338,19 +368,14 @@ export function PowerlineRail({
     });
   }
 
-  const content = (
-    <Text>
-      {capsuleItems.length > 0 ? (
-        <RailCapsule
-          items={capsuleItems}
-          dropped={dropped}
-          droppedAfter={layout.items.length - 1}
-          monochrome={monochrome}
-          palette={palette}
-        />
-      ) : null}
-    </Text>
+  if (capsuleItems.length === 0) return <Text> </Text>;
+  return (
+    <RailCapsule
+      items={capsuleItems}
+      dropped={layout.omissionCount}
+      droppedAfter={layout.items.length - 1}
+      monochrome={monochrome}
+      palette={palette}
+    />
   );
-
-  return content;
 }

@@ -67,6 +67,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'collabBugFound',
   'collabEvalComplete',
   'sidebarScroll',
+  'sidebarMeasureScroll',
   'sidebarScrollSet',
   'sidebarScrollReset',
   'toggleSidebarFocus',

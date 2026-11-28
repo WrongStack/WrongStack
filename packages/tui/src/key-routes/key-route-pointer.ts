@@ -48,21 +48,17 @@ export function routeSidebarFocusScroll(
     sidebarTwinRowCount,
     effectiveSwarmOnSidebar,
   } = ctx;
+  const sidebarVisible = ctx.historyWidth < (ctx.stdout?.columns ?? 80);
+  if (!sidebarVisible) {
+    if (state.sidebarFocused) dispatch({ type: 'toggleSidebarFocus' });
+    return false;
+  }
   if (key.tab && key.shift && draftRef.current.buffer === '' && !overlayOpen) {
     dispatch({ type: 'toggleSidebarFocus' });
     return true;
   }
   if (state.sidebarFocused && !overlayOpen) {
-    // The ↑↓ scroll applies to `SidebarContent` (context/model/fleet/
-    // sessions cards). Per-panel sidebar twins scroll internally and
-    // share the same RightSidebar region; they DO shrink the
-    // SidebarContent viewport when mounted, so we pass
-    // `sidebarTwinRowCount` (computed at the call site from the open
-    // twin flags) and the reducer subtracts it from the viewport before
-    // clamping. The mission-queue reservation also depends on the
-    // effective swarm-panel source (picker draft vs persisted config)
-    // — `effectiveSwarmOnSidebar` is the dual-source boolean from
-    // `resolveSidebarLayout`.
+    // The estimator provides a fallback before the first measured frame.
     const sidebarViewportHeight = termRows - 2;
     if (key.upArrow) {
       dispatch({
@@ -192,14 +188,11 @@ export async function routePointerEvents(
       // ── Sidebar wheel scroll ──
       // When the wheel lands in the sidebar region (right of the main
       // column) and the sidebar is visible, scroll sidebar content
-      // directly — no keyboard focus required. The row bound keeps the
-      // wheel inside the sidebar's vertical band (the history viewport
-      // rows); wheel over the bottom region keeps its existing no-op
-      // behavior instead of scrolling a panel that isn't there.
+      // directly. Its viewport ends just above its one-row footer.
       if (
         historyWidth < (stdout?.columns ?? 80) &&
         key.mouse.x > historyWidth &&
-        key.mouse.y <= state.viewportRows
+        key.mouse.y < termRows
       ) {
         dispatch({
           type: 'sidebarScroll',
@@ -245,13 +238,15 @@ export async function routePointerEvents(
       // when nothing sidebar-side is rendered).
       historyWidth < (stdout?.columns ?? 80) &&
       key.mouse.x >= (stdout?.columns ?? 80) &&
-      key.mouse.y <= state.viewportRows
+      key.mouse.y < termRows
     ) {
-      const railMaxScroll = estimateSidebarMaxScroll(
-        state,
-        Math.max(1, termRows - 2 - sidebarTwinRowCount),
-        effectiveSwarmOnSidebar,
-      );
+      const railMaxScroll =
+        state.sidebarMaxScroll ??
+        estimateSidebarMaxScroll(
+          state,
+          Math.max(1, termRows - 2 - sidebarTwinRowCount),
+          effectiveSwarmOnSidebar,
+        );
       if (railMaxScroll > 0) {
         const target = sidebarOffsetForCell(
           key.mouse.y - 1,

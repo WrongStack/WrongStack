@@ -70,9 +70,18 @@ describe('rail span projection (hit-test geometry)', () => {
     expect(spans.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
-  it('always keeps the first segment even when over budget', () => {
-    const spans = railSpans([{ id: 'a', node: chip('aaaaaaaaaa') }], 4);
-    expect(spans).toEqual([{ id: 'a', start: 0, len: 13, level: 0 }]);
+  it('keeps a clipped first segment only if it fits with its caps', () => {
+    const segments = [{ id: 'a', node: chip('aaaaaaaaaa') }];
+    expect(railSpans(segments, 8)).toEqual([{ id: 'a', start: 0, len: 7, level: 0 }]);
+    expect(railSpans(segments, 4)).toEqual([]);
+  });
+
+  it('fills the rail with short chips when a long anchor cannot fit', () => {
+    const entries = ['a', 'b', 'c'].map((id) => ({ id, node: chip(id) }));
+    const layout = layoutRail(entries, 14, chip('update notice that does not fit'));
+    expect(layout.rightVisible).toBe(false);
+    expect(layout.items.map((item) => item.id)).toEqual(['a', 'b', 'c']);
+    expect(layout.used).toBeLessThanOrEqual(14);
   });
 
   it('trims trailing segments to make room for a right anchor', () => {
