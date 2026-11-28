@@ -4970,6 +4970,7 @@
     "skipReasonIgnoredNoise": "Filtrado (no código / generado)",
     "skipReasonTooLarge": "Archivo demasiado grande",
     "skipReasonUnreadable": "Ilegible / eliminado",
+    "skipReasonNotThisSession": "No modificado por esta sesión",
     "cacheShort": "caché",
     "sessionIntentLabel": "Intención de la sesión",
     "deletedFileRefsLabel": "Referencias pendientes a archivos eliminados:",

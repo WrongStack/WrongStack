@@ -44,7 +44,9 @@ export type ReviewSkippedFileReason =
   | 'in_flight'
   | 'ignored_non_source'
   | 'too_large'
-  | 'unreadable';
+  | 'unreadable'
+  /** Changed outside this session's tool calls: a peer session, or before it began. */
+  | 'not_this_session';
 
 /**
  * One candidate file skipped before or during review dispatch.

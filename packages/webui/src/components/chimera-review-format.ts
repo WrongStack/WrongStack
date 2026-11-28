@@ -83,4 +83,5 @@ export const SKIPPED_FILE_REASON_KEY: Record<string, { key: string; fallback: st
   },
   too_large: { key: 'skipReasonTooLarge', fallback: 'File too large' },
   unreadable: { key: 'skipReasonUnreadable', fallback: 'Unreadable / deleted' },
+  not_this_session: { key: 'skipReasonNotThisSession', fallback: 'Not changed by this session' },
 };

@@ -49,6 +49,7 @@ import {
   isIgnoredReviewNoisePath,
   prioritizeReviewCandidates,
 } from './review-context-builder.js';
+import { trackToolCallOwnership } from './review-ownership.js';
 import type { ReviewSkippedFile } from './review-types.js';
 
 export {
@@ -312,6 +313,9 @@ export function createAutoReviewPlugin(): Plugin {
       };
 
       const skippedNoisePaths = new Map<string, string>();
+      // Changed, but not inside one of this host's tool calls (see review-ownership).
+      const ownership = trackToolCallOwnership(api);
+      const skippedForeignPaths = new Set<string>();
       const resolveProjectDir = (cwd: string): string =>
         path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
 
@@ -329,6 +333,15 @@ export function createAutoReviewPlugin(): Plugin {
           skippedNoisePaths.delete(file.path);
           observedPaths.add(file.path);
           if (knownFingerprints.get(file.path) !== file.fingerprint) {
+            if (!ownership.owns(file.mtimeMs)) {
+              // Remembered, so it neither reviews nor keeps re-arming the quiet
+              // window; an edit of this session's to it later is new content.
+              rememberKnownFingerprint(file.path, file.fingerprint);
+              skippedForeignPaths.add(file.path);
+              if (pendingFiles.delete(file.path)) pendingChanged = true;
+              continue;
+            }
+            skippedForeignPaths.delete(file.path);
             if (pendingFiles.get(file.path)?.fingerprint !== file.fingerprint) {
               pendingChanged = true;
             }
@@ -343,6 +356,8 @@ export function createAutoReviewPlugin(): Plugin {
             pendingChanged = true;
           }
         }
+        for (const p of skippedForeignPaths)
+          if (!observedPaths.has(p)) skippedForeignPaths.delete(p);
         return pendingChanged;
       };
 
@@ -419,6 +434,9 @@ export function createAutoReviewPlugin(): Plugin {
                 reason: 'ignored_non_source',
                 detail,
               }),
+            ),
+            ...[...skippedForeignPaths].map(
+              (p): ReviewSkippedFile => ({ path: p, reason: 'not_this_session' }),
             ),
             ...prioritizedPending.capped.map(
               (c): ReviewSkippedFile => ({ path: c.path, reason: 'max_files_cap' }),
@@ -549,7 +567,13 @@ export function createAutoReviewPlugin(): Plugin {
                 continue;
               }
               try {
-                await fsp.access(path.join(cwd, f.path));
+                // Session end reviewed every changed file in the tree: what was
+                // dirty before the session and a peer session's work too.
+                const stat = await fsp.stat(path.join(cwd, f.path));
+                if (!ownership.owns(stat.mtimeMs)) {
+                  sessionEndSkipped.push({ path: f.path, reason: 'not_this_session' });
+                  continue;
+                }
                 existing.push(f);
               } catch {
                 /* deleted */

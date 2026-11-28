@@ -13,6 +13,8 @@ export interface ChangedFile {
 export interface ChangedFileSnapshot extends ChangedFile {
   content: string;
   fingerprint: string;
+  /** Modification time when read; tells this session's edits from others'. */
+  mtimeMs?: number | undefined;
 }
 
 export const MAX_SNAPSHOT_FILE_BYTES = 256 * 1024;
@@ -216,6 +218,7 @@ export async function snapshotChangedFilesWithMetaIfRepo(
         ...file,
         content,
         fingerprint: createHash('sha256').update(content).digest('hex'),
+        mtimeMs: stat.mtimeMs,
       });
     } catch {
       // File deleted, unreadable, or not a regular UTF-8 file — skip it.

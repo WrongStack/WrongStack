@@ -4970,6 +4970,7 @@
     "skipReasonIgnoredNoise": "Filtrelendi (kaynak dışı / üretilmiş)",
     "skipReasonTooLarge": "Dosya çok büyük",
     "skipReasonUnreadable": "Okunamıyor / silinmiş",
+    "skipReasonNotThisSession": "Bu oturum değiştirmedi",
     "cacheShort": "önbellek",
     "sessionIntentLabel": "Oturum amacı",
     "deletedFileRefsLabel": "Silinen dosyalara kalan referanslar:",

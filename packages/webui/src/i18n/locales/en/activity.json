@@ -4970,6 +4970,7 @@
     "skipReasonIgnoredNoise": "Filtered non-source / generated",
     "skipReasonTooLarge": "File too large",
     "skipReasonUnreadable": "Unreadable / deleted",
+    "skipReasonNotThisSession": "Not changed by this session",
     "cacheShort": "cache",
     "sessionIntentLabel": "Session intent",
     "deletedFileRefsLabel": "Dangling references to deleted files:",

@@ -244,6 +244,109 @@ describe('auto-review change detection', () => {
     expect(JSON.stringify(payload)).not.toContain('PRIVATE_TOKEN');
   });
 
+  describe("only this session's changes", () => {
+    // A peer session sharing the tree writes outside this host's tool calls;
+    // its file's mtime is pushed a minute ahead so it is clearly not inside one.
+    const peerWrite = async (rel: string, text: string): Promise<void> => {
+      await fs.writeFile(path.join(tmp, rel), text);
+      const later = new Date(Date.now() + 60_000);
+      await fs.utimes(path.join(tmp, rel), later, later);
+    };
+    const toolCall = async (
+      events: Record<string, (event?: Record<string, unknown>) => Promise<void>>,
+      id: string,
+      edit: () => Promise<void>,
+      kind: 'tool' | 'subagent' = 'tool',
+    ): Promise<void> => {
+      if (kind === 'tool') await events['tool.started']!({ id, name: 'bash' });
+      else await events['subagent.tool_started']!({ id, subagentId: 'sub-1', name: 'edit' });
+      await edit();
+      if (kind === 'tool') await events['tool.completed']!({ id, name: 'bash', durationMs: 1 });
+      else await events['subagent.tool_executed']!({ id, subagentId: 'sub-1', durationMs: 1 });
+    };
+
+    beforeEach(async () => {
+      await fs.writeFile(path.join(tmp, 'peer.ts'), 'export const peer = 1;\n');
+      commitAll(tmp, 'add peer file');
+    });
+
+    it("reviews this session's edit and lists a peer's change as skipped", async () => {
+      const { api, events, emitCustom } = makeApi();
+      createAutoReviewPlugin().setup!(api);
+      await events['agent.run.started']!();
+
+      await toolCall(events, 't1', () =>
+        fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 2;\n'),
+      );
+      await peerWrite('peer.ts', 'export const peer = 2;\n');
+      await events['iteration.completed']!();
+
+      const payloads = reviewPayloads(emitCustom);
+      expect(payloads).toHaveLength(1);
+      expect(payloads[0]!.files.map((file) => file.path)).toEqual(['tracked.ts']);
+      expect(payloads[0]!.skippedFiles).toContainEqual({
+        path: 'peer.ts',
+        reason: 'not_this_session',
+      });
+      expect(JSON.stringify(payloads[0])).not.toContain('peer = 2');
+    });
+
+    it("does not review a peer's change alone, and still reviews a subagent's edit", async () => {
+      const { api, events, emitCustom } = makeApi();
+      createAutoReviewPlugin().setup!(api);
+      await events['agent.run.started']!();
+      await toolCall(events, 't1', async () => undefined);
+
+      await peerWrite('peer.ts', 'export const peer = 2;\n');
+      await events['iteration.completed']!();
+      expect(reviewPayloads(emitCustom)).toHaveLength(0);
+
+      await toolCall(
+        events,
+        's1',
+        () => fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 9;\n'),
+        'subagent',
+      );
+      await events['iteration.completed']!();
+      expect(reviewPayloads(emitCustom).map((p) => p.files.map((file) => file.path))).toEqual([
+        ['tracked.ts'],
+      ]);
+    });
+
+    it('leaves files the session did not change out of the session-end review', async () => {
+      // Dirty before the session began: an hour old.
+      await fs.writeFile(path.join(tmp, 'peer.ts'), 'export const peer = 0;\n');
+      const earlier = new Date(Date.now() - 3_600_000);
+      await fs.utimes(path.join(tmp, 'peer.ts'), earlier, earlier);
+      const { api, events, emitCustom } = makeApi();
+      createAutoReviewPlugin().setup!(api);
+      await toolCall(events, 't1', () =>
+        fs.writeFile(path.join(tmp, 'tracked.ts'), 'export const value = 4;\n'),
+      );
+
+      await events['session.ended']!();
+
+      const payloads = reviewPayloads(emitCustom);
+      expect(payloads).toHaveLength(1);
+      expect(payloads[0]!.files.map((file) => file.path)).toEqual(['tracked.ts']);
+      expect(payloads[0]!.skippedFiles).toContainEqual({
+        path: 'peer.ts',
+        reason: 'not_this_session',
+      });
+    });
+
+    it('reviews every change when the host reports no tool calls at all', async () => {
+      const { api, events, emitCustom } = makeApi();
+      createAutoReviewPlugin().setup!(api);
+      await events['agent.run.started']!();
+      await peerWrite('peer.ts', 'export const peer = 2;\n');
+      await events['iteration.completed']!();
+      expect(reviewPayloads(emitCustom).map((p) => p.files.map((file) => file.path))).toEqual([
+        ['peer.ts'],
+      ]);
+    });
+  });
+
   it('does not repeat an unchanged mid-session review at session end', async () => {
     const { api, events, emitCustom, log } = makeApi();
     createAutoReviewPlugin().setup!(api);

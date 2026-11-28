@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T17:01:42.166Z",
+  "generatedAt": "2026-11-28T17:04:59.401Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6674,
+    "sourceFiles": 6675,
     "testFiles": 6607,
-    "sourceLines": 1369104,
+    "sourceLines": 1369246,
     "workspaceEdges": 268,
-    "moduleEdges": 19589,
+    "moduleEdges": 19590,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -183,7 +183,7 @@
     {
       "name": "@wrongstack/builtin-plugins",
       "dir": "packages/builtin-plugins",
-      "sourceFiles": 40,
+      "sourceFiles": 41,
       "testFiles": 52,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -42330,8 +42330,8 @@
     },
     {
       "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
-      "lines": 741,
-      "relativeImports": 7
+      "lines": 765,
+      "relativeImports": 8
     },
     {
       "file": "packages/builtin-plugins/src/review-claim-registry.ts",
@@ -42951,6 +42951,11 @@
       "relativeImports": 19
     },
     {
+      "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
+      "lines": 765,
+      "relativeImports": 8
+    },
+    {
       "file": "packages/plugins/src/adversary-mode/index.ts",
       "lines": 763,
       "relativeImports": 5
@@ -43009,11 +43014,6 @@
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 744,
       "relativeImports": 3
-    },
-    {
-      "file": "packages/builtin-plugins/src/auto-review-plugin.ts",
-      "lines": 741,
-      "relativeImports": 7
     }
   ],
   "testOnlyExports": [
