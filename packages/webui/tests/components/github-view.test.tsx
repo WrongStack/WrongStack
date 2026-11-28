@@ -11,6 +11,7 @@ const item = {
   createdAt: '2026-11-20T10:00:00Z',
   updatedAt: '2026-11-26T10:00:00Z',
   labels: [],
+  state: 'open' as const,
 };
 const view: GitHubRepositoryView = {
   status: 'ok',
@@ -27,6 +28,7 @@ const view: GitHubRepositoryView = {
       comments: 2,
       labels: [{ name: 'feature', color: '0e8a16' }],
       draft: true,
+      merged: false,
       headRef: 'feat/github',
       baseRef: 'main',
     },
@@ -79,10 +81,110 @@ describe('GitHubView', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Issues/ }));
     expect(await screen.findByRole('button', { name: /Crash on start/ })).toBeTruthy();
-    expect(screen.getByText(/most recently updated/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Load more' })).toBeTruthy();
 
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'nothing-matches' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Filter by title/ }), {
+      target: { value: 'nothing-matches' },
+    });
     expect(screen.getByText('Nothing matches this filter.')).toBeTruthy();
+    expect(screen.getByText(/searches only the items loaded so far/)).toBeTruthy();
+  });
+
+  it('reads closed pull requests page by page through the list route', async () => {
+    const closed = (number: number, merged: boolean) => ({
+      ...view.pulls[0]!,
+      number,
+      title: `Closed pull ${number}`,
+      url: `https://github.com/octo/repo/pull/${number}`,
+      draft: false,
+      state: 'closed' as const,
+      merged,
+    });
+    const fetcher = vi.fn(async (url: string) => {
+      const reply = url.startsWith('/api/github/list?')
+        ? new URL(url, 'http://x').searchParams.get('page') === '1'
+          ? { status: 'ok', kind: 'pulls', items: [closed(40, true)], nextPage: 2 }
+          : {
+              status: 'ok',
+              kind: 'pulls',
+              items: [closed(39, false), closed(40, true)],
+              nextPage: null,
+            }
+        : view;
+      return new Response(JSON.stringify(reply), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    render(<GitHubView />);
+    await screen.findByRole('button', { name: /Add the GitHub view/ });
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'State' }), {
+      target: { value: 'closed' },
+    });
+    const merged = await screen.findByRole('button', { name: /Closed pull 40/ });
+    expect(merged.textContent).toContain('Merged');
+    expect(screen.queryByRole('button', { name: /Add the GitHub view/ })).toBeNull();
+    expect(String(fetcher.mock.calls[1]![0])).toBe(
+      '/api/github/list?kind=pulls&state=closed&page=1&sessionId=s1',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    const second = await screen.findByRole('button', { name: /Closed pull 39/ });
+    expect(second.textContent).toContain('Closed');
+    expect(String(fetcher.mock.calls[2]![0])).toBe(
+      '/api/github/list?kind=pulls&state=closed&page=2&sessionId=s1',
+    );
+    // The repeated #40 keeps its first place; the last page ends the list.
+    expect(screen.getAllByRole('button', { name: /Closed pull/ })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+  });
+
+  it('loads the next open issues and filters issues by label and assignee', async () => {
+    const issue = (number: number) => ({
+      ...view.issues[0]!,
+      number,
+      title: `Issue ${number}`,
+      url: `https://github.com/octo/repo/issues/${number}`,
+    });
+    const fetcher = vi.fn(async (url: string) => {
+      const reply = url.startsWith('/api/github/list?')
+        ? url.includes('labels=')
+          ? { status: 'ok', kind: 'issues', items: [issue(3)], nextPage: null }
+          : { status: 'ok', kind: 'issues', items: [], nextPage: 4 }
+        : view;
+      return new Response(JSON.stringify(reply), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    render(<GitHubView />);
+    await screen.findByRole('button', { name: /Add the GitHub view/ });
+    fireEvent.click(screen.getByRole('tab', { name: /Issues/ }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    expect(String(fetcher.mock.calls[1]![0])).toBe(
+      '/api/github/list?kind=issues&state=open&page=2&sessionId=s1',
+    );
+    // An empty page that names a next one keeps the button.
+    expect(await screen.findByRole('button', { name: 'Load more' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Crash on start/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Labels/ }), {
+      target: { value: 'bug, ui' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /Assignee/ }), {
+      target: { value: 'octocat' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(await screen.findByRole('button', { name: /Issue 3/ })).toBeTruthy();
+    expect(String(fetcher.mock.calls.at(-1)![0])).toBe(
+      '/api/github/list?kind=issues&state=open&page=1&labels=bug%2C+ui&assignee=octocat&sessionId=s1',
+    );
+    expect(screen.queryByRole('button', { name: /Crash on start/ })).toBeNull();
   });
 
   it('asks the server to bypass its cache on refresh', async () => {

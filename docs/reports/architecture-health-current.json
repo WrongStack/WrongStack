@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T02:03:40.391Z",
+  "generatedAt": "2026-11-28T02:06:09.563Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6651,
-    "testFiles": 6575,
-    "sourceLines": 1364888,
+    "sourceFiles": 6653,
+    "testFiles": 6576,
+    "sourceLines": 1365380,
     "workspaceEdges": 268,
-    "moduleEdges": 19526,
+    "moduleEdges": 19532,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -785,7 +785,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 273,
+      "sourceFiles": 274,
       "testFiles": 57,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1257,8 +1257,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 364,
-      "testFiles": 454,
+      "sourceFiles": 365,
+      "testFiles": 455,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1293,7 +1293,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 454
+          "testFiles": 455
         }
       ]
     },
@@ -35072,6 +35072,12 @@
       },
       {
         "file": "packages/webui-server/tests/github-item.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/github-list.test.ts",
         "projects": [
           "root-node"
         ]

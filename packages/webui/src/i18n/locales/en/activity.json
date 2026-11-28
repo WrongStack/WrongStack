@@ -5897,7 +5897,7 @@
     }
   },
   "github": {
-    "subtitle": "Open pull requests and issues of this project's GitHub repository.",
+    "subtitle": "Pull requests and issues of this project's GitHub repository.",
     "refresh": "Refresh",
     "pulls": "Pull requests",
     "issues": "Issues",
@@ -5912,7 +5912,6 @@
     "opened": "#{{number}} by {{author}}",
     "unknownAuthor": "unknown",
     "updated": "updated {{time}}",
-    "truncated": "Showing the {{count}} most recently updated. Open GitHub for the rest.",
     "loading": "Loading GitHub…",
     "tokenEnv": "Token from environment",
     "tokenGh": "Token from GitHub CLI",
@@ -5953,7 +5952,8 @@
       "open": "Open",
       "closed": "Closed",
       "merged": "Merged",
-      "draft": "Draft"
+      "draft": "Draft",
+      "all": "All"
     },
     "tone": {
       "pass": "passed",
@@ -6037,6 +6037,15 @@
       "add": "Add to review",
       "submit_one": "Submit review ({{count}} comment)",
       "submit_other": "Submit review ({{count}} comments)"
-    }
+    },
+    "stateFilter": "State",
+    "labelsFilter": "Labels, comma-separated",
+    "assigneeFilter": "Assignee, none or *",
+    "applyFilters": "Apply",
+    "clearFilters": "Clear",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "emptyFiltered": "Nothing in this state matches these filters.",
+    "filterLoadedOnly": "The text filter searches only the items loaded so far."
   }
 }

@@ -5897,7 +5897,7 @@
     }
   },
   "github": {
-    "subtitle": "Offene Pull Requests und Issues des GitHub-Repositorys dieses Projekts.",
+    "subtitle": "Pull Requests und Issues des GitHub-Repositorys dieses Projekts.",
     "refresh": "Aktualisieren",
     "pulls": "Pull Requests",
     "issues": "Issues",
@@ -5912,7 +5912,6 @@
     "opened": "#{{number}} von {{author}}",
     "unknownAuthor": "unbekannt",
     "updated": "aktualisiert {{time}}",
-    "truncated": "Die {{count}} zuletzt aktualisierten werden angezeigt. Den Rest findest du auf GitHub.",
     "loading": "GitHub wird geladen…",
     "tokenEnv": "Token aus der Umgebung",
     "tokenGh": "Token aus der GitHub CLI",
@@ -5953,7 +5952,8 @@
       "open": "Offen",
       "closed": "Geschlossen",
       "merged": "Gemergt",
-      "draft": "Entwurf"
+      "draft": "Entwurf",
+      "all": "Alle"
     },
     "tone": {
       "pass": "bestanden",
@@ -6037,6 +6037,15 @@
       "add": "Zum Review hinzufügen",
       "submit_one": "Review absenden ({{count}} Kommentar)",
       "submit_other": "Review absenden ({{count}} Kommentare)"
-    }
+    },
+    "stateFilter": "Status",
+    "labelsFilter": "Labels, durch Kommas getrennt",
+    "assigneeFilter": "Zugewiesen, none oder *",
+    "applyFilters": "Anwenden",
+    "clearFilters": "Zurücksetzen",
+    "loadMore": "Mehr laden",
+    "loadingMore": "Wird geladen…",
+    "emptyFiltered": "Nichts in diesem Status passt zu diesen Filtern.",
+    "filterLoadedOnly": "Der Textfilter durchsucht nur die bisher geladenen Einträge."
   }
 }

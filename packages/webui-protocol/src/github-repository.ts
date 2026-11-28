@@ -20,10 +20,13 @@ export interface GitHubItemBase {
   comments: number;
   createdAt: string;
   updatedAt: string;
+  state: 'open' | 'closed';
 }
 
 export interface GitHubPullSummary extends GitHubItemBase {
   draft: boolean;
+  /** Closed by a merge (GitHub reports `merged_at`). */
+  merged: boolean;
   headRef: string;
   baseRef: string;
 }
@@ -57,6 +60,28 @@ export interface GitHubRepositoryView {
   truncated: { pulls: boolean; issues: boolean };
   fetchedAt: string;
 }
+
+export type GitHubListState = 'open' | 'closed' | 'all';
+
+/**
+ * One page of a list, served by `GET /api/github/list?sessionId=…&kind=…
+ * &state=…&page=…` (issues also take `labels` and `assignee`). `nextPage` is
+ * GitHub's next page number, null on the last one; a page can be empty while
+ * more follow (the issues endpoint mixes in pull requests, which are dropped).
+ */
+export type GitHubListPage =
+  | {
+      status: GitHubRepositoryStatus;
+      kind: 'pulls';
+      items: GitHubPullSummary[];
+      nextPage: number | null;
+    }
+  | {
+      status: GitHubRepositoryStatus;
+      kind: 'issues';
+      items: GitHubIssueSummary[];
+      nextPage: number | null;
+    };
 
 export type GitHubItemKind = 'pull' | 'issue';
 

@@ -5897,7 +5897,7 @@
     }
   },
   "github": {
-    "subtitle": "Pull requests et issues ouvertes du dépôt GitHub de ce projet.",
+    "subtitle": "Pull requests et issues du dépôt GitHub de ce projet.",
     "refresh": "Actualiser",
     "pulls": "Pull requests",
     "issues": "Issues",
@@ -5912,7 +5912,6 @@
     "opened": "#{{number}} par {{author}}",
     "unknownAuthor": "inconnu",
     "updated": "mis à jour {{time}}",
-    "truncated": "Affichage des {{count}} plus récemment mises à jour. Ouvrez GitHub pour le reste.",
     "loading": "Chargement de GitHub…",
     "tokenEnv": "Jeton issu de l'environnement",
     "tokenGh": "Jeton issu de GitHub CLI",
@@ -5953,7 +5952,8 @@
       "open": "Ouverte",
       "closed": "Fermée",
       "merged": "Fusionnée",
-      "draft": "Brouillon"
+      "draft": "Brouillon",
+      "all": "Tous"
     },
     "tone": {
       "pass": "réussie",
@@ -6037,6 +6037,15 @@
       "add": "Ajouter à la revue",
       "submit_one": "Envoyer la revue ({{count}} commentaire)",
       "submit_other": "Envoyer la revue ({{count}} commentaires)"
-    }
+    },
+    "stateFilter": "État",
+    "labelsFilter": "Labels, séparés par des virgules",
+    "assigneeFilter": "Assigné, none ou *",
+    "applyFilters": "Appliquer",
+    "clearFilters": "Effacer",
+    "loadMore": "Charger plus",
+    "loadingMore": "Chargement…",
+    "emptyFiltered": "Rien dans cet état ne correspond à ces filtres.",
+    "filterLoadedOnly": "Le filtre texte ne cherche que dans les éléments déjà chargés."
   }
 }

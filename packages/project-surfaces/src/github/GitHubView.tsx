@@ -1,8 +1,11 @@
 import type { GitHubIssueSummary, GitHubPullSummary } from '@wrongstack/webui-protocol';
 import {
   ArrowUpRight,
+  CircleCheck,
   CircleDot,
+  GitMerge,
   GitPullRequest,
+  GitPullRequestClosed,
   GitPullRequestDraft,
   MessageSquare,
   RefreshCw,
@@ -22,6 +25,12 @@ import {
   relativeGitHubTime,
   safeGitHubUrl,
 } from './github-view-model';
+import {
+  DEFAULT_GITHUB_FILTER,
+  type GitHubListFilter,
+  isDefaultGitHubFilter,
+  useGitHubList,
+} from './use-github-list';
 import { useGitHubRepository } from './use-github-repository';
 
 function ItemRow({
@@ -37,16 +46,43 @@ function ItemRow({
 }) {
   const { t } = useAppTranslation();
   const pull = 'headRef' in item ? item : null;
-  const Icon = pull ? (pull.draft ? GitPullRequestDraft : GitPullRequest) : CircleDot;
+  const status = pull?.merged
+    ? 'merged'
+    : item.state === 'closed'
+      ? 'closed'
+      : pull?.draft
+        ? 'draft'
+        : 'open';
+  const Icon = pull
+    ? {
+        merged: GitMerge,
+        closed: GitPullRequestClosed,
+        draft: GitPullRequestDraft,
+        open: GitPullRequest,
+      }[status]
+    : item.state === 'closed'
+      ? CircleCheck
+      : CircleDot;
   const body = (
     <>
       <Icon
         className={cn(
           'mt-0.5 h-4 w-4 shrink-0',
-          pull?.draft ? 'text-muted-foreground' : 'text-success',
+          status === 'merged'
+            ? 'text-primary'
+            : status === 'closed'
+              ? pull
+                ? 'text-destructive'
+                : 'text-primary'
+              : status === 'draft'
+                ? 'text-muted-foreground'
+                : 'text-success',
         )}
         aria-hidden="true"
       />
+      {status !== 'open' && status !== 'draft' && (
+        <span className="sr-only">{t(`activity:github.state.${status}`)}</span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="break-words text-sm font-medium text-foreground">{item.title}</span>
@@ -122,11 +158,95 @@ function ItemRow({
   );
 }
 
+/** State for both tabs; labels and assignee for issues, applied on submit. */
+function ListFilters({
+  tab,
+  filter,
+  onChange,
+}: {
+  tab: GitHubTab;
+  filter: GitHubListFilter;
+  onChange: (next: GitHubListFilter) => void;
+}) {
+  const { t } = useAppTranslation();
+  const [labels, setLabels] = useState(filter.labels);
+  const [assignee, setAssignee] = useState(filter.assignee);
+  const dirty = labels !== filter.labels || assignee !== filter.assignee;
+  const field =
+    'min-w-0 rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onChange({ ...filter, labels: labels.trim(), assignee: assignee.trim() });
+      }}
+    >
+      <select
+        aria-label={t('activity:github.stateFilter')}
+        value={filter.state}
+        onChange={(event) =>
+          onChange({ ...filter, state: event.target.value as GitHubListFilter['state'] })
+        }
+        className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+      >
+        {(['open', 'closed', 'all'] as const).map((value) => (
+          <option key={value} value={value}>
+            {t(`activity:github.state.${value}`)}
+          </option>
+        ))}
+      </select>
+      {tab === 'issues' && (
+        <>
+          <input
+            aria-label={t('activity:github.labelsFilter')}
+            placeholder={t('activity:github.labelsFilter')}
+            value={labels}
+            maxLength={1000}
+            onChange={(event) => setLabels(event.target.value)}
+            className={cn(field, 'w-40')}
+          />
+          <input
+            aria-label={t('activity:github.assigneeFilter')}
+            placeholder={t('activity:github.assigneeFilter')}
+            value={assignee}
+            maxLength={39}
+            onChange={(event) => setAssignee(event.target.value)}
+            className={cn(field, 'w-40')}
+          />
+          <Button type="submit" size="sm" variant="outline" disabled={!dirty}>
+            {t('activity:github.applyFilters')}
+          </Button>
+          {(filter.labels || filter.assignee) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setLabels('');
+                setAssignee('');
+                onChange({ ...filter, labels: '', assignee: '' });
+              }}
+            >
+              {t('activity:github.clearFilters')}
+            </Button>
+          )}
+        </>
+      )}
+    </form>
+  );
+}
+
 export function GitHubView() {
   const { t, i18n } = useAppTranslation();
   const state = useGitHubRepository();
   const [tab, setTab] = useState<GitHubTab>('pulls');
   const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<Record<GitHubTab, GitHubListFilter>>({
+    pulls: DEFAULT_GITHUB_FILTER,
+    issues: DEFAULT_GITHUB_FILTER,
+  });
+  const [round, setRound] = useState(0);
   const view = state.view;
   // A selection belongs to one repository: switching the session (and so the
   // project) must never leave a merge button pointing at another repo's #N.
@@ -144,10 +264,31 @@ export function GitHubView() {
         : null,
     );
   const kind = tab === 'pulls' ? 'pull' : 'issue';
+  const filter = filters[tab];
+  const usable = view?.status === 'ok';
+  const list = useGitHubList({
+    tab,
+    filter,
+    // Until the repository answered, nothing is read; the open list is its first page.
+    seed:
+      !usable || isDefaultGitHubFilter(tab, filter)
+        ? {
+            items: view?.[tab] ?? [],
+            truncated: view?.truncated[tab] ?? false,
+            fetchedAt: view?.fetchedAt ?? '',
+          }
+        : null,
+    round,
+  });
   const items = useMemo(
-    () => filterGitHubItems<GitHubIssueSummary | GitHubPullSummary>(view?.[tab] ?? [], query),
-    [view, tab, query],
+    () => filterGitHubItems<GitHubIssueSummary | GitHubPullSummary>(list.items, query),
+    [list.items, query],
   );
+  const refresh = () => {
+    state.refresh();
+    setRound((value) => value + 1);
+  };
+  const filtered = !isDefaultGitHubFilter(tab, filter);
   const repositoryUrl = view?.repository
     ? safeGitHubUrl(`https://github.com/${view.repository}`)
     : undefined;
@@ -178,7 +319,7 @@ export function GitHubView() {
           <Button
             variant="outline"
             size="sm"
-            onClick={state.refresh}
+            onClick={refresh}
             disabled={state.loading}
             aria-label={t('activity:github.refresh')}
           >
@@ -225,27 +366,33 @@ export function GitHubView() {
                 aria-label="GitHub"
                 className="flex gap-1 rounded-lg bg-muted/40 p-1"
               >
-                {(['pulls', 'issues'] as const).map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === id}
-                    onClick={() => setTab(id)}
-                    className={cn(
-                      'rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      tab === id
-                        ? 'bg-background font-medium text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {t(`activity:github.${id}`)}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {view[id].length}
-                      {view.truncated[id] ? '+' : ''}
-                    </span>
-                  </button>
-                ))}
+                {(['pulls', 'issues'] as const).map((id) => {
+                  // The other tab's count is known only for its open first page.
+                  const count =
+                    id === tab
+                      ? `${list.items.length}${list.nextPage !== null ? '+' : ''}`
+                      : isDefaultGitHubFilter(id, filters[id])
+                        ? `${view[id].length}${view.truncated[id] ? '+' : ''}`
+                        : '';
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === id}
+                      onClick={() => setTab(id)}
+                      className={cn(
+                        'rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        tab === id
+                          ? 'bg-background font-medium text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {t(`activity:github.${id}`)}
+                      {count && <span className="ml-2 text-xs text-muted-foreground">{count}</span>}
+                    </button>
+                  );
+                })}
               </div>
               <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 py-1.5 sm:max-w-sm">
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -257,13 +404,40 @@ export function GitHubView() {
                   className="w-full min-w-0 bg-transparent text-sm outline-none"
                 />
               </label>
+              <ListFilters
+                key={tab}
+                tab={tab}
+                filter={filter}
+                onChange={(next) => setFilters((all) => ({ ...all, [tab]: next }))}
+              />
             </div>
             <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-4">
-              {view[tab].length === 0 && view.truncated[tab] ? null : view[tab].length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">
-                  {t(
-                    tab === 'pulls' ? 'activity:github.emptyPulls' : 'activity:github.emptyIssues',
+              {list.problem ? (
+                <div
+                  role="alert"
+                  className="m-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+                >
+                  {list.problem.status
+                    ? t(`activity:github.status.${list.problem.status}`)
+                    : t('activity:github.status.unavailable')}
+                  {list.problem.text && (
+                    <p className="mt-1 break-words text-muted-foreground">{list.problem.text}</p>
                   )}
+                </div>
+              ) : list.pending ? (
+                <p role="status" className="p-4 text-sm text-muted-foreground">
+                  {t('activity:github.loading')}
+                </p>
+              ) : list.items.length === 0 && list.nextPage !== null ? null : list.items.length ===
+                0 ? (
+                <p className="p-4 text-sm text-muted-foreground">
+                  {filtered
+                    ? t('activity:github.emptyFiltered')
+                    : t(
+                        tab === 'pulls'
+                          ? 'activity:github.emptyPulls'
+                          : 'activity:github.emptyIssues',
+                      )}
                 </p>
               ) : items.length === 0 ? (
                 <p className="p-4 text-sm text-muted-foreground">{t('activity:github.noMatch')}</p>
@@ -280,10 +454,24 @@ export function GitHubView() {
                   ))}
                 </ul>
               )}
-              {view.truncated[tab] && (
-                <p className="px-3 py-3 text-xs text-muted-foreground">
-                  {t('activity:github.truncated', { count: view[tab].length })}
-                </p>
+              {!list.problem && list.nextPage !== null && (
+                <div className="flex flex-wrap items-center gap-3 px-3 py-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={list.loading}
+                    onClick={list.loadMore}
+                  >
+                    {list.loading
+                      ? t('activity:github.loadingMore')
+                      : t('activity:github.loadMore')}
+                  </Button>
+                  {query.trim() && (
+                    <span className="text-xs text-muted-foreground">
+                      {t('activity:github.filterLoadedOnly')}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -293,7 +481,7 @@ export function GitHubView() {
               selection={selected}
               canWrite={view.tokenSource !== 'none'}
               onBack={() => setSelected(null)}
-              onChanged={state.refresh}
+              onChanged={refresh}
             />
           ) : (
             <p className="hidden flex-1 items-center justify-center p-6 text-sm text-muted-foreground md:flex">

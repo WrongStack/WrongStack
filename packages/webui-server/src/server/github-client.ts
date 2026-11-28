@@ -332,6 +332,7 @@ export function toBaseItem(
     comments: count(raw['comments']),
     createdAt: text(raw['created_at'], 40),
     updatedAt: text(raw['updated_at'], 40),
+    state: raw['state'] === 'closed' ? 'closed' : 'open',
   };
 }
 
@@ -345,6 +346,7 @@ export function toPull(raw: unknown, repository: string): GitHubPullSummary | nu
   return {
     ...item,
     draft: record['draft'] === true,
+    merged: typeof record['merged_at'] === 'string',
     headRef: text(head?.ref, 250),
     baseRef: text(base?.ref, 250),
   };

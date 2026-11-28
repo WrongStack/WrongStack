@@ -156,6 +156,8 @@ export type {
   GitHubItemKind,
   GitHubLabel,
   GitHubLineComment,
+  GitHubListPage,
+  GitHubListState,
   GitHubMergeMethod,
   GitHubPullFile,
   GitHubPullSummary,

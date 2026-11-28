@@ -5897,7 +5897,7 @@
     }
   },
   "github": {
-    "subtitle": "Bu projenin GitHub deposundaki açık pull request'ler ve issue'lar.",
+    "subtitle": "Bu projenin GitHub deposundaki pull request ve issue kayıtları.",
     "refresh": "Yenile",
     "pulls": "Pull request'ler",
     "issues": "Issue'lar",
@@ -5912,7 +5912,6 @@
     "opened": "#{{number}} · {{author}}",
     "unknownAuthor": "bilinmiyor",
     "updated": "güncelleme: {{time}}",
-    "truncated": "En son güncellenen {{count}} kayıt gösteriliyor. Kalanı için GitHub'ı aç.",
     "loading": "GitHub yükleniyor…",
     "tokenEnv": "Token ortam değişkeninden",
     "tokenGh": "Token GitHub CLI'dan",
@@ -5953,7 +5952,8 @@
       "open": "Açık",
       "closed": "Kapalı",
       "merged": "Birleştirildi",
-      "draft": "Taslak"
+      "draft": "Taslak",
+      "all": "Tümü"
     },
     "tone": {
       "pass": "geçti",
@@ -6037,6 +6037,15 @@
       "add": "İncelemeye ekle",
       "submit_one": "İncelemeyi gönder ({{count}} yorum)",
       "submit_other": "İncelemeyi gönder ({{count}} yorum)"
-    }
+    },
+    "stateFilter": "Durum",
+    "labelsFilter": "Etiketler, virgülle ayrılmış",
+    "assigneeFilter": "Atanan, none veya *",
+    "applyFilters": "Uygula",
+    "clearFilters": "Temizle",
+    "loadMore": "Daha fazla yükle",
+    "loadingMore": "Yükleniyor…",
+    "emptyFiltered": "Bu durumda bu filtrelere uyan kayıt yok.",
+    "filterLoadedOnly": "Metin filtresi yalnızca şimdiye kadar yüklenen kayıtlarda arar."
   }
 }

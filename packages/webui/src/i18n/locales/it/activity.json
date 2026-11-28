@@ -5897,7 +5897,7 @@
     }
   },
   "github": {
-    "subtitle": "Pull request e issue aperte del repository GitHub di questo progetto.",
+    "subtitle": "Pull request e issue del repository GitHub di questo progetto.",
     "refresh": "Aggiorna",
     "pulls": "Pull request",
     "issues": "Issue",
@@ -5912,7 +5912,6 @@
     "opened": "#{{number}} di {{author}}",
     "unknownAuthor": "sconosciuto",
     "updated": "aggiornata {{time}}",
-    "truncated": "Sono mostrate le {{count}} aggiornate più di recente. Apri GitHub per le altre.",
     "loading": "Caricamento di GitHub…",
     "tokenEnv": "Token dall'ambiente",
     "tokenGh": "Token da GitHub CLI",
@@ -5953,7 +5952,8 @@
       "open": "Aperta",
       "closed": "Chiusa",
       "merged": "Unita",
-      "draft": "Bozza"
+      "draft": "Bozza",
+      "all": "Tutti"
     },
     "tone": {
       "pass": "superato",
@@ -6037,6 +6037,15 @@
       "add": "Aggiungi alla revisione",
       "submit_one": "Invia revisione ({{count}} commento)",
       "submit_other": "Invia revisione ({{count}} commenti)"
-    }
+    },
+    "stateFilter": "Stato",
+    "labelsFilter": "Etichette, separate da virgole",
+    "assigneeFilter": "Assegnatario, none o *",
+    "applyFilters": "Applica",
+    "clearFilters": "Cancella",
+    "loadMore": "Carica altri",
+    "loadingMore": "Caricamento…",
+    "emptyFiltered": "Niente in questo stato corrisponde a questi filtri.",
+    "filterLoadedOnly": "Il filtro di testo cerca solo tra gli elementi caricati finora."
   }
 }

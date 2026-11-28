@@ -18,6 +18,7 @@ const base = {
   comments: 0,
   createdAt: '2026-11-01T00:00:00Z',
   updatedAt: '2026-11-01T00:00:00Z',
+  state: 'open' as const,
 };
 const issue: GitHubIssueSummary = {
   ...base,
@@ -33,6 +34,7 @@ const pull: GitHubPullSummary = {
   author: null,
   labels: [],
   draft: false,
+  merged: false,
   headRef: 'feat/github-view',
   baseRef: 'main',
 };

@@ -19,6 +19,7 @@ import {
   toPull,
 } from './github-client.js';
 import { handleGitHubAction, handleGitHubItemRead } from './github-item-handlers.js';
+import { handleGitHubListRead } from './github-list-handlers.js';
 
 /**
  * Read-only list of the active session's project repository, plus the single
@@ -127,6 +128,7 @@ async function handleGitHubRepositoryRead(
 /**
  * Every `/api/github*` route. Returns false for paths it does not own.
  *  - `GET  /api/github`         open pull requests and issues
+ *  - `GET  /api/github/list`    one page of pull requests or issues in any state
  *  - `GET  /api/github/item`    one pull request or issue (`kind`, `number`)
  *  - `POST /api/github/action`  comment, review, merge, close or reopen
  */
@@ -139,6 +141,7 @@ export async function handleGitHubRoutes(
 ): Promise<boolean> {
   const routes: Record<string, 'GET' | 'POST'> = {
     '/api/github': 'GET',
+    '/api/github/list': 'GET',
     '/api/github/item': 'GET',
     '/api/github/action': 'POST',
   };
@@ -155,6 +158,7 @@ export async function handleGitHubRoutes(
   }
   try {
     if (url.pathname === '/api/github') await handleGitHubRepositoryRead(res, url, deps);
+    else if (url.pathname === '/api/github/list') await handleGitHubListRead(res, url, deps);
     else if (url.pathname === '/api/github/item') await handleGitHubItemRead(res, url, deps);
     else await handleGitHubAction(req, res, url, deps, invalidateGitHubView, auth.accessTokenOk);
   } catch (error) {
