@@ -172,9 +172,16 @@ async function expandWorkspaceGlob(root: string, pattern: string): Promise<strin
     for (const dir of current) {
       if (segment === '**') {
         next.push(...(await descendants(root, dir, 3)));
-      } else if (segment.includes('*')) {
+      } else if (segment.includes('*') || segment.includes('?')) {
+        // Glob wildcards only: `*` = zero or more chars, `?` = exactly one.
+        // Every other regex metacharacter stays literal. `?` must be converted
+        // here — left in place it becomes a regex quantifier (or, in a segment
+        // without `*`, the whole pattern was treated as a literal dir name).
         const matcher = new RegExp(
-          `^${segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')}$`,
+          `^${segment
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '[^/]*')
+            .replace(/\?/g, '[^/]')}$`,
         );
         for (const child of await childDirs(root, dir)) {
           if (matcher.test(child)) next.push(dir === '.' ? child : `${dir}/${child}`);
