@@ -685,10 +685,9 @@ export function isAdversaryPolicyTamperAttempt(
       }
       // Read-only cat/type/head/Get-Content without redirection or deletion is fine;
       // redirection, rm/del/mv/cp/sed -i/Set-Content/Out-File/tee/inline write is not.
-      const writeSurface = withoutHarmlessRedirections(line, lowerTool === 'pwsh');
       const mutatingShell =
         /(?:>|>>|\b(?:rm|rmdir|del|erase|unlink|mv|move|cp|copy|tee|truncate|dd)\b|\bsed\s+-i|\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item)\b|\b(?:writeFileSync|writeFile|appendFileSync|unlinkSync|rmSync)\b|\bopen\s*\([^)]*['"][wa+])/i.test(
-          writeSurface,
+          withoutHarmlessRedirections(line, lowerTool === 'pwsh'),
         );
       if (mutatingShell) {
         return 'Refused shell command targeting adversary.md — agents cannot modify or delete adversary.md policy files.';

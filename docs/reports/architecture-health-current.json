@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T16:30:23.621Z",
+  "generatedAt": "2026-11-28T16:35:19.277Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 51,
     "sourceFiles": 6674,
     "testFiles": 6607,
-    "sourceLines": 1369096,
+    "sourceLines": 1369095,
     "workspaceEdges": 268,
     "moduleEdges": 19589,
     "nonCommandSlashImports": 0,
@@ -42482,11 +42482,6 @@
       "file": "packages/plugins/src/adversary-mode/index.ts",
       "lines": 763,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/plugins/src/adversary-mode/policy.ts",
-      "lines": 701,
-      "relativeImports": 2
     },
     {
       "file": "packages/plugins/src/audit/index.ts",

@@ -142,10 +142,6 @@
       "lines": 763,
       "relativeImports": 5
     },
-    "packages/plugins/src/adversary-mode/policy.ts": {
-      "lines": 701,
-      "relativeImports": 2
-    },
     "packages/plugins/src/audit/index.ts": {
       "lines": 716,
       "relativeImports": 0
