@@ -571,11 +571,9 @@
   .settings-detail
   :is(.settings-section-heading, .provider-heading, .brain-policy > header, .studio-heading)
   .eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  /* The category line above the page and its title already name it; the eyebrow between them
+     ("ACTIVE PROFILE · DECISION POLICY", "YOUR MODELS. YOUR CONNECTIONS.") was a third heading. */
+  display: none;
 }
 .workspace-shell
   .settings-detail
