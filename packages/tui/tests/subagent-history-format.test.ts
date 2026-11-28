@@ -61,6 +61,16 @@ describe('shortenTaskPreview', () => {
 });
 
 describe('formatSubagentCompletionText', () => {
+  it.each([
+    [3_599_499, '59m 59s'],
+    [3_600_000, '1h'],
+    [3_599_500, '1h'],
+  ])('shows a duration of %i ms as %s', (durationMs, label) => {
+    expect(
+      formatSubagentCompletionText({ status: 'success', iterations: 1, toolCalls: 0, durationMs }),
+    ).toBe(`done · 1 iter · 0 tools · ${label}`);
+  });
+
   it('humanizes budget_timeout without dumping the engine message', () => {
     const text = formatSubagentCompletionText({
       status: 'timeout',

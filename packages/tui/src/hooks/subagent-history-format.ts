@@ -49,7 +49,7 @@ export function formatHistoryDuration(ms: number): string {
   const totalSec = Math.round(ms / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  if (ms < 3_600_000) return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  if (m < 60) return s === 0 ? `${m}m` : `${m}m ${s}s`;
   const h = Math.floor(m / 60);
   const remM = m % 60;
   return remM === 0 ? `${h}h` : `${h}h ${remM}m`;
