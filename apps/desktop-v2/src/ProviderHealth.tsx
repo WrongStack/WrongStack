@@ -94,7 +94,11 @@ export function QuotaReading({
               <meter
                 min={0}
                 max={100}
-                value={Math.min(100, Math.max(0, percent))}
+                // Green to 70%, amber to 90%, red past it; a window at its limit is full and red.
+                low={70}
+                high={90}
+                optimum={0}
+                value={reached ? 100 : Math.min(100, Math.max(0, percent))}
                 aria-label={t('providerHealth.windowUsed', {
                   window: windowName(window),
                 })}

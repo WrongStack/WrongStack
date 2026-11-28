@@ -64,8 +64,28 @@
 }
 .quota-window meter {
   width: 100%;
-  height: 12px;
-  accent-color: var(--accent);
+  height: 6px;
+  border: 0;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.quota-window meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+/* The bar's colour says what its label says: it was green at "100% used · Limit reached". */
+.quota-window meter::-webkit-meter-optimum-value {
+  border-radius: var(--corner-pill);
+  background: hsl(var(--ws-success));
+}
+.quota-window meter::-webkit-meter-suboptimum-value {
+  border-radius: var(--corner-pill);
+  background: hsl(var(--ws-warning));
+}
+.quota-window meter::-webkit-meter-even-less-good-value {
+  border-radius: var(--corner-pill);
+  background: hsl(var(--ws-destructive));
 }
 .quota-attention > div {
   color: hsl(var(--ws-destructive));

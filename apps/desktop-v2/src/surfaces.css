@@ -50,6 +50,20 @@
   letter-spacing: -0.035em;
 }
 
+/* A shared page header reads like the desktop's own page titles: no line-art motif and no short
+   accent rule. The motif sat under its header's buttons (Plan quota's Refresh, Engine
+   diagnostics' auto-refresh), and only some pages had one. The description wraps rather than
+   ending mid-sentence ("…prepaid balances. Acc…"). */
+.ws-surfaces .ws-page-header > .ws-page-motif,
+.ws-surfaces .ws-page-header::after {
+  display: none;
+}
+.ws-surfaces .ws-page-header p {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 /* A canvas surface takes the whole project page, as the file workspace does. */
 .project-page-content:has(> .ws-surface-frame.is-fill) {
   display: flex;
