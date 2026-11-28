@@ -162,6 +162,10 @@
       "lines": 1118,
       "relativeImports": 0
     },
+    "packages/project-surfaces/src/kanban/KanbanView.tsx": {
+      "lines": 704,
+      "relativeImports": 26
+    },
     "packages/project-surfaces/src/sage/useMemoryManagerState.ts": {
       "lines": 719,
       "relativeImports": 14

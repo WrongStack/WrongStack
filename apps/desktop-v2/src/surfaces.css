@@ -64,6 +64,25 @@
   white-space: normal;
 }
 
+/* Inside a shared surface `--muted` is the WebUI's HSL channel token, not a colour, so the
+   window's scrollbar and placeholder colours (built on the desktop's `--muted`) came out
+   invalid there: an invisible scrollbar thumb, and Kanban's "New board" hint as bright as a
+   typed value. These use the surfaces' own muted foreground. The doubled class outranks the
+   window-wide `:hover::-webkit-scrollbar-thumb`. */
+.ws-surfaces.ws-surfaces ::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.22);
+}
+.ws-surfaces.ws-surfaces :hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.42);
+}
+.ws-surfaces.ws-surfaces ::-webkit-scrollbar-thumb:is(:hover, :active) {
+  background-color: hsl(var(--muted-foreground) / 0.65);
+}
+.ws-surfaces :is(input, textarea)::placeholder {
+  color: hsl(var(--muted-foreground) / 0.8);
+  opacity: 1;
+}
+
 /* A canvas surface takes the whole project page, as the file workspace does. */
 .project-page-content:has(> .ws-surface-frame.is-fill) {
   display: flex;
