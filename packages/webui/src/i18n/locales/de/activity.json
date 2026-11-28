@@ -767,6 +767,7 @@
     "refreshLabel": "Aktualisieren:",
     "lastUpdated": "Zuletzt aktualisiert: {{time}}",
     "fetchFailed": "Metriken konnten nicht abgerufen werden",
+    "reading": "Engine-Metriken werden gelesen…",
     "fileWatcher": "File-Watcher",
     "watcherStatus": "Watcher-Status",
     "running": "Läuft",

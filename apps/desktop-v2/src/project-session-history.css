@@ -74,6 +74,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Stays at the right edge while the status beside it is hidden during the first read. */
+  margin-left: auto;
 }
 .history-catalog-status input {
   accent-color: var(--accent);

@@ -1,18 +1,32 @@
 .model-visibility {
   min-width: 0;
+  container-type: inline-size;
 }
+/* Aligned by their labels: the provider field's id line under its picker lifted its label
+   above the others when the row was bottom-aligned. A grid, so the unlabelled refresh button
+   is offset onto the fields' line (18px label + 8px gap) only when it shares a row with one. */
 .model-visibility-toolbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
-  /* Aligned by their labels: the provider field's id line under its picker lifted its label
-     above the others when the row was bottom-aligned. */
   align-items: start;
   margin-bottom: 16px;
 }
-/* The refresh button has no label; it sits on the fields' line (18px label + 8px gap). */
 .model-visibility-toolbar > .button {
-  margin-top: 27px;
+  justify-self: start;
+}
+@container (min-width: 480px) {
+  .model-visibility-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .model-visibility-toolbar > .button {
+    margin-top: 27px;
+  }
+}
+@container (min-width: 760px) {
+  .model-visibility-toolbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  }
 }
 .model-visibility-toolbar label,
 .model-visibility-toolbar .model-reference-field {

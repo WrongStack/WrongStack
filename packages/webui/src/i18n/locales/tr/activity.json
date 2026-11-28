@@ -767,6 +767,7 @@
     "refreshLabel": "Yenile:",
     "lastUpdated": "Son güncelleme: {{time}}",
     "fetchFailed": "Metrikler alınamadı",
+    "reading": "Motor ölçümleri okunuyor…",
     "fileWatcher": "Dosya İzleyici",
     "watcherStatus": "İzleyici Durumu",
     "running": "Çalışıyor",

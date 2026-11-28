@@ -198,6 +198,11 @@ export function DebugDashboard({
           </div>
         )}
 
+        {isLoading && !data.system && !data.fileWatcher && !data.error && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {t('activity:debug.reading')}
+          </p>
+        )}
         {/* Nothing read yet: every card would be "Unavailable" or an invented zero. */}
         {!data.system && !data.fileWatcher ? null : (
           <>

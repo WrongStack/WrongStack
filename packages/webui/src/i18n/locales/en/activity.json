@@ -775,6 +775,7 @@
     "refreshLabel": "Refresh:",
     "lastUpdated": "Last updated: {{time}}",
     "fetchFailed": "Failed to fetch metrics",
+    "reading": "Reading engine metrics…",
     "fileWatcher": "File Watcher",
     "watcherStatus": "Watcher Status",
     "running": "Running",

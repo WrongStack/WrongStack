@@ -767,6 +767,7 @@
     "refreshLabel": "Aggiorna:",
     "lastUpdated": "Ultimo aggiornamento: {{time}}",
     "fetchFailed": "Recupero delle metriche non riuscito",
+    "reading": "Lettura delle metriche del motore…",
     "fileWatcher": "File Watcher",
     "watcherStatus": "Stato watcher",
     "running": "In esecuzione",

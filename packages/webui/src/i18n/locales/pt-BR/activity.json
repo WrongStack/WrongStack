@@ -767,6 +767,7 @@
     "refreshLabel": "Atualizar:",
     "lastUpdated": "Última atualização: {{time}}",
     "fetchFailed": "Falha ao buscar métricas",
+    "reading": "Lendo as métricas do mecanismo…",
     "fileWatcher": "Observador de arquivos",
     "watcherStatus": "Status do observador",
     "running": "Em execução",
