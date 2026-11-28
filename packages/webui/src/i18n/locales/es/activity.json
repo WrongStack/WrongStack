@@ -6072,6 +6072,12 @@
       "submitPull": "Abrir pull request",
       "submitIssue": "Abrir issue",
       "branchChanged": "Ahora hay otra rama activa. Vuelve a comprobar antes de abrir el pull request."
-    }
+    },
+    "addLabel": "Añadir etiqueta",
+    "searchGitHub": "Buscar en GitHub",
+    "clearSearch": "Borrar búsqueda",
+    "searchingFor": "Buscando «{{query}}» en GitHub…",
+    "searchResults_one": "{{count}} resultado en GitHub para «{{query}}»",
+    "searchResults_other": "{{count}} resultados en GitHub para «{{query}}»"
   }
 }

@@ -68,6 +68,8 @@ export type GitHubListState = 'open' | 'closed' | 'all';
  * &state=…&page=…` (issues also take `labels` and `assignee`). `nextPage` is
  * GitHub's next page number, null on the last one; a page can be empty while
  * more follow (the issues endpoint mixes in pull requests, which are dropped).
+ * With `q`, the page comes from GitHub's search: `total` is its match count,
+ * and pull requests carry no branches (`headRef`/`baseRef` are empty).
  */
 export type GitHubListPage =
   | {
@@ -75,13 +77,21 @@ export type GitHubListPage =
       kind: 'pulls';
       items: GitHubPullSummary[];
       nextPage: number | null;
+      total?: number;
     }
   | {
       status: GitHubRepositoryStatus;
       kind: 'issues';
       items: GitHubIssueSummary[];
       nextPage: number | null;
+      total?: number;
     };
+
+/** The repository's labels (one page of 100), from `GET /api/github/labels`. */
+export interface GitHubLabelsView {
+  status: GitHubRepositoryStatus;
+  labels: GitHubLabel[];
+}
 
 export type GitHubItemKind = 'pull' | 'issue';
 

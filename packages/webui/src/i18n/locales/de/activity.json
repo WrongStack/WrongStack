@@ -6072,6 +6072,12 @@
       "submitPull": "Pull Request öffnen",
       "submitIssue": "Issue öffnen",
       "branchChanged": "Inzwischen ist ein anderer Branch ausgecheckt. Prüfe erneut, bevor du den Pull Request öffnest."
-    }
+    },
+    "addLabel": "Label hinzufügen",
+    "searchGitHub": "Auf GitHub suchen",
+    "clearSearch": "Suche zurücksetzen",
+    "searchingFor": "Suche auf GitHub nach „{{query}}“…",
+    "searchResults_one": "{{count}} Treffer auf GitHub für „{{query}}“",
+    "searchResults_other": "{{count}} Treffer auf GitHub für „{{query}}“"
   }
 }

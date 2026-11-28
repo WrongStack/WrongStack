@@ -20,7 +20,7 @@ import {
 } from './github-client.js';
 import { handleGitHubCreate, handleGitHubCreateContext } from './github-create-handlers.js';
 import { handleGitHubAction, handleGitHubItemRead } from './github-item-handlers.js';
-import { handleGitHubListRead } from './github-list-handlers.js';
+import { handleGitHubLabelsRead, handleGitHubListRead } from './github-list-handlers.js';
 
 /**
  * Read-only list of the active session's project repository, plus the single
@@ -129,7 +129,8 @@ async function handleGitHubRepositoryRead(
 /**
  * Every `/api/github*` route. Returns false for paths it does not own.
  *  - `GET  /api/github`         open pull requests and issues
- *  - `GET  /api/github/list`    one page of pull requests or issues in any state
+ *  - `GET  /api/github/list`    one page of pull requests or issues in any state, or of a search
+ *  - `GET  /api/github/labels`  the repository's labels
  *  - `GET  /api/github/item`    one pull request or issue (`kind`, `number`)
  *  - `POST /api/github/action`  comment, review, merge, close or reopen
  *  - `GET  /api/github/create-context`  what a new issue or pull request can use
@@ -145,6 +146,7 @@ export async function handleGitHubRoutes(
   const routes: Record<string, 'GET' | 'POST'> = {
     '/api/github': 'GET',
     '/api/github/list': 'GET',
+    '/api/github/labels': 'GET',
     '/api/github/item': 'GET',
     '/api/github/action': 'POST',
     '/api/github/create-context': 'GET',
@@ -164,6 +166,7 @@ export async function handleGitHubRoutes(
   try {
     if (url.pathname === '/api/github') await handleGitHubRepositoryRead(res, url, deps);
     else if (url.pathname === '/api/github/list') await handleGitHubListRead(res, url, deps);
+    else if (url.pathname === '/api/github/labels') await handleGitHubLabelsRead(res, url, deps);
     else if (url.pathname === '/api/github/item') await handleGitHubItemRead(res, url, deps);
     else if (url.pathname === '/api/github/create-context')
       await handleGitHubCreateContext(res, url, deps);

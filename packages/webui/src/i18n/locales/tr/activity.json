@@ -6072,6 +6072,12 @@
       "submitPull": "Pull request aç",
       "submitIssue": "Issue aç",
       "branchChanged": "Şu an başka bir dal etkin. Pull request açmadan önce yeniden kontrol edin."
-    }
+    },
+    "addLabel": "Etiket ekle",
+    "searchGitHub": "GitHub'da ara",
+    "clearSearch": "Aramayı temizle",
+    "searchingFor": "“{{query}}” GitHub’da aranıyor…",
+    "searchResults_one": "“{{query}}” için GitHub’da {{count}} sonuç",
+    "searchResults_other": "“{{query}}” için GitHub’da {{count}} sonuç"
   }
 }

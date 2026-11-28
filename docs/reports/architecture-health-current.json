@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T10:54:43.160Z",
+  "generatedAt": "2026-11-28T11:16:35.124Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 51,
-    "sourceFiles": 6656,
-    "testFiles": 6578,
-    "sourceLines": 1366094,
+    "sourceFiles": 6657,
+    "testFiles": 6579,
+    "sourceLines": 1366367,
     "workspaceEdges": 268,
-    "moduleEdges": 19544,
+    "moduleEdges": 19552,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -785,7 +785,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 276,
+      "sourceFiles": 277,
       "testFiles": 57,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1201,7 +1201,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 805,
-      "testFiles": 604,
+      "testFiles": 605,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1227,7 +1227,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 604
+          "testFiles": 605
         }
       ]
     },
@@ -37850,6 +37850,12 @@
       },
       {
         "file": "packages/webui/tests/components/github-create-form.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/github-search.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

@@ -296,11 +296,15 @@ export async function githubApi<T = unknown>(
   }
   if (!response.ok && !options.allow?.includes(response.status)) {
     const raw = await readCapped(response).catch(() => '');
-    throw new GitHubStatusError(
-      statusFor(response, token !== null),
-      response.status,
-      errorMessage(raw),
-    );
+    const detail = errorMessage(raw);
+    const status = statusFor(response, token !== null);
+    // A secondary rate limit (search bursts) is a 403 with tokens to spare: it
+    // names itself in the message or a Retry-After, and is not a login problem.
+    const limited =
+      status === 'needs-auth' &&
+      response.status === 403 &&
+      (response.headers.has('retry-after') || /rate limit/i.test(detail));
+    throw new GitHubStatusError(limited ? 'rate-limited' : status, response.status, detail);
   }
   if (response.status === 204 || !response.ok) {
     await response.body?.cancel().catch(() => {});
@@ -337,7 +341,7 @@ export function githubPage(value: unknown): string | null {
     : null;
 }
 
-function labels(value: unknown): GitHubLabel[] {
+export function toGitHubLabels(value: unknown): GitHubLabel[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((label): GitHubLabel[] => {
     if (!label || typeof label !== 'object') return [];
@@ -363,7 +367,7 @@ export function toBaseItem(
     title: text(raw['title']),
     url: itemUrl(repository, kind, number),
     author: login(raw['user']),
-    labels: labels(raw['labels']),
+    labels: toGitHubLabels(raw['labels']),
     comments: count(raw['comments']),
     createdAt: text(raw['created_at'], 40),
     updatedAt: text(raw['updated_at'], 40),

@@ -159,6 +159,7 @@ export type {
   GitHubItemDetailView,
   GitHubItemKind,
   GitHubLabel,
+  GitHubLabelsView,
   GitHubLineComment,
   GitHubListPage,
   GitHubListState,

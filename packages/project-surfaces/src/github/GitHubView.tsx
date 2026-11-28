@@ -19,6 +19,7 @@ import { Button } from '../ui/button';
 import { PageMotif } from '../ui/PageMotif';
 import { GitHubCreateForm } from './GitHubCreateForm';
 import { GitHubItemDetail } from './GitHubItemDetail';
+import { GitHubListFilters } from './GitHubListFilters';
 import {
   filterGitHubItems,
   type GitHubSelection,
@@ -119,7 +120,8 @@ function ItemRow({
               author: item.author ?? t('activity:github.unknownAuthor'),
             })}
           </span>
-          {pull && (
+          {/* Search results carry no branches. */}
+          {pull?.headRef && (
             <span className="break-all font-mono text-[11px]">
               {pull.headRef} → {pull.baseRef}
             </span>
@@ -157,85 +159,6 @@ function ItemRow({
         {body}
       </button>
     </li>
-  );
-}
-
-/** State for both tabs; labels and assignee for issues, applied on submit. */
-function ListFilters({
-  tab,
-  filter,
-  onChange,
-}: {
-  tab: GitHubTab;
-  filter: GitHubListFilter;
-  onChange: (next: GitHubListFilter) => void;
-}) {
-  const { t } = useAppTranslation();
-  const [labels, setLabels] = useState(filter.labels);
-  const [assignee, setAssignee] = useState(filter.assignee);
-  const dirty = labels !== filter.labels || assignee !== filter.assignee;
-  const field =
-    'min-w-0 rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
-  return (
-    <form
-      className="flex flex-wrap items-center gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onChange({ ...filter, labels: labels.trim(), assignee: assignee.trim() });
-      }}
-    >
-      <select
-        aria-label={t('activity:github.stateFilter')}
-        value={filter.state}
-        onChange={(event) =>
-          onChange({ ...filter, state: event.target.value as GitHubListFilter['state'] })
-        }
-        className="rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
-      >
-        {(['open', 'closed', 'all'] as const).map((value) => (
-          <option key={value} value={value}>
-            {t(`activity:github.state.${value}`)}
-          </option>
-        ))}
-      </select>
-      {tab === 'issues' && (
-        <>
-          <input
-            aria-label={t('activity:github.labelsFilter')}
-            placeholder={t('activity:github.labelsFilter')}
-            value={labels}
-            maxLength={1000}
-            onChange={(event) => setLabels(event.target.value)}
-            className={cn(field, 'w-40')}
-          />
-          <input
-            aria-label={t('activity:github.assigneeFilter')}
-            placeholder={t('activity:github.assigneeFilter')}
-            value={assignee}
-            maxLength={39}
-            onChange={(event) => setAssignee(event.target.value)}
-            className={cn(field, 'w-40')}
-          />
-          <Button type="submit" size="sm" variant="outline" disabled={!dirty}>
-            {t('activity:github.applyFilters')}
-          </Button>
-          {(filter.labels || filter.assignee) && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setLabels('');
-                setAssignee('');
-                onChange({ ...filter, labels: '', assignee: '' });
-              }}
-            >
-              {t('activity:github.clearFilters')}
-            </Button>
-          )}
-        </>
-      )}
-    </form>
   );
 }
 
@@ -292,10 +215,17 @@ export function GitHubView() {
         : null,
     round,
   });
+  const searching = filter.q.trim();
+  // GitHub's search also matches descriptions and comments; the local text
+  // filter would hide those results, so it only narrows listed items.
   const items = useMemo(
-    () => filterGitHubItems<GitHubIssueSummary | GitHubPullSummary>(list.items, query),
-    [list.items, query],
+    () =>
+      searching
+        ? list.items
+        : filterGitHubItems<GitHubIssueSummary | GitHubPullSummary>(list.items, query),
+    [list.items, query, searching],
   );
+  const setFilter = (next: GitHubListFilter) => setFilters((all) => ({ ...all, [tab]: next }));
   const refresh = () => {
     state.refresh();
     setRound((value) => value + 1);
@@ -424,23 +354,56 @@ export function GitHubView() {
                   );
                 })}
               </div>
-              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 py-1.5 sm:max-w-sm">
-                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <input
-                  aria-label={t('activity:github.filter')}
-                  placeholder={t('activity:github.filter')}
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="w-full min-w-0 bg-transparent text-sm outline-none"
-                />
-              </label>
-              <ListFilters
-                key={tab}
-                tab={tab}
-                filter={filter}
-                onChange={(next) => setFilters((all) => ({ ...all, [tab]: next }))}
-              />
+              <form
+                className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
+                onSubmit={(event) => {
+                  // Enter searches GitHub: an explicit submit, never per keystroke
+                  // (search has a small rate limit).
+                  event.preventDefault();
+                  if (query.trim()) setFilter({ ...filter, q: query.trim() });
+                }}
+              >
+                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 py-1.5">
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <input
+                    aria-label={t('activity:github.filter')}
+                    placeholder={t('activity:github.filter')}
+                    value={query}
+                    maxLength={256}
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="w-full min-w-0 bg-transparent text-sm outline-none"
+                  />
+                </label>
+                {query.trim() && query.trim() !== searching && (
+                  <Button type="submit" size="sm" variant="outline">
+                    {t('activity:github.searchGitHub')}
+                  </Button>
+                )}
+              </form>
+              <GitHubListFilters key={tab} tab={tab} filter={filter} onChange={setFilter} />
             </div>
+            {searching && (
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-2 text-xs text-muted-foreground sm:px-6"
+              >
+                <span className="min-w-0 break-words">
+                  {list.total === null
+                    ? t('activity:github.searchingFor', { query: searching })
+                    : t('activity:github.searchResults', { query: searching, count: list.total })}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setQuery('');
+                    setFilter({ ...filter, q: '' });
+                  }}
+                >
+                  {t('activity:github.clearSearch')}
+                </Button>
+              </div>
+            )}
             <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-4">
               {list.problem ? (
                 <div
@@ -499,7 +462,7 @@ export function GitHubView() {
                       ? t('activity:github.loadingMore')
                       : t('activity:github.loadMore')}
                   </Button>
-                  {query.trim() && (
+                  {query.trim() && !searching && (
                     <span className="text-xs text-muted-foreground">
                       {t('activity:github.filterLoadedOnly')}
                     </span>

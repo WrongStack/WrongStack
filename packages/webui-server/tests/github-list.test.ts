@@ -202,6 +202,133 @@ describe('GET /api/github/list', () => {
   });
 });
 
+describe('GET /api/github/list with q (GitHub search)', () => {
+  const SEARCH = 'https://api.github.com/search/issues?q=';
+  const found = (number: number, extra: Record<string, unknown> = {}) => ({
+    ...issue(number),
+    repository_url: 'https://api.github.com/repos/Octo/Repo',
+    ...extra,
+  });
+  const asPull = (number: number, extra: Record<string, unknown> = {}) =>
+    found(number, { pull_request: { merged_at: null }, draft: false, ...extra });
+
+  it('searches this repository with the tab and state as qualifiers', async () => {
+    const github = seams(() => json({ total_count: 0, items: [] }));
+    await get('/api/github/list?kind=pulls&state=closed&page=2&q=fix%20crash', github);
+    expect(urls(github)).toEqual([
+      `${SEARCH}${encodeURIComponent('repo:octo/repo is:pr is:closed fix crash')}&sort=updated&order=desc&per_page=50&page=2`,
+    ]);
+  });
+
+  it('turns issue filters into qualifiers', async () => {
+    const github = seams(() => json({ total_count: 0, items: [] }));
+    await get(
+      `/api/github/list?kind=issues&state=all&q=boot&labels=${encodeURIComponent('bug,good first issue')}&assignee=none`,
+      github,
+    );
+    expect(decodeURIComponent(urls(github)[0]!.slice(SEARCH.length).split('&')[0]!)).toBe(
+      'repo:octo/repo is:issue label:"bug" label:"good first issue" no:assignee boot',
+    );
+  });
+
+  it('keeps only this repository and the tab kind, whatever the text asked for', async () => {
+    const github = seams(() =>
+      json(
+        {
+          total_count: 4,
+          items: [
+            asPull(9, {
+              draft: true,
+              state: 'closed',
+              pull_request: { merged_at: '2026-11-03T00:00:00Z' },
+            }),
+            found(8),
+            asPull(7, { repository_url: 'https://api.github.com/repos/other/repo' }),
+            asPull(6, { repository_url: 'https://api.github.com/repos/octo/repo-fork' }),
+          ],
+        },
+        next(2),
+      ),
+    );
+    const { body } = await get(
+      `/api/github/list?kind=pulls&q=${encodeURIComponent('repo:other/repo OR is:issue')}`,
+      github,
+    );
+    expect(urls(github)).toHaveLength(1);
+    expect(body).toMatchObject({ status: 'ok', kind: 'pulls', nextPage: 2, total: 4 });
+    expect((body as GitHubListPage).items).toEqual([
+      expect.objectContaining({
+        number: 9,
+        url: 'https://github.com/octo/repo/pull/9',
+        state: 'closed',
+        draft: true,
+        merged: true,
+        headRef: '',
+        baseRef: '',
+      }),
+    ]);
+  });
+
+  it('ends at the thousandth result GitHub search can return', async () => {
+    const github = seams(() => json({ total_count: 5000, items: [] }, next(21)));
+    const { body } = await get('/api/github/list?kind=issues&q=x&page=20', github);
+    expect(body).toMatchObject({ nextPage: null, total: 5000 });
+  });
+
+  it('reports a secondary rate limit as a rate limit, not a missing token', async () => {
+    const github = seams(
+      () =>
+        new Response(
+          JSON.stringify({ message: 'You have exceeded a secondary rate limit. Please wait.' }),
+          { status: 403, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+    const { body } = await get('/api/github/list?kind=issues&q=x', github);
+    expect(body).toMatchObject({ status: 'rate-limited', items: [] });
+  });
+
+  it.each([
+    `q=${'x'.repeat(257)}`,
+    'q=a%0Ab',
+    'q=x&page=21',
+    'q=x&assignee=*',
+    `q=x&labels=${encodeURIComponent('say "hi"')}`,
+  ])('refuses kind=issues&%s without calling GitHub', async (query) => {
+    const github = seams(() => json({ total_count: 0, items: [] }));
+    const { status } = await get(`/api/github/list?kind=issues&${query}`, github);
+    expect(status).toBe(400);
+    expect(github.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/github/labels', () => {
+  it("lists the repository's labels for the issue filter", async () => {
+    const github = seams(() =>
+      json([
+        { name: 'bug', color: 'd73a4a', description: 'x' },
+        { name: 'good first issue', color: 'nothex' },
+        { name: 42 },
+      ]),
+    );
+    const { status, body } = await get('/api/github/labels', github);
+    expect(status).toBe(200);
+    expect(urls(github)).toEqual([`${API}/labels?per_page=100`]);
+    expect(body).toEqual({
+      status: 'ok',
+      labels: [
+        { name: 'bug', color: 'd73a4a' },
+        { name: 'good first issue', color: '' },
+      ],
+    });
+  });
+
+  it('reports why there are no labels', async () => {
+    const github = seams(() => new Response('{}', { status: 429 }));
+    const { body } = await get('/api/github/labels', github);
+    expect(body).toEqual({ status: 'rate-limited', labels: [] });
+  });
+});
+
 describe('GET /api/github keeps its open-items shape', () => {
   it('reads the same URLs and now names each item state', async () => {
     const github = seams((url) =>

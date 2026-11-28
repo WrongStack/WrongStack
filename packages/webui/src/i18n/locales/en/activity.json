@@ -6072,6 +6072,12 @@
       "submitPull": "Open pull request",
       "submitIssue": "Open issue",
       "branchChanged": "Another branch is checked out now. Check again before opening the pull request."
-    }
+    },
+    "addLabel": "Add label",
+    "searchGitHub": "Search GitHub",
+    "clearSearch": "Clear search",
+    "searchingFor": "Searching GitHub for “{{query}}”…",
+    "searchResults_one": "{{count}} result on GitHub for “{{query}}”",
+    "searchResults_other": "{{count}} results on GitHub for “{{query}}”"
   }
 }

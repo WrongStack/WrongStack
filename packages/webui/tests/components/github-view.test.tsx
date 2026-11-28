@@ -164,11 +164,14 @@ describe('GitHubView', () => {
     await screen.findByRole('button', { name: /Add the GitHub view/ });
     fireEvent.click(screen.getByRole('tab', { name: /Issues/ }));
 
+    // The issues tab also reads the label choices; count only list reads.
+    const lists = () =>
+      fetcher.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.startsWith('/api/github/list'));
     fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-    expect(String(fetcher.mock.calls[1]![0])).toBe(
-      '/api/github/list?kind=issues&state=open&page=2&sessionId=s1',
-    );
+    await waitFor(() => expect(lists()).toHaveLength(1));
+    expect(lists()[0]).toBe('/api/github/list?kind=issues&state=open&page=2&sessionId=s1');
     // An empty page that names a next one keeps the button.
     expect(await screen.findByRole('button', { name: 'Load more' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Crash on start/ })).toBeTruthy();
@@ -181,7 +184,7 @@ describe('GitHubView', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(await screen.findByRole('button', { name: /Issue 3/ })).toBeTruthy();
-    expect(String(fetcher.mock.calls.at(-1)![0])).toBe(
+    expect(lists().at(-1)).toBe(
       '/api/github/list?kind=issues&state=open&page=1&labels=bug%2C+ui&assignee=octocat&sessionId=s1',
     );
     expect(screen.queryByRole('button', { name: /Crash on start/ })).toBeNull();

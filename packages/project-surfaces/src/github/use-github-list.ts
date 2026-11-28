@@ -18,14 +18,22 @@ export interface GitHubListFilter {
   labels: string;
   /** A login, `none` or `*`; issues only. */
   assignee: string;
+  /** Text searched on GitHub (empty: list instead). */
+  q: string;
 }
 
-export const DEFAULT_GITHUB_FILTER: GitHubListFilter = { state: 'open', labels: '', assignee: '' };
+export const DEFAULT_GITHUB_FILTER: GitHubListFilter = {
+  state: 'open',
+  labels: '',
+  assignee: '',
+  q: '',
+};
 
 /** The open, unfiltered list is the one `/api/github` already read. */
 export function isDefaultGitHubFilter(tab: GitHubTab, filter: GitHubListFilter): boolean {
   return (
     filter.state === 'open' &&
+    !filter.q.trim() &&
     (tab === 'pulls' || (!filter.labels.trim() && !filter.assignee.trim()))
   );
 }
@@ -63,6 +71,7 @@ export function useGitHubList({
     filter.state,
     issues ? filter.labels.trim() : '',
     issues ? filter.assignee.trim() : '',
+    filter.q.trim(),
     seed?.fetchedAt ?? 'own',
     round,
   ]);
@@ -72,6 +81,7 @@ export function useGitHubList({
     key: string;
     items: Item[];
     nextPage: number | null;
+    total: number | null;
   } | null>(null);
   const [problem, setProblem] = useState<{
     key: string;
@@ -86,6 +96,7 @@ export function useGitHubList({
     const query: Record<string, string> = { kind: tab, state: filter.state, page: String(page) };
     if (issues && filter.labels.trim()) query['labels'] = filter.labels.trim();
     if (issues && filter.assignee.trim()) query['assignee'] = filter.assignee.trim();
+    if (filter.q.trim()) query['q'] = filter.q.trim();
     surfaceFetch(withGitHubSession('/api/github/list', sessionId, query), {
       ...(signal ? { signal } : {}),
       credentials: 'same-origin',
@@ -106,6 +117,7 @@ export function useGitHubList({
           key: at,
           items: append(previous?.key === at ? previous.items : [], data.items),
           nextPage: data.nextPage,
+          total: data.total ?? null,
         }));
       })
       .catch((reason: Error) => {
@@ -132,6 +144,8 @@ export function useGitHubList({
     /** Still waiting for the first page of a filtered list. */
     pending: own && !loaded && !(problem?.key === key),
     nextPage,
+    /** GitHub's match count for a search. */
+    total: loaded?.total ?? null,
     loading: loading === key,
     problem: problem?.key === key ? problem : null,
     loadMore: () => {

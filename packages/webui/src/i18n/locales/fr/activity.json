@@ -6072,6 +6072,12 @@
       "submitPull": "Ouvrir la pull request",
       "submitIssue": "Ouvrir l'issue",
       "branchChanged": "Une autre branche est active maintenant. Vérifiez à nouveau avant d'ouvrir la pull request."
-    }
+    },
+    "addLabel": "Ajouter un label",
+    "searchGitHub": "Rechercher sur GitHub",
+    "clearSearch": "Effacer la recherche",
+    "searchingFor": "Recherche de « {{query}} » sur GitHub…",
+    "searchResults_one": "{{count}} résultat sur GitHub pour « {{query}} »",
+    "searchResults_other": "{{count}} résultats sur GitHub pour « {{query}} »"
   }
 }
