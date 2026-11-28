@@ -1108,7 +1108,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 112,
-      "sourceLines": 31553
+      "sourceLines": 31555
     },
     {
       "directory": "extension",
@@ -1129,7 +1129,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 2192
+      "sourceLines": 2193
     },
     {
       "directory": "models",
@@ -1199,7 +1199,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused sandbox implementation",
       "sourceFiles": 12,
-      "sourceLines": 1322
+      "sourceLines": 1340
     },
     {
       "directory": "security",

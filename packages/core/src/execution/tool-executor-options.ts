@@ -28,10 +28,12 @@ export interface ToolExecutorOptions {
    */
   logger?: import('@wrongstack/contracts/types/logger').Logger | undefined;
   /**
-   * Async callback invoked when a tool needs user confirmation.
-   * When omitted and confirmation is required, the executor returns a
-   * failure result immediately (TUI path). When provided (CLI path),
-   * the callback handles the interactive prompt and returns a decision.
+   * Optional async callback the executor awaits inline when a tool call needs
+   * user confirmation (the REPL supplies one). When omitted, `authorizeToolUse`
+   * returns a `tool_confirm_pending` result instead of running the tool, and
+   * the tool handler (`core/agent-tools.ts`) emits `tool.confirm_needed` for a
+   * UI to answer. A run with no listener for that event answers `no` instead
+   * of hanging, so the call is reported as denied.
    */
   confirmAwaiter?: ConfirmAwaiter | undefined;
   iterationTimeoutMs?: number | undefined;

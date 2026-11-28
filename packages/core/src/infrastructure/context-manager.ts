@@ -32,7 +32,7 @@ export interface ContextManagerInput {
   to?: number | undefined;
   /** Text for add_note / summary actions. For summary, this is the LLM-provided summary text. */
   text?: string | undefined;
-  /** Inject after which index (for add_note). Defaults to prepend (0). */
+  /** Note position (for add_note): an explicit N inserts AFTER message N; omitted prepends. */
   afterIndex?: number | undefined;
   /**
    * System prompt blocks for accurate total token estimation in check action.
@@ -153,7 +153,8 @@ export function createContextManagerTool(
         },
         afterIndex: {
           type: 'number',
-          description: 'Insert after this index (for add_note). Defaults to prepend (0).',
+          description:
+            'Insert after this index (for add_note): an explicit N inserts after message N; omitted prepends.',
         },
       },
       required: ['action'],
@@ -382,16 +383,16 @@ export function createContextManagerTool(
         case 'add_note': {
           const noteText = input.text ?? '(no summary)';
           const rawIdx = input.afterIndex;
-          const afterIdx =
+          const insertIdx =
             typeof rawIdx === 'number' && Number.isFinite(rawIdx)
-              ? Math.min(Math.max(0, Math.trunc(rawIdx)), messages.length)
+              ? Math.min(Math.max(0, Math.trunc(rawIdx) + 1), messages.length)
               : 0;
           const noteMsg: Message = {
             role: 'system',
             content: `[note: ${noteText}]`,
           };
           const copy = [...messages];
-          copy.splice(afterIdx, 0, noteMsg);
+          copy.splice(insertIdx, 0, noteMsg);
           const repair = applyMessages(copy);
           const afterTokens = roughEstimate(ctx.messages);
           return {

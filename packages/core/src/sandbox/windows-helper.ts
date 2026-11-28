@@ -135,6 +135,21 @@ try {
 }
 `;
 
+/** cmd.exe treats these as syntax unless the token is double-quoted. */
+const CMD_TOKEN_NEEDS_QUOTE = /[\s"&|<>^]/;
+
+/**
+ * Quote one argv token for a `cmd.exe /c` command line. A backslash run right
+ * before the closing quote is doubled: the child's argument parser reads `\"`
+ * as a literal quote (so `C:\Program Files\` would arrive as `C:\Program Files"`
+ * and swallow the next token), while `2N` backslashes before the quote decode
+ * back to `N`.
+ */
+function cmdArgToken(arg: string): string {
+  if (!CMD_TOKEN_NEEDS_QUOTE.test(arg)) return arg;
+  return `"${arg.replace(/(\\+)$/, '$1$1').replaceAll('"', '""')}"`;
+}
+
 let scriptPath: string | undefined;
 
 function materializeHelperScript(): string {
@@ -147,7 +162,10 @@ function materializeHelperScript(): string {
 
 export function defaultWindowsHelperRunner(): SandboxHelperRunner {
   return async (route, callerConfig) => {
-    const payload = route.command ?? route.argv?.join(' ');
+    // Shell-form routes already carry their own cmd quoting; argv-form routes
+    // are rebuilt into a cmd line, so each token must stay one argument —
+    // an unquoted space splits it and `&` becomes a second command.
+    const payload = route.command ?? route.argv?.map(cmdArgToken).join(' ');
     if (!payload) return;
     const config = callerConfig ?? getResolvedSandboxConfig();
     const writableRoots =

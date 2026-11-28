@@ -6,11 +6,16 @@ import {
   configureSandboxPolicy,
   createSandboxExecWrapper,
   createWindowsNativeSandboxBackend,
+  defaultWindowsHelperRunner,
   resetSandboxPolicy,
   resolveSandboxConfig,
   windowsNativeSandboxBackend,
 } from '../../src/sandbox/index.js';
-import { type SandboxConfig, SandboxDeniedError } from '../../src/sandbox/types.js';
+import {
+  type SandboxConfig,
+  SandboxDeniedError,
+  type SandboxRoute,
+} from '../../src/sandbox/types.js';
 
 // Re-exported types live here in tests via the barrel; Tool is structural.
 
@@ -201,6 +206,81 @@ describe('choke point selects the windows-native backend (plan 28 T5/T5.1)', () 
     );
     expect(executedCommand).toBe(
       'powershell.exe -File "C:\\Program Files\\helper.ps1" -EncodedPayload abc',
+    );
+  });
+});
+
+describe('windows helper payload encoding (always-run)', () => {
+  const readOnly = resolveSandboxConfig({
+    mode: 'enforced',
+    tier: 'read-only',
+    backend: 'windows-native',
+  });
+  const helper = defaultWindowsHelperRunner();
+
+  function payloadOf(route: SandboxRoute): string {
+    const argv = route.argv ?? [];
+    const idx = argv.indexOf('-EncodedPayload');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    return Buffer.from(argv[idx + 1] ?? '', 'base64').toString('utf16le');
+  }
+
+  it('quotes argv tokens so spaces and cmd separators stay inside one argument', async () => {
+    const route = buildWindowsRoute(
+      {
+        tool: 'exec',
+        kind: 'argv',
+        command: 'node',
+        argv: ['node', '-e', 'two words & echo injected'],
+      },
+      readOnly,
+    );
+    expect(payloadOf((await helper(route!, readOnly))!)).toBe(
+      'cmd.exe /d /s /c node -e "two words & echo injected"',
+    );
+  });
+
+  it('leaves ordinary argv tokens and already-quoted shell routes unchanged', async () => {
+    const argvRoute = buildWindowsRoute(
+      { tool: 'exec', kind: 'argv', command: 'node', argv: ['node', '--version'] },
+      readOnly,
+    );
+    expect(payloadOf((await helper(argvRoute!, readOnly))!)).toBe(
+      'cmd.exe /d /s /c node --version',
+    );
+
+    const shellRoute = buildWindowsRoute(
+      { tool: 'bash', kind: 'shell', command: 'dir "a b"' },
+      readOnly,
+    );
+    expect(payloadOf((await helper(shellRoute!, readOnly))!)).toBe(
+      'cmd.exe /d /s /c "dir ""a b"""',
+    );
+  });
+
+  it('doubles a trailing backslash run so the closing quote cannot escape into the path', async () => {
+    const route = buildWindowsRoute(
+      {
+        tool: 'exec',
+        kind: 'argv',
+        command: 'node',
+        argv: ['node', 'C:\\Program Files\\'],
+      },
+      readOnly,
+    );
+    // The child's parser turns `\\"` back into one backslash and the closing quote.
+    expect(payloadOf((await helper(route!, readOnly))!)).toBe(
+      'cmd.exe /d /s /c node "C:\\Program Files\\\\"',
+    );
+  });
+
+  it('keeps a token containing a double quote and a separator inside one argument', async () => {
+    const route = buildWindowsRoute(
+      { tool: 'exec', kind: 'argv', command: 'node', argv: ['node', '-e', 'say "hi" & calm'] },
+      readOnly,
+    );
+    expect(payloadOf((await helper(route!, readOnly))!)).toBe(
+      'cmd.exe /d /s /c node -e "say ""hi"" & calm"',
     );
   });
 });

@@ -123,7 +123,7 @@ describe('createContextManagerTool', () => {
     expect(result.action).toBe('add_note');
     expect(result.summary).toBe('important!');
     expect(ctx.messages).toHaveLength(2);
-    // afterIndex defaults to 0, so note is prepended at index 0
+    // omitted afterIndex prepends the note at index 0
     expect(ctx.messages[0].content).toContain('important!');
   });
 
@@ -144,7 +144,29 @@ describe('createContextManagerTool', () => {
       { action: 'add_note', text: 'inserted', afterIndex: 1 },
       ctx,
     );
-    expect(ctx.messages[1].content).toContain('inserted');
+    expect(ctx.messages).toHaveLength(3);
+    // afterIndex N inserts AFTER message N.
+    expect(ctx.messages[2].content).toContain('inserted');
+  });
+
+  it('add_note with explicit afterIndex 0 inserts between the first two messages', async () => {
+    const tool = createContextManagerTool();
+    const ctx = makeCtx([
+      { role: 'user', content: 'a' },
+      { role: 'user', content: 'b' },
+    ]);
+    await tool.execute({ action: 'add_note', text: 'inserted', afterIndex: 0 }, ctx);
+    expect(ctx.messages.map((m: any) => m.content)).toEqual(['a', '[note: inserted]', 'b']);
+  });
+
+  it('add_note clamps an out-of-range afterIndex to an append', async () => {
+    const tool = createContextManagerTool();
+    const ctx = makeCtx([
+      { role: 'user', content: 'a' },
+      { role: 'user', content: 'b' },
+    ]);
+    await tool.execute({ action: 'add_note', text: 'inserted', afterIndex: 99 }, ctx);
+    expect(ctx.messages.map((m: any) => m.content)).toEqual(['a', 'b', '[note: inserted]']);
   });
 
   it('summary replaces range with summary message', async () => {
