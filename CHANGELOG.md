@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.25] — 2026-11-28
+
+WebUI and Desktop can now work through the project's GitHub pull requests
+and issues: review diffs line by line, approve, merge, comment, and hand an
+item to the agent. Desktop v2 gets a visual overhaul with a quick model
+switcher and a graphed context panel. This release also fixes Goal resume,
+SDD blockers, workspace globs and a few display roundings.
+
+### Added
+
+- WebUI: a GitHub view per session project lists the pull requests and
+  issues of the repository behind the project's git remote. A detail pane
+  shows the description, checks, reviews and a per-file diff, and offers
+  comment, approve, request changes, merge, close/reopen and re-running
+  failed Actions jobs. Reviews, merges and re-runs carry the head the pane
+  showed, so GitHub refuses them when the branch moved.
+- WebUI: review comments on any diff line, with real file line numbers.
+  "Add to review" holds comments back and sends them together with an
+  approval, a change request or a plain review. A state filter reaches
+  closed and merged items, "Load more" reads the next page, and the issues
+  tab filters by label and assignee.
+- WebUI, VibeUI and Desktop: a `#` picker in the composer mentions the
+  project's pull requests and issues. A non-fork pull request can be handed
+  to the agent for a local checkout; the agent stops on a dirty or shared
+  tree instead of switching branches.
+- Desktop: the same GitHub surface as a project page. Hand-offs go to a
+  conversation you pick; the desktop never picks one for you.
+- Desktop: the composer's model chip opens a quick switcher with one row per
+  usable provider and ACP agent, showing whether it needs a key, how much
+  of its busiest quota window is left, or when its limit resets. "All models
+  and search…" keeps the full picker.
+- Desktop: the context panel draws window usage as a ring and its contents
+  as one labelled bar, with tiles for the latest request, cache hits and
+  prompt against completion.
+
+### Changed
+
+- Desktop v2 visual overhaul: corners are an Appearance choice (soft or
+  sharp); the chrome sits on one canvas around a single raised workspace
+  card; the composer is one toolbar with a session settings popover; the
+  model picker shows context, output limit, price and capability facts;
+  stat tiles, change summaries and transcript avatars replace plain lists.
+- Desktop: sidebar actions stay reachable at any width, project sessions
+  collapse per project, and a prompt sent from the window resumes following
+  the conversation.
+- GitHub writes follow the server's mutation gate: the request must carry a
+  matching Origin or the access token.
+
+### Fixed
+
+- WebUI: approve and request changes refuse a verdict once the pull
+  request's branch moved, so a review is never filed on code the pane did
+  not show.
+- Goal: a saved Goal whose phases carry a worktree identity is no longer
+  resumed in the shared checkout when worktrees are unavailable.
+- SDD: a modified requirement that names itself in `blockedBy` no longer
+  blocks its own tasks.
+- Plugins: `?` in workspace globs matches exactly one character.
+- Desktop: step rows in a session's activity keep their status, counts and
+  failure marks inside the card, and project pages open at the top.
+- TUI and WebUI: durations and byte sizes that round up show the next unit
+  (`1h`, `1.0 GB`, `1.0 MiB`) instead of `60m 0s` or `1024 MB`.
+
 ## [1.7.24] — 2026-11-27
 
 Workflow plugin tools now fill in omitted inputs from the project, and the

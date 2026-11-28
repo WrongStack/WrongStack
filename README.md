@@ -55,15 +55,15 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.7.24
+### What's new in 1.7.25
 
-- **Workflow tools fill in inputs from the project:** changed files,
-  workspace packages and manifests come from the working tree when the model
-  leaves them out.
-- **Plugin gates check edited code:** lint, test and type gates check the
-  code you just edited, and import-organizer applies only import fixes.
-- **Kanban Companion switch and TUI memory browser:** turn the companion on
-  or off per project, and browse memory with `/memory`.
+- **GitHub pull requests and issues:** WebUI and Desktop list the project's
+  pull requests and issues, review diffs line by line, approve, merge,
+  comment and hand an item to the agent. `#` mentions them in the composer.
+- **Desktop v2 overhaul:** a quick model switcher with key and quota status,
+  a graphed context panel, a canvas shell and sharp or soft corners.
+- **Fixes:** Goal resume outside a saved worktree, SDD self-blockers,
+  workspace `?` globs and rounded duration and size labels.
 
 Every earlier release is in the [changelog](CHANGELOG.md).
 
@@ -381,7 +381,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- Release notes: **v1.7.24**; versions follow semver
+- Release notes: **v1.7.25**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

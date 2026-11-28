@@ -1,4 +1,4 @@
-// Changelog — recent 1.x era (1.7.24 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
+// Changelog — recent 1.x era (1.7.25 → 1.1.0); 1.0.x lives in changelog-1x-early.ts.
 // Historical entries mirror CHANGELOG.md release notes. 1.1.0 absorbs the 1.0.38
 // bump, which was never published; 1.7.8 and 1.7.10 were never tagged either.
 // The 1.1.5 entry summarizes the commits in v1.1.4..v1.1.5, the 1.1.6 entry
@@ -11,10 +11,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.7.25',
+    date: '2026-11-28',
+    tagline: 'GitHub pull requests and issues in WebUI and Desktop',
+    latest: true,
+    highlights: [
+      "List, review, approve, merge and comment on the project's pull requests and issues",
+      'Comment on diff lines and send them together as one GitHub review',
+      'Mention pull requests and issues with # in WebUI, VibeUI and Desktop',
+      'Desktop v2 overhaul with a quick model switcher and a graphed context panel',
+      'Fixes for Goal resume, SDD self-blockers, workspace globs and rounded labels',
+    ],
+  },
+  {
     version: '1.7.24',
     date: '2026-11-27',
     tagline: 'Workflow tools that fill in inputs from the project',
-    latest: true,
     highlights: [
       'Workflow plugin tools fill in changed files, packages and manifests from the project',
       'Lint, test and type gates check the code that was edited; import-organizer applies only import fixes',
