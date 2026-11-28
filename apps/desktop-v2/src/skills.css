@@ -98,6 +98,20 @@
   border-radius: var(--corner-xs);
   max-width: 145px;
 }
+/* A narrow catalog cut the search to "Find a skill or capa" and pushed refresh onto a row of
+   its own; there the search takes the first row and the filter and refresh share the second. */
+.skill-catalog {
+  container-type: inline-size;
+}
+@container (max-width: 340px) {
+  .skill-library-search > input {
+    flex-basis: calc(100% - 22px);
+  }
+  .skill-library-search > select {
+    flex: 1;
+    max-width: none;
+  }
+}
 .skill-catalog-list {
   height: calc(100dvh - 440px);
   min-height: 220px;
