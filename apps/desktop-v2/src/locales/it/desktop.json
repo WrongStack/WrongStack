@@ -1126,7 +1126,9 @@
     "output": "Output",
     "files": "File",
     "sage": "Prove SAGE",
-    "noDetails": "Non sono stati segnalati altri dettagli."
+    "noDetails": "Non sono stati segnalati altri dettagli.",
+    "outputSize_one": "{{count}} riga · {{size}}",
+    "outputSize_other": "{{count}} righe · {{size}}"
   },
   "toolInput": {
     "allReplaced": "Ogni occorrenza viene sostituita.",

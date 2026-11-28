@@ -1126,7 +1126,9 @@
     "output": "Sortie",
     "files": "Fichiers",
     "sage": "Preuves SAGE",
-    "noDetails": "Aucun détail supplémentaire n'a été signalé."
+    "noDetails": "Aucun détail supplémentaire n'a été signalé.",
+    "outputSize_one": "{{count}} ligne · {{size}}",
+    "outputSize_other": "{{count}} lignes · {{size}}"
   },
   "toolInput": {
     "allReplaced": "Toutes les occurrences sont remplacées.",

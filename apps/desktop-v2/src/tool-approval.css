@@ -238,3 +238,28 @@
   text-overflow: clip;
   color: var(--text);
 }
+
+/* A nested object (an argument holding fields of its own) lists its fields as compact
+   label/value pairs: the outer 100-160px label column, repeated at every level, squeezed the
+   inner values into a few characters per line. */
+.approval-arguments dd dl > div {
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  border-top: 0;
+  padding: 2px 0;
+}
+.approval-arguments dd ol {
+  padding-left: 18px;
+}
+.approval-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.approval-tokens > code {
+  padding: 1px 6px;
+  border-radius: var(--corner-xs);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  font: 11px / 1.6 var(--user-font-code, monospace);
+  overflow-wrap: anywhere;
+}

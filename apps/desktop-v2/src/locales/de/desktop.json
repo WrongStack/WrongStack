@@ -1126,7 +1126,9 @@
     "output": "Ausgabe",
     "files": "Dateien",
     "sage": "SAGE-Belege",
-    "noDetails": "Es wurden keine weiteren Details gemeldet."
+    "noDetails": "Es wurden keine weiteren Details gemeldet.",
+    "outputSize_one": "{{count}} Zeile · {{size}}",
+    "outputSize_other": "{{count}} Zeilen · {{size}}"
   },
   "toolInput": {
     "allReplaced": "Jedes Vorkommen wird ersetzt.",

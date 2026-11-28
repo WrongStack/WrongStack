@@ -523,6 +523,15 @@ function fieldsFor(kind: OverviewKind, input: unknown): Array<[string, string]> 
 }
 
 /** A compact dashboard card shown before the lossless Details panel. */
+/**
+ * Whether the overview has something of its own to show for this call: a known tool's card or a
+ * ToolFlow run. An unknown tool (an ACP agent's own call, a plugin tool) gets only the generic
+ * "Tool request" card, which repeats the row that opens it.
+ */
+export function hasToolOverview(toolName: string | undefined, toolInput: unknown): boolean {
+  return Boolean(toolFlowInput(toolName, toolInput)) || kindFor(toolName) !== 'generic';
+}
+
 export function ToolCallOverview({ message }: { message: ToolOverviewMessage }) {
   const { t } = useAppTranslation();
   if (toolFlowInput(message.toolName, message.toolInput))

@@ -177,7 +177,10 @@ function StepView({
             <span className="activity-entry-label chat-step-label">
               <strong>{verb}</strong>
               {step.target ? <code className="chat-step-target">{step.target}</code> : null}
-              {row.agent ? <small className="chat-step-agent">{row.agent}</small> : null}
+              {/* The conversation is the leader's: only another agent's call names its agent. */}
+              {row.agent && row.agent !== 'leader' ? (
+                <small className="chat-step-agent">{row.agent}</small>
+              ) : null}
             </span>
             {step.added || step.removed ? (
               <span className="chat-step-counts">

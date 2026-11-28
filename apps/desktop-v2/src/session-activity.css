@@ -104,6 +104,7 @@
   letter-spacing: 0.06em;
 }
 .activity-entry-body pre {
+  margin: 0;
   max-height: 240px;
   overflow: auto;
   white-space: pre-wrap;
@@ -209,6 +210,14 @@
 }
 .chat-run-activity > summary .turn-chip {
   color: var(--text);
+}
+/* The tools a closed turn used stay on the summary's line; the full list is the title. */
+.chat-run-activity > summary .turn-summary-text {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chat-earlier {
   justify-self: center;

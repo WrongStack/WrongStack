@@ -24,9 +24,25 @@ type Decision = 'yes' | 'no' | 'deny' | 'always-exact' | 'always-command' | 'alw
 function label(key: string) {
   return key.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
 }
+function isShortScalar(value: unknown): boolean {
+  if (typeof value === 'number' || typeof value === 'boolean') return true;
+  return (
+    typeof value === 'string' && value.length > 0 && value.length <= 160 && !value.includes('\n')
+  );
+}
+
 export function StructuredToolValue({ value }: { value: unknown }) {
   const { t } = useDesktopText();
   if (value === null) return <span className="approval-empty">{t('value.none')}</span>;
+  // A list of short words (a command's argv, a set of paths) reads as one line of tokens.
+  if (Array.isArray(value) && value.length > 0 && value.every(isShortScalar))
+    return (
+      <span className="approval-tokens">
+        {value.map((item, index) => (
+          <code key={index}>{String(item)}</code>
+        ))}
+      </span>
+    );
   if (Array.isArray(value))
     return value.length ? (
       <ol>

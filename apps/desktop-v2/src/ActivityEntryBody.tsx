@@ -1,4 +1,7 @@
-import { ToolCallOverview } from '@wrongstack/project-surfaces/tools/ToolCallOverview';
+import {
+  hasToolOverview,
+  ToolCallOverview,
+} from '@wrongstack/project-surfaces/tools/ToolCallOverview';
 import { FileCode2 } from 'lucide-react';
 import { I18nextProvider } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
@@ -25,7 +28,20 @@ function readableOutput(value: string): unknown {
   return value;
 }
 
-/** What an opened activity entry shows: the call's overview, input, progress, output and files. */
+/** The size of what the call returned (the whole result, not the preview): lines and bytes. */
+function outputSize(output: string, bytes: number | undefined): { count: number; size: string } {
+  const lines = output.replace(/\n$/, '').split('\n').length;
+  const size = bytes ?? new TextEncoder().encode(output).length;
+  const amount =
+    size < 1024
+      ? `${size} B`
+      : size < 1024 * 1024
+        ? `${(size / 1024).toFixed(1)} KiB`
+        : `${(size / 1024 / 1024).toFixed(1)} MiB`;
+  return { count: lines, size: amount };
+}
+
+/** What an opened activity entry shows: a known tool's overview, the call's input, progress, output and files. */
 export function ActivityEntryBody({
   row,
   onOpenFile,
@@ -38,7 +54,7 @@ export function ActivityEntryBody({
   const { t } = useDesktopText();
   return (
     <div className="activity-entry-body">
-      {row.kind === 'tool' && (
+      {row.kind === 'tool' && hasToolOverview(row.title, row.input) && (
         <I18nextProvider i18n={surfaceI18n}>
           <div className="ws-surfaces">
             <ToolCallOverview
@@ -85,6 +101,11 @@ export function ActivityEntryBody({
                     ? t('runLog.outputPreview')
                     : t('runLog.output')}
             </h4>
+            {row.kind === 'tool' && (
+              <small className="activity-output-size">
+                {t('runLog.outputSize', outputSize(row.output, row.outputBytes))}
+              </small>
+            )}
             {row.kind === 'tool' && <ToolOutputActions tool={row.title} output={row.output} />}
           </div>
           <div className="approval-arguments">

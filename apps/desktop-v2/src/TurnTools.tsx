@@ -277,7 +277,9 @@ export function LiveRunActivity({
                 {currentHint ? <code className="turn-current-hint">{currentHint}</code> : null}
               </span>
             ) : summary.text ? (
-              <span className="turn-summary-text">{summary.text}</span>
+              <span className="turn-summary-text" title={summary.text}>
+                {summary.text}
+              </span>
             ) : null}
           </summary>
         }

@@ -1126,7 +1126,9 @@
     "output": "Output",
     "files": "Files",
     "sage": "SAGE evidence",
-    "noDetails": "No additional details were reported."
+    "noDetails": "No additional details were reported.",
+    "outputSize_one": "{{count}} line · {{size}}",
+    "outputSize_other": "{{count}} lines · {{size}}"
   },
   "toolInput": {
     "allReplaced": "Every occurrence is replaced.",

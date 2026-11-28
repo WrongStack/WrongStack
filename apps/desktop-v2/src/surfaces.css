@@ -94,22 +94,13 @@
   }
 }
 
-/* The WebUI's thin scrollbars, so the surfaces' narrow toolbars and lists keep their size. */
-.ws-surfaces ::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-.ws-surfaces ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.ws-surfaces ::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.28);
-  border: 2px solid transparent;
-  border-radius: 0;
-  background-clip: padding-box;
-}
-.ws-surfaces ::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--primary) / 0.6);
+/* The shared surfaces use the window's themed scrollbar (styles.css). The office sets the
+   standard `scrollbar-color` for Firefox in the WebUI, which in Chromium replaces the themed bar
+   with the plain standard one, so the desktop resets it. */
+.ws-surfaces .agent-office__floor,
+.ws-surfaces .agent-office__lane {
+  scrollbar-color: auto;
+  scrollbar-width: auto;
 }
 
 /* Kanban columns are fixed 180/310 px in the shared board; the desktop has the sidebar's width

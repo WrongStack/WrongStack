@@ -485,7 +485,7 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
-  scrollbar-width: thin;
+  overflow-y: hidden;
 }
 .session-view-slot {
   display: flex;
@@ -510,7 +510,8 @@
    the new-session button stays in reach on a narrow window. */
 .session-tab-list > .session-tab {
   flex-shrink: 1;
-  min-width: 90px;
+  /* At 90px a tab kept three letters of its project and one of its title ("Wro / R…"). */
+  min-width: 132px;
 }
 .session-tab-list > .session-tab .session-tab-label {
   flex: 1 1 auto;

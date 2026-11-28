@@ -1126,7 +1126,9 @@
     "output": "Çıktı",
     "files": "Dosyalar",
     "sage": "SAGE kanıtı",
-    "noDetails": "Ek ayrıntı bildirilmedi."
+    "noDetails": "Ek ayrıntı bildirilmedi.",
+    "outputSize_one": "{{count}} satır · {{size}}",
+    "outputSize_other": "{{count}} satır · {{size}}"
   },
   "toolInput": {
     "allReplaced": "Tüm geçişler değiştirilir.",

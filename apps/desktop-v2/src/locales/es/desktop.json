@@ -1126,7 +1126,9 @@
     "output": "Salida",
     "files": "Archivos",
     "sage": "Evidencia de SAGE",
-    "noDetails": "No se informaron más detalles."
+    "noDetails": "No se informaron más detalles.",
+    "outputSize_one": "{{count}} línea · {{size}}",
+    "outputSize_other": "{{count}} líneas · {{size}}"
   },
   "toolInput": {
     "allReplaced": "Se reemplazan todas las apariciones.",

@@ -898,8 +898,10 @@ h1 {
   align-items: stretch;
   gap: 3px;
   overflow-x: auto;
-  /* Many tabs scroll sideways; the default bar was a thick band under the tab names. */
-  scrollbar-width: thin;
+  /* Many tabs scroll sideways only. `overflow-x: auto` alone made the strip scroll vertically
+     too, and `scrollbar-width` switched off the themed bar: the native window showed a classic
+     vertical bar with arrows beside the tabs. */
+  overflow-y: hidden;
   flex-shrink: 0;
   min-height: 39px;
 }
@@ -1960,10 +1962,12 @@ h1 {
 }
 
 /* One thin, themed scrollbar for the whole window (the WebUI's look). Without it every desktop
-   page and nested list used the classic OS bar with arrow buttons. */
+   page and nested list used the classic OS bar with arrow buttons. It applies only where no
+   element sets `scrollbar-width` or `scrollbar-color`: either one makes Chromium draw the plain
+   standard bar instead. The thumb is faint until its scroller is hovered. */
 ::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-button {
   display: none;
@@ -1973,13 +1977,17 @@ h1 {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--muted) 34%, transparent);
-  border: 2px solid transparent;
+  background-color: color-mix(in srgb, var(--muted) 18%, transparent);
+  border: 3px solid transparent;
   border-radius: var(--corner-sm);
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--muted) 38%, transparent);
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in srgb, var(--muted) 62%, transparent);
 }
 
 /* An empty timeline has no top rule: it showed a lone hairline above the empty state. */
