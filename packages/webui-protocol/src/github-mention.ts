@@ -32,9 +32,10 @@ export function detectGitHubMention(text: string, cursor: number): GitHubMention
   if (text.trimStart().startsWith('!')) return null;
   const match = /(?:^|[\s(])#([A-Za-z0-9-]*)$/.exec(proseOnly(text).slice(0, caret));
   if (!match) return null;
-  const query = match[1] ?? '';
-  const suffix = /^[A-Za-z0-9-]*/.exec(text.slice(caret))?.[0] ?? '';
-  const end = caret + suffix.length;
+  // The `*` group always takes part in the match, possibly empty.
+  const query = match[1] as string;
+  // `$` always matches, so the search never returns -1: the end of the word after the caret.
+  const end = caret + text.slice(caret).search(/[^A-Za-z0-9-]|$/);
   // `#tag#more`, `#x/y` or `#x.y` is something else.
   if (/[#/_.:]/.test(text[end] ?? ' ')) return null;
   return { start: caret - query.length - 1, end, query };
