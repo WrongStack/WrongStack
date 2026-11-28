@@ -1,8 +1,9 @@
 import { LoaderCircle, MessageSquare, Square, SquareTerminal, Trash2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
-import { isLive, type Session, sessionTitle } from './model';
+import { compactAge } from './mark-hue';
+import { isLive, type Session, sessionStatus, sessionTitle } from './model';
 import { request } from './platform';
 import './sidebar-sessions.css';
 
@@ -39,6 +40,8 @@ export function SidebarSessionRow({
   const removed = useRef(onRemoved);
   removed.current = onRemoved;
   const title = sessionTitle(session, t('workbench.untitled'));
+  const state = sessionStatus(session);
+  const metaId = useId();
   const remove = async () => {
     if (removeLock.current) return;
     removeLock.current = true;
@@ -67,6 +70,7 @@ export function SidebarSessionRow({
         type="button"
         className={`tree-session ${chosen ? 'chosen' : ''}`}
         aria-current={chosen ? 'page' : undefined}
+        aria-describedby={metaId}
         disabled={removing}
         onClick={() => onOpen(session)}
       >
@@ -74,8 +78,18 @@ export function SidebarSessionRow({
           {session.kind === 'terminal' ? <SquareTerminal size={15} /> : <MessageSquare size={14} />}
           <span className={`status-dot ${session.status}`} />
         </span>
-        <span className="tree-session-title" title={title}>
-          {title}
+        <span className="tree-session-text">
+          <span className="tree-session-title" title={title}>
+            {title}
+          </span>
+          {/* Status and age under the name; the row's accessible name stays the title. */}
+          <span id={metaId} className={`tree-session-meta is-${state}`}>
+            <span>{t(`fleetView.status.${state}`)}</span>
+            <span aria-hidden="true">·</span>
+            <time dateTime={new Date(session.updatedAt).toISOString()}>
+              {compactAge(session.updatedAt, (key, count) => t(`explorer.age.${key}`, { count }))}
+            </time>
+          </span>
         </span>
         {session.kind === 'terminal' && (
           <span className="project-menu-sr">{t('explorer.terminal')}</span>

@@ -183,8 +183,7 @@ export function EngineWorkspace({
   const transcript = useRef<TranscriptHandle>(null);
   const pins = useMessagePins(`${projectId}:${id}`, onError);
   const following = useRef(true);
-  // The empty conversation's welcome is read from its top: following the end there scrolled
-  // its heading out of view as soon as the welcome was taller than the pane.
+  // An empty conversation's welcome is read from the top; following the end hid its heading.
   const welcome = state.synced && !state.messages.length && !state.inputs.length;
   const [showLatest, setShowLatest] = useState(false);
   // Messages there were when the reader scrolled away from the end, to count what arrived since.
@@ -337,6 +336,7 @@ export function EngineWorkspace({
           onSelect={setTab}
           onTools={() => setToolsOpen(true)}
           onSettings={onSettings}
+          git={{ command, connected: state.connected }}
         />,
       )}
       {toolsOpen && (

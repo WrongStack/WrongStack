@@ -117,7 +117,13 @@
     "cancel": "Annuler",
     "olderHost": "L’hôte de sessions en cours est plus ancien que ce bureau. Arrêtez ses sessions et redémarrez le bureau pour retirer des sessions.",
     "showSessions": "Afficher les sessions de {{name}}",
-    "hideSessions": "Masquer les sessions de {{name}}"
+    "hideSessions": "Masquer les sessions de {{name}}",
+    "age": {
+      "now": "maintenant",
+      "minutes": "{{count}} min",
+      "hours": "{{count}} h",
+      "days": "{{count}} j"
+    }
   },
   "topbar": {
     "live": "{{count}} en cours",
@@ -7055,7 +7061,15 @@
       "timeout": "Délai dépassé",
       "stopped": "Arrêté",
       "cancelled": "Annulé"
-    }
+    },
+    "tokens": "{{value}} tok",
+    "tools_one": "{{count}} outil",
+    "tools_other": "{{count}} outils",
+    "context": "Contexte plein à {{percent}} %",
+    "working_one": "{{count}} en cours",
+    "working_other": "{{count}} en cours",
+    "settled_one": "{{count}} terminé",
+    "settled_other": "{{count}} terminés"
   },
   "shortcutsView": {
     "title": "Raccourcis clavier",

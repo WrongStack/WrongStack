@@ -117,7 +117,13 @@
     "cancel": "Annulla",
     "olderHost": "L’host delle sessioni in esecuzione è più vecchio di questo desktop. Arresta le sue sessioni e riavvia il desktop per rimuovere le sessioni.",
     "showSessions": "Mostra le sessioni di {{name}}",
-    "hideSessions": "Nascondi le sessioni di {{name}}"
+    "hideSessions": "Nascondi le sessioni di {{name}}",
+    "age": {
+      "now": "ora",
+      "minutes": "{{count}} min",
+      "hours": "{{count}} h",
+      "days": "{{count}} g"
+    }
   },
   "topbar": {
     "live": "{{count}} attive",
@@ -7055,7 +7061,15 @@
       "timeout": "Timeout",
       "stopped": "Fermato",
       "cancelled": "Annullato"
-    }
+    },
+    "tokens": "{{value}} tok",
+    "tools_one": "{{count}} strumento",
+    "tools_other": "{{count}} strumenti",
+    "context": "Contesto pieno al {{percent}}%",
+    "working_one": "{{count}} al lavoro",
+    "working_other": "{{count}} al lavoro",
+    "settled_one": "{{count}} concluso",
+    "settled_other": "{{count}} conclusi"
   },
   "shortcutsView": {
     "title": "Scorciatoie da tastiera",

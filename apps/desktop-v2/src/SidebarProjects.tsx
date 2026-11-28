@@ -1,7 +1,8 @@
-import { ChevronDown, Folder, FolderOpen, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { useId, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Folder, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { type CSSProperties, useId, useMemo, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
+import { markHue, monogram } from './mark-hue';
 import type { Project } from './model';
 import { native, request } from './platform';
 import { useProjectMenuText } from './project-menu-text';
@@ -188,8 +189,13 @@ export function SidebarProjects({ vm }: { vm: ProjectMenuController }) {
                   void move(id, p.id, after);
               }}
             >
-              <span className="project-folder-icon" aria-hidden="true">
-                {vm.project === p.id ? <FolderOpen size={15} /> : <Folder size={15} />}
+              {/* A monogram tinted by the project's name: the same project, the same mark. */}
+              <span
+                className="project-folder-icon project-mark"
+                aria-hidden="true"
+                style={{ '--mark-hue': markHue(p.name) } as CSSProperties}
+              >
+                {monogram(p.name)}
               </span>
               <span>{p.name}</span>
             </button>

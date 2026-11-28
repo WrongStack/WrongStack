@@ -346,3 +346,54 @@
   min-width: 24px;
   min-height: 24px;
 }
+/* Under an agent's name: model, tokens and tools in mono, then its context window as a thin bar. */
+.agent-row-facts {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--subtle);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+.agent-row-context {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 140px;
+  block-size: 3px;
+  overflow: hidden;
+  border-radius: var(--corner-pill);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.agent-row-context > i {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+/* The rail's footer: working against settled agents and the fleet's tokens. */
+.agent-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-block-start: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.agent-summary > .is-working {
+  color: var(--accent);
+}
+.agent-summary > .is-working::before {
+  content: "";
+  display: inline-block;
+  inline-size: 6px;
+  block-size: 6px;
+  margin-inline-end: 6px;
+  border-radius: var(--corner-pill);
+  background: currentColor;
+  vertical-align: 1px;
+}

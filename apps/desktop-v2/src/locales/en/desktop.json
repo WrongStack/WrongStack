@@ -117,7 +117,13 @@
     "cancel": "Cancel",
     "olderHost": "The running session host is older than this desktop. Stop its sessions and restart the desktop to remove sessions.",
     "showSessions": "Show the sessions of {{name}}",
-    "hideSessions": "Hide the sessions of {{name}}"
+    "hideSessions": "Hide the sessions of {{name}}",
+    "age": {
+      "now": "now",
+      "minutes": "{{count}}m",
+      "hours": "{{count}}h",
+      "days": "{{count}}d"
+    }
   },
   "topbar": {
     "live": "{{count}} live",
@@ -7055,7 +7061,15 @@
       "timeout": "Timeout",
       "stopped": "Stopped",
       "cancelled": "Cancelled"
-    }
+    },
+    "tokens": "{{value}} tok",
+    "tools_one": "{{count}} tool",
+    "tools_other": "{{count}} tools",
+    "context": "Context {{percent}}% full",
+    "working_one": "{{count}} working",
+    "working_other": "{{count}} working",
+    "settled_one": "{{count}} settled",
+    "settled_other": "{{count}} settled"
   },
   "shortcutsView": {
     "title": "Keyboard shortcuts",

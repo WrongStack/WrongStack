@@ -2,6 +2,7 @@ import { Brain, ChevronRight, Trash2, Undo2, Users, Wrench, X } from 'lucide-rea
 import { type KeyboardEvent, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isInactiveAgent, useAgentCleanup } from './agent-cleanup';
+import { type AgentFacts, agentFacts, fleetSummary } from './agent-facts';
 import { type AgentTranscript, agentTabList, transcriptSteps } from './agent-transcripts';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineState } from './engine-state';
@@ -63,6 +64,12 @@ export function SessionAgentRail({
       ? list.find((agent) => agent.id === selection.agent)
       : undefined;
   const gauge = state.fleetGauge;
+  const summary = fleetSummary(
+    state.fleet.agents.values(),
+    state.fleet.leaderId,
+    state.fleet.fleetTokensIn,
+    state.fleet.fleetTokensOut,
+  );
   const navigate = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
     const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
@@ -166,6 +173,7 @@ export function SessionAgentRail({
                 </small>
               </span>
               {agent.task && <span className="agent-row-task">{agent.task}</span>}
+              <AgentFactsLine facts={agentFacts(state.fleet.agents.get(agent.id))} />
               <span className="agent-row-preview">
                 {agent.entries
                   .findLast((entry) => entry.kind === 'text' || entry.kind === 'error')
@@ -176,6 +184,15 @@ export function SessionAgentRail({
           </button>
         ))}
       </nav>
+      {summary.working + summary.settled > 0 && (
+        <p className="agent-summary">
+          <span className={summary.working ? 'is-working' : undefined}>
+            {t('agentTabs.working', { count: summary.working })}
+          </span>
+          <span>{t('agentTabs.settled', { count: summary.settled })}</span>
+          {summary.tokens && <span>Σ {t('agentTabs.tokens', { value: summary.tokens })}</span>}
+        </p>
+      )}
       {gauge && (
         <span className="agent-gauge">
           {t('agentTabs.gauge', { active: gauge.active, max: gauge.max })}
@@ -293,5 +310,31 @@ function AgentTranscriptView({
         ),
       )}
     </section>
+  );
+}
+
+/** Model, tokens and tool calls under an agent's name, then how full its context window is. */
+function AgentFactsLine({ facts }: { facts: AgentFacts | undefined }) {
+  const { t } = useDesktopText();
+  if (!facts) return null;
+  const parts = [
+    facts.model,
+    facts.tokens && t('agentTabs.tokens', { value: facts.tokens }),
+    facts.tools > 0 && t('agentTabs.tools', { count: facts.tools }),
+  ].filter(Boolean);
+  if (!parts.length && facts.context === undefined) return null;
+  return (
+    <span className="agent-row-facts">
+      {parts.length > 0 && <span>{parts.join(' · ')}</span>}
+      {facts.context !== undefined && (
+        <span
+          className="agent-row-context"
+          role="img"
+          aria-label={t('agentTabs.context', { percent: facts.context })}
+        >
+          <i style={{ inlineSize: `${facts.context}%` }} />
+        </span>
+      )}
+    </span>
   );
 }
