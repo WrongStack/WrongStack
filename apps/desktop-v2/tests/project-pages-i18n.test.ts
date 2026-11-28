@@ -569,7 +569,6 @@ describe('the project pages in the display language', () => {
     for (const text of [
       'Chimera Reviews',
       'Reading review reports…',
-      'Inspect the evidence behind a review.',
       'High',
       'In progress',
       'Disk citation: Verified',
@@ -579,13 +578,14 @@ describe('the project pages in the display language', () => {
     expect(page.labels).toEqual(
       expect.arrayContaining(['Project Chimera reviews', 'Search Chimera reports']),
     );
+    // While the catalog loads, the detail pane does not also ask to select a report.
+    expect(page.text).not.toContain('Inspect the evidence behind a review.');
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(chimera());
     for (const text of [
       'Chimera İncelemeleri',
       'İnceleme raporları okunuyor…',
-      'Bir incelemenin arkasındaki kanıtı incele.',
       'Yüksek',
       'Sürüyor',
       'Disk alıntısı: Doğrulandı',

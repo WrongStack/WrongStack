@@ -309,7 +309,8 @@ export function ProjectChimera({
           ))}
         </select>
       </div>
-      <p className="field-help">
+      {/* While the catalog loads, "0 matching reports" said the opposite of "Reading…". */}
+      <p className="field-help" hidden={loading}>
         {t('reviews.matching', { count: visible.length, limit })}
         {aggregateUsage && (
           <>
@@ -384,13 +385,6 @@ export function ProjectChimera({
               )}
             </button>
           ))}
-          {!loading && !visible.length && (
-            <div className="review-empty">
-              <ShieldCheck size={27} />
-              <h3>{t('reviews.noReports')}</h3>
-              <p>{t('reviews.noReportsHelp')}</p>
-            </div>
-          )}
         </aside>
         <article className="review-report-detail" aria-label={t('reviews.detailLabel')}>
           {reading && !detail ? (
@@ -865,11 +859,12 @@ export function ProjectChimera({
                 )}
               </details>
             </>
-          ) : (
+          ) : loading ? null : (
+            // One empty state: "no reports" when there are none, "select one" once there are.
             <div className="review-empty">
               <ShieldCheck size={34} />
-              <h2>{t('reviews.emptyTitle')}</h2>
-              <p>{t('reviews.emptyHelp')}</p>
+              <h2>{visible.length ? t('reviews.emptyTitle') : t('reviews.noReports')}</h2>
+              <p>{visible.length ? t('reviews.emptyHelp') : t('reviews.noReportsHelp')}</p>
             </div>
           )}
         </article>

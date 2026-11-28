@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T16:55:54.892Z",
+  "generatedAt": "2026-11-28T16:59:06.612Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 51,
     "sourceFiles": 6674,
     "testFiles": 6607,
-    "sourceLines": 1369109,
+    "sourceLines": 1369104,
     "workspaceEdges": 268,
     "moduleEdges": 19589,
     "nonCommandSlashImports": 0,
@@ -42695,7 +42695,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 966,
+      "lines": 961,
       "relativeImports": 11
     },
     {
@@ -42806,14 +42806,14 @@
       "relativeImports": 37
     },
     {
-      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 966,
-      "relativeImports": 11
-    },
-    {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 963,
       "relativeImports": 20
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
+      "lines": 961,
+      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",

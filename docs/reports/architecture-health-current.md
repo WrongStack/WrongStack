@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-28T16:55:54.892Z
+**Generated:** 2026-11-28T16:59:06.612Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 51 |
 | Production source files | 6674 |
-| Production source lines | 1369109 |
+| Production source lines | 1369104 |
 | Test files | 6607 |
 | Workspace dependency edges | 268 |
 | Relative module edges | 19589 |
@@ -101,8 +101,8 @@ None.
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1042 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
 | 998 | `apps/desktop-v2/src/SessionComposer.tsx` |
-| 966 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 963 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 961 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 957 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 904 | `packages/codebase/src/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
