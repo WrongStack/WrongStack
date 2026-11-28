@@ -3,6 +3,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
+import { ProviderField } from './ModelReferenceField';
 import {
   disableModelPatch,
   modelListed,
@@ -12,7 +13,6 @@ import {
 } from './model-visibility';
 import { ProviderVisibilityControl } from './ProviderVisibilityControl';
 import { useProviderNames } from './provider-names';
-import { ProviderField } from './ModelReferenceField';
 import './model-visibility.css';
 
 export function ModelVisibilitySettings({
@@ -172,7 +172,8 @@ export function ModelVisibilitySettings({
         </p>
       )}
       {busy && <p role="status">{t('modelVisibility.reading')}</p>}
-      <p>
+      {/* With nothing matching, "No catalog models match" below says it; "0 matching" repeated it. */}
+      <p hidden={!visible.length}>
         {t('modelVisibility.counts', {
           count: visible.length,
           disabled: models.filter((model) => modelListed(hidden, provider, String(model['id'])))

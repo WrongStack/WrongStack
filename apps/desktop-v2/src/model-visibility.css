@@ -5,8 +5,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  align-items: end;
+  /* Aligned by their labels: the provider field's id line under its picker lifted its label
+     above the others when the row was bottom-aligned. */
+  align-items: start;
   margin-bottom: 16px;
+}
+/* The refresh button has no label; it sits on the fields' line (18px label + 8px gap). */
+.model-visibility-toolbar > .button {
+  margin-top: 27px;
 }
 .model-visibility-toolbar label,
 .model-visibility-toolbar .model-reference-field {
