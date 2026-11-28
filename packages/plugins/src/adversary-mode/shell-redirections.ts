@@ -4,11 +4,15 @@ const REDIRECT_END = String.raw`(?=$|[\s;&|)])`;
 const FD_DUPLICATION = new RegExp(String.raw`\d*>&\s*(?:\d+|-)${REDIRECT_END}`, 'g');
 /**
  * Redirection into the null device. The target must END there:
- * `> nul/../.wrongstack/adversary.md` names a directory called `nul`.
+ * `> /dev/null/../x` names something else.
  */
-const NULL_DEVICE = new RegExp(String.raw`(?:\d*|&)>>?\s*(?:\/dev\/null|nul)${REDIRECT_END}`, 'gi');
-/** PowerShell's `$null`. In a POSIX shell `$null` is an ordinary variable. */
-const PWSH_NULL = new RegExp(String.raw`(?:\d*|\*)>>?\s*\$null${REDIRECT_END}`, 'gi');
+const NULL_DEVICE = new RegExp(String.raw`(?:\d*|&)>>?\s*\/dev\/null${REDIRECT_END}`, 'g');
+/**
+ * PowerShell's null devices, `$null` and `nul`. In a POSIX shell both are
+ * ordinary names: `$null` a variable, `nul` a file that `ln -s` can point at
+ * the policy.
+ */
+const PWSH_NULL = new RegExp(String.raw`(?:\d*|\*)>>?\s*(?:\$null|nul)${REDIRECT_END}`, 'gi');
 
 /**
  * The line with the redirections that cannot write a file removed, so the

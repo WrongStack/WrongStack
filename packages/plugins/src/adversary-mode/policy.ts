@@ -686,7 +686,7 @@ export function isAdversaryPolicyTamperAttempt(
       // Read-only cat/type/head/Get-Content without redirection or deletion is fine;
       // redirection, rm/del/mv/cp/sed -i/Set-Content/Out-File/tee/inline write is not.
       const mutatingShell =
-        /(?:>|>>|\b(?:rm|rmdir|del|erase|unlink|mv|move|cp|copy|tee|truncate|dd)\b|\bsed\s+-i|\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item)\b|\b(?:writeFileSync|writeFile|appendFileSync|unlinkSync|rmSync)\b|\bopen\s*\([^)]*['"][wa+])/i.test(
+        /(?:>|>>|\b(?:rm|rmdir|del|erase|unlink|mv|move|cp|copy|tee|truncate|dd|ln|mklink)\b|\bsed\s+-i|\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item)\b|\b(?:writeFileSync|writeFile|appendFileSync|unlinkSync|rmSync)\b|\bopen\s*\([^)]*['"][wa+])/i.test(
           withoutHarmlessRedirections(line, lowerTool === 'pwsh'),
         );
       if (mutatingShell) {

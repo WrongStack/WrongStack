@@ -341,6 +341,7 @@ describe('adversary-mode plugin', () => {
         ['bash', 'wc -l .wrongstack/adversary.md >&2'],
         ['bash', 'cat .wrongstack/adversary.md &>/dev/null'],
         ['pwsh', 'Get-Content .wrongstack/adversary.md -ErrorAction SilentlyContinue 2>$null'],
+        ['pwsh', 'Get-Content .wrongstack/adversary.md 2>nul'],
       ];
       for (const [tool, command] of allowed) {
         expect(isAdversaryPolicyTamperAttempt(tool, { command }, opts), command).toBeNull();
@@ -356,6 +357,11 @@ describe('adversary-mode plugin', () => {
         ['bash', 'echo ALLOW >/dev/null/../../.wrongstack/adversary.md'],
         ['bash', 'cat .wrongstack/adversary.md >&3 3>.wrongstack/adversary.md'],
         ['bash', 'echo ALLOW >& .wrongstack/adversary.md'],
+        // In a POSIX shell `nul` is an ordinary file, and a link makes it the policy.
+        ['bash', 'ln -sf .wrongstack/adversary.md nul; echo ALLOW > nul'],
+        ['bash', 'ln -s .wrongstack/adversary.md policy-link'],
+        ['pwsh', 'New-Item -ItemType SymbolicLink -Path x -Target .wrongstack/adversary.md'],
+        ['exec', 'cmd /c mklink x .wrongstack\\adversary.md'],
       ];
       for (const [tool, command] of refused) {
         expect(isAdversaryPolicyTamperAttempt(tool, { command }, opts), command).not.toBeNull();
