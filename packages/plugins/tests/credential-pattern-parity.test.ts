@@ -266,6 +266,50 @@ describe('json_credential_key detection', () => {
   });
 });
 
+describe('json_credential_key leaves UI labels under token-like keys alone', () => {
+  // A UI locale file names its fields after what they ask for: secret-scanner
+  // (default-on, blocking) refused to write apps/desktop-v2/src/locales/*.json,
+  // core redacted the labels in the session JSONL and WebUI events. A value
+  // under an api-key / token / secret key is a credential only when it is one
+  // run of printable ASCII; password-like keys keep every value (passphrases,
+  // "Basic …", PEM text).
+  const jsonRule = () => cloneCredentialPatterns().find((p) => p.type === 'json_credential_key')!;
+  const scrubber = new DefaultSecretScrubber();
+  const surfaces = (text: string) => {
+    const rule = jsonRule();
+    rule.regex.lastIndex = 0;
+    return {
+      table: rule.regex.test(text),
+      core: scrubber.scrub(text).includes('[REDACTED:json_credential_key]'),
+      firewall: detectSecrets(text, []).some((d) => d.kind === 'json_credential_key'),
+    };
+  };
+  const none = { table: false, core: false, firewall: false };
+  const all = { table: true, core: true, firewall: true };
+
+  it.each([
+    // Real labels from apps/desktop-v2/src/locales/*/desktop.json.
+    '{"apiKey": "API-Schlüssel"}',
+    '{"apiKey": "Clave de API"}',
+    '{"apiKey": "Clé d’API"}',
+    '{"token": "Enrollment code (from HQ: System → Providers → Devices)"}',
+    '{"webhookSecret": "Shared secret for the webhook"}',
+  ])('leaves %s alone on every surface', (text) => {
+    expect(surfaces(text)).toEqual(none);
+  });
+
+  it.each([
+    '{"token": "ya29.a0AfH6SMBx-real_token/xyz=="}',
+    '{"apiKey":"abcdef0123456789abcdef"}',
+    '{"client_secret":"abc+def/ghi=jkl0123"}',
+    '{"password": "correct horse battery staple"}',
+    '{"authorization": "Basic dXNlcjpwYXNzd29yZA=="}',
+    '{"private_key": "-----BEGIN PRIVATE KEY----- MIIEvQIBADANBg"}',
+  ])('still catches %s on every surface', (text) => {
+    expect(surfaces(text)).toEqual(all);
+  });
+});
+
 describe('aws-secret-key detection', () => {
   const alnumKey = 'wJalrXUtnFEMIKbPxRfiCYEXAMPLEKEY12345678';
   const base64Key = 'wJalrXUtnFEMIKbPxRfiCYEXAMPLEKEY123456' + '/+';

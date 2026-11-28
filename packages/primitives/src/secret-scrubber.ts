@@ -33,6 +33,16 @@ const HIGH_ENTROPY_REGEX = PATTERNS.find((p) => p.type === 'high_entropy_env')!.
  */
 const JSON_CREDENTIAL_REGEX = PATTERNS.find((p) => p.type === 'json_credential_key')!.regex;
 
+/**
+ * Under an api-key / token / secret key a credential is one run of printable
+ * ASCII (JSON escape pairs included); anything else there is a label, such as
+ * a UI locale's `"apiKey": "API-Schlüssel"`. Password-like keys keep every
+ * value. Mirrors the two alternatives of the plugin table's
+ * `json_credential_key`, where the parity test pins both sides.
+ */
+const TOKEN_LIKE_JSON_KEY = /(?:api[-_]?key|token|secret)"\s*:\s*"$/i;
+const TOKEN_SHAPED_VALUE = /^(?:[!#-[\]-~]|\\[\s\S])+$/;
+
 /** Separate pattern for url_credentials — preserves scheme and user. */
 const URL_CREDENTIALS_REGEX = PATTERNS.find((p) => p.type === 'url_credentials')!.regex;
 
@@ -394,7 +404,8 @@ export class DefaultSecretScrubber implements SecretScrubber {
     // Pass 3: json_credential_key — preserve the key and both quotes so the
     // redacted text is still parseable JSON. Groups: 1=key with its punctuation
     // and opening quote, 2=value (redacted), 3=closing quote.
-    out = out.replace(JSON_CREDENTIAL_REGEX, (_match, keyPrefix, _value, closingQuote) => {
+    out = out.replace(JSON_CREDENTIAL_REGEX, (match, keyPrefix, value, closingQuote) => {
+      if (TOKEN_LIKE_JSON_KEY.test(keyPrefix) && !TOKEN_SHAPED_VALUE.test(value)) return match;
       return `${keyPrefix}[REDACTED:json_credential_key]${closingQuote}`;
     });
 

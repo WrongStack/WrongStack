@@ -240,9 +240,17 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
     // `@wrongstack/core` → `src/security/secret-scrubber.ts`. Keep the two key
     // lists in step; the core side additionally preserves the key name when it
     // rewrites, which is why it is written with capture groups instead.
+    //
+    // Two alternatives, by key. Under an api-key / token / secret key (which
+    // also covers access_token, refresh_token and client_secret) a credential
+    // is one run of printable ASCII: a UI locale's `"apiKey": "API-Schlüssel"`
+    // or `"token": "Enrollment code (…)"` is a label, and matching it made the
+    // default-on, blocking secret-scanner refuse to write locale files. Under
+    // password / authorization / bearer / private_key every value still counts
+    // (passphrases, "Basic …", PEM text).
     type: 'json_credential_key',
     regex:
-      /(?<="[A-Za-z0-9_-]{0,64}(?:api[-_]?key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s{0,8}:\s{0,8}")(?:[^"\\]|\\[\s\S]){8,512}(?=")/gi,
+      /(?<="[A-Za-z0-9_-]{0,64}(?:api[-_]?key|token|secret)"\s{0,8}:\s{0,8}")(?:[!#-[\]-~]|\\[\s\S]){8,512}(?=")|(?<="[A-Za-z0-9_-]{0,64}(?:password|authorization|bearer|private_key)"\s{0,8}:\s{0,8}")(?:[^"\\]|\\[\s\S]){8,512}(?=")/gi,
   },
 ];
 
