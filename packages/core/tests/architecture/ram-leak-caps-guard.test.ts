@@ -317,8 +317,11 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
     expect(value, file).toBe('8');
   });
 
-  it('webui/terminal-ws-handler: MAX_INPUT_BYTES = 64 KiB', () => {
-    const { value, file } = readConst('webui', 'server/terminal-ws-handler.ts:MAX_INPUT_BYTES');
+  // terminal.input is bounded by the WebSocket server's frame cap; each
+  // native PTY write is bounded here so a large paste reaches the TUI (which
+  // reports its own size error) without one unbounded write.
+  it('webui/terminal-ws-handler: PTY_WRITE_CHUNK = 64 KiB', () => {
+    const { value, file } = readConst('webui', 'server/terminal-ws-handler.ts:PTY_WRITE_CHUNK');
     expect(value, file).toBe('1 << 16');
   });
 
